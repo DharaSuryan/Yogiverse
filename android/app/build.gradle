@@ -83,7 +83,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName "2.0"
     }
     signingConfigs {
         debug {
@@ -92,6 +92,14 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        
+          release {
+                storeFile file('/my-upload-key.jks')
+                storePassword 'suryanorganic'
+                keyAlias 'suryanorganic'
+                keyPassword 'suryanorganic'
+            
+          }
     }
     buildTypes {
         debug {
@@ -100,7 +108,7 @@ android {
         release {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
@@ -110,10 +118,11 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
-
+    implementation project(':react-native-vector-icons')
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
         implementation jscFlavor
     }
 }
+ apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
