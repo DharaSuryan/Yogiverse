@@ -15,16 +15,18 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../Store/store';
 import SearchGrid from '../../Components/SearchGrid';
+import Navigation from '../../Navigation/Navigation';
+import { useNavigation } from '@react-navigation/native';
 
 type ProfileScreenProps = {
   navigation: NativeStackNavigationProp<MainTabParamList, 'Profile'>;
 };
 
-const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
+const ProfileScreen: React.FC<ProfileScreenProps> = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const user = useSelector((state: RootState) => state.auth.user);
-
+    const navigation = useNavigation<any>();
   const menuOptions = [
     {
       icon: 'settings-outline',
@@ -172,7 +174,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             <Ionicons name="add-circle-outline" size={24} color="#000" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerIcon}>
-            <Ionicons name="menu-outline" size={24} color="#000" onPress={() => setShowMenu(true)} />
+            <Ionicons name="menu-outline" size={24} color="#000" onPress={() => navigation.navigate('MenuScreen')} />
           </TouchableOpacity>
         </View>
       </View>

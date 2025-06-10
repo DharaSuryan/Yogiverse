@@ -23,7 +23,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
             Animated.delay(1000), // Show splash for 1 second
         ]).start(() => {
             // Navigate to Login screen after animation
-            navigation.navigate('LoginScreen');
+            navigation.navigate('Main');
         });
     }, []);
 

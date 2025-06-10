@@ -14,10 +14,10 @@ export type AuthStackParamList = {
 
 export type MainTabParamList = {
   Home: NavigatorScreenParams<HomeStackParamList>;
-  Search: NavigatorScreenParams<SearchStackParamList>;
+  Search: undefined;
   CreatePost: undefined;
   Notifications: undefined;
-  Profile: NavigatorScreenParams<ProfileStackParamList>;
+  Profile: undefined;
 };
 
 export type HomeStackParamList = {
@@ -28,10 +28,8 @@ export type HomeStackParamList = {
 };
 
 export type SearchStackParamList = {
-  SearchMain: undefined;
-  UserProfile: { userId: string };
-  HashtagPosts: { hashtag: string };
-  LocationPosts: { location: string };
+  Search: undefined;
+ SearchDetail:{id:any}
 };
 
 export type ProfileStackParamList = {
@@ -44,3 +42,15 @@ export type ProfileStackParamList = {
   UserProfile: { userId: string };
   PostDetails: { postId: string };
 }; 
+export type CreatePostStackParamList = {
+  MediaPicker: undefined;
+  PostDetails: { image: string }; // ✅ image passed from MediaPicker
+};
+export type CreatePostPreviewStackParamList = {
+  PostPreviewScreen: { images: string[] };
+  // ...other screens
+};
+export type CreateSearchDetailStackParamList = {
+  SearchDetailScreen:any;
+  // ...other screens
+};

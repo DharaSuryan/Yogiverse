@@ -12,13 +12,15 @@ import PostScreen from '../Screens/Post/PostScreen';
 import ProfileScreen from '../Screens/Profile/ProfileScreen';
 import StoryNavigator from './StoryNavigator';
 import LoginScreen from '../Screens/Auth/LoginScreen';
-import SignUpScreen from '../Screens/Auth/SignUpScreen';
+import SignUpScreen from '../Screens/Auth/UserSignUpScreen';
 import SplashScreen from '../Screens/Splash/SplashScreen';
+import SearchDetailScreen from '../Screens/Search/SearchDetailScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 const MainTabs = () => {
+  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -48,7 +50,7 @@ const MainTabs = () => {
         tabBarShowLabel: false,
       })}>
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Search" component={SearchScreen} />
+      <Tab.Screen name="SearchScreen" component={SearchScreen} />
       <Tab.Screen name="Reels" component={ReelsScreen} />
       <Tab.Screen name="Post" component={PostScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
@@ -67,6 +69,7 @@ const AppNavigator = () => {
         <Stack.Screen name="SignUpScreen" component={SignUpScreen} />
         <Stack.Screen name="MainTabs" component={MainTabs} />
         <Stack.Screen name="StoryNavigator" component={StoryNavigator} />
+        {/* <Stack.Screen name="SearchDetail" component={SearchDetailScreen}/> */}
       </Stack.Navigator>
     </NavigationContainer>
   );

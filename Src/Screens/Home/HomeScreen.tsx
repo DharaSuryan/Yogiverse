@@ -161,6 +161,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
+    color:'black'
   },
   headerIcons: {
     flexDirection: 'row',

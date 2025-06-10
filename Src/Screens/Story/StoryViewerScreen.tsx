@@ -9,7 +9,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
-import { Ionicons } from '@expo/vector-icons';
+import {Ionicons} from 'react-native-vector-icons';
 import { Story } from '../../Types';
 import { markStoryAsViewed } from '../../Store/slices/storySlice';
 

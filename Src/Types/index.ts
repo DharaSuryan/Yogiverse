@@ -1,12 +1,8 @@
 export interface User {
-  id: string;
+  
   username: string;
   email: string;
-  profilePicture: string;
-  bio?: string;
-  followers: number;
-  following: number;
-  posts?: Post[];
+  
   isVerified?: boolean;
 }
 

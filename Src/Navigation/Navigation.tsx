@@ -4,36 +4,59 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSelector } from 'react-redux';
 import { RootState } from '../Store/store';
-import { RootStackParamList, AuthStackParamList, MainTabParamList, HomeStackParamList } from './types';
+import { RootStackParamList, AuthStackParamList, MainTabParamList, HomeStackParamList, CreatePostStackParamList, CreateSearchStackParamList } from './types';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 // Auth Screens
 import LoginScreen from '../Screens/Auth/LoginScreen';
-import RegisterScreen from '../Screens/Auth/RegisterScreen';
+
 import ForgotPasswordScreen from '../Screens/Auth/ForgotPasswordScreen';
 
 // Main Screens
 import HomeScreen from '../Screens/Home/HomeScreen';
 import SearchScreen from '../Screens/Search/SearchScreen';
-import CreatePostScreen from '../Screens/Post/CreatePostScreen';
+import CreatePostScreen from '../Screens/Post/MediaFilterScreen';
 import NotificationsScreen from '../Screens/Notifications/NotificationsScreen';
 import ProfileScreen from '../Screens/Profile/ProfileScreen';
 import PostDetailsScreen from '../Screens/Post/PostDetailsScreen';
 import StoryViewerScreen from '../Screens/Story/StoryViewerScreen';
 import CreateStoryScreen from '../Screens/Story/CreateStoryScreen';
-
-// Icons
-import { Ionicons } from 'react-native-vector-icons';
+import MediaPickerScreen from '../Screens/Post/Mediapicker';
+import RoleSelectionScreen from '../Screens/Auth/RoleSelectionScreen';
+import SignUpScreen from '../Screens/Auth/UserSignUpScreen';
+import { SearchBar } from 'react-native-screens';
+import SearchDetailScreen from '../Screens/Search/SearchDetailScreen';
+import MenuScreen from '../Screens/Profile/MenuScreen';
+import MediaFilterScreen from '../Screens/Post/MediaFilterScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const MainTabs = createBottomTabNavigator<MainTabParamList>();
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
-
+const CreatePostStack = createNativeStackNavigator<CreatePostStackParamList>();
+const SearchStack = createNativeStackNavigator();
+const ProfileStack = createNativeStackNavigator();
+const CreatePostStackNavigator = () => (
+  <CreatePostStack.Navigator screenOptions={{ headerShown: false }}>
+    <CreatePostStack.Screen name="MediaPicker" component={MediaPickerScreen} />
+    <CreatePostStack.Screen name="PostDetails" component={CreatePostScreen} />
+    <CreatePostStack.Screen name="MediaFilterScreen" component={MediaFilterScreen}/>
+  </CreatePostStack.Navigator>
+);
+const SearchStackNavigator  = () => (
+  <SearchStack.Navigator screenOptions={{ headerShown: false }} >
+    <SearchStack.Screen name="SearchScreen" component={SearchScreen} />
+    <SearchStack.Screen name="SearchDetail" component={SearchDetailScreen} />
+  </SearchStack.Navigator>
+);
 const AuthStackNavigator = () => (
   <AuthStack.Navigator screenOptions={{ headerShown: false }}>
-    <AuthStack.Screen name="Login" component={LoginScreen} />
-    <AuthStack.Screen name="Register" component={RegisterScreen} />
+       <AuthStack.Screen name="Login" component={LoginScreen} />
+      <AuthStack.Screen name="Signup" component={SignUpScreen} />
+ <AuthStack.Screen name="RoleSelection" component={RoleSelectionScreen}/>
+    {/* <AuthStack.Screen name="Register" component={RegisterScreen} /> */}
     <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+  
   </AuthStack.Navigator>
 );
 
@@ -43,9 +66,15 @@ const HomeStackNavigator = () => (
     <HomeStack.Screen name="PostDetails" component={PostDetailsScreen} />
     <HomeStack.Screen name="StoryViewer" component={StoryViewerScreen} />
     <HomeStack.Screen name="CreateStory" component={CreateStoryScreen} />
+
   </HomeStack.Navigator>
 );
-
+const ProfileStackNavigator = () => (
+  <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
+    <ProfileStack.Screen name="ProfileScreen" component={ProfileScreen} />
+    <ProfileStack.Screen name="MenuScreen" component={MenuScreen} />
+  </ProfileStack.Navigator>
+);
 const MainTabNavigator = () => (
   <MainTabs.Navigator
     screenOptions={({ route }) => ({
@@ -72,7 +101,7 @@ const MainTabNavigator = () => (
             iconName = 'help-outline';
         }
 
-        return <Ionicons name={iconName as any} size={size} color={color} />;
+        return <Ionicons name={iconName} size={size} color={color} />;
       },
       tabBarActiveTintColor: '#000',
       tabBarInactiveTintColor: 'gray',
@@ -80,10 +109,10 @@ const MainTabNavigator = () => (
     })}
   >
     <MainTabs.Screen name="Home" component={HomeStackNavigator} />
-    <MainTabs.Screen name="Search" component={SearchScreen} />
-    <MainTabs.Screen name="CreatePost" component={CreatePostScreen} />
+    <MainTabs.Screen name="Search" component={SearchStackNavigator} />
+    <MainTabs.Screen name="CreatePost" component={CreatePostStackNavigator} />
     <MainTabs.Screen name="Notifications" component={NotificationsScreen} />
-    <MainTabs.Screen name="Profile" component={ProfileScreen} />
+    <MainTabs.Screen name="Profile" component={ProfileStackNavigator} />
   </MainTabs.Navigator>
 );
 

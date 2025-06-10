@@ -1,117 +1,113 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Platform,
+  Keyboard, StatusBar, TouchableWithoutFeedback, Alert
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../../Store/slices/authSlice';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../Navigation/types';
+import { Formik } from 'formik';
+import * as Yup from 'yup';
+import { loginUser } from '../../Api/Api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 0;
 
 type LoginScreenProps = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 };
 
+const LoginSchema = Yup.object().shape({
+  username: Yup.string().required('Username is required'),
+  password: Yup.string().required('Password is required'),
+});
+
 const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const dispatch = useDispatch();
 
-  const handleLogin = () => {
-    if (!email || !password) {
-      setError('Please fill in all fields');
-      return;
-    }
+  const handleLogin = async (values: { username: string; password: string }) => {
+    try {
+      const response = await loginUser(values);
 
-    // Here you would typically make an API call to your backend
-    // For now, we'll simulate a successful login
-    dispatch(
-      loginSuccess({
-        user: {
-          id: '1',
-          username: 'testuser',
-          email: email,
-          profilePicture: 'https://i.pravatar.cc/150?u=1',
-          bio: 'Test bio',
-          followers: 0,
-          following: 0,
-        },
-        token: 'mock-jwt-token',
-      })
-    );
+
+    // Store token (already saved in apiService.js), also store user info here
+    await AsyncStorage.setItem('userData', JSON.stringify(response.user));
+      dispatch(
+        loginSuccess({
+          user: {
+       
+            username: response.user.username,
+            email: response.user.email,
+            
+          },
+          token: response.token,
+        })
+      );
+    } catch (error) {
+      Alert.alert('Login Failed', 'Invalid username or password');
+    }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled"
-        bounces={false}
-        showsVerticalScrollIndicator={false}>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
         <View style={styles.logoContainer}>
-          <Image
-            source={require('../../Assets/yoga.jpg')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+          <Image source={require('../../Assets/yoga.jpg')} style={styles.logo} resizeMode="contain" />
         </View>
 
-        <View style={styles.formContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+        <Formik
+          initialValues={{ username: '', password: '' }}
+          validationSchema={LoginSchema}
+          onSubmit={handleLogin}
+        >
+          {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
+            <View style={styles.formContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Username"
+                onChangeText={handleChange('username')}
+                onBlur={handleBlur('username')}
+                value={values.username}
+                autoCapitalize="none"
+              />
+              {touched.username && errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                onChangeText={handleChange('password')}
+                onBlur={handleBlur('password')}
+                value={values.password}
+                secureTextEntry
+              />
+              {touched.password && errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
-          <TouchableOpacity
-            style={styles.forgotPassword}
-            onPress={() => navigation.navigate('ForgotPassword')}>
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
+              <TouchableOpacity style={styles.forgotPassword} onPress={() => navigation.navigate('ForgotPassword')}>
+                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.loginButtonText}>Log In</Text>
-          </TouchableOpacity>
+              <TouchableOpacity style={styles.loginButton} onPress={() => handleSubmit()}>
+                <Text style={styles.loginButtonText}>Log In</Text>
+              </TouchableOpacity>
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
-          </View>
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR</Text>
+                <View style={styles.dividerLine} />
+              </View>
 
-          <TouchableOpacity
-            style={styles.signupButton}
-            onPress={() => navigation.navigate('Register')}>
-            <Text style={styles.signupButtonText}>
-              Don't have an account? Sign up
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+              <TouchableOpacity style={styles.signupButton} onPress={() => navigation.navigate('RoleSelection')}>
+                <Text style={styles.signupButtonText}>
+                  Don't have an account? Sign up
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </Formik>
+      </View>
+    </TouchableWithoutFeedback>
   );
 };
 
@@ -119,12 +115,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-  },
-  scrollContainer: {
-    flexGrow: 1,
+    paddingTop: STATUSBAR_HEIGHT,
+    paddingHorizontal: 20,
     justifyContent: 'center',
-    padding: 20,
-    minHeight: '100%',
   },
   logoContainer: {
     alignItems: 'center',
@@ -149,7 +142,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#ed4956',
     marginBottom: 10,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   forgotPassword: {
     alignSelf: 'flex-end',
@@ -160,7 +153,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   loginButton: {
-    backgroundColor: '#0095f6',
+    backgroundColor: '#bea063',
     padding: 15,
     borderRadius: 5,
     alignItems: 'center',
@@ -194,4 +187,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LoginScreen; 
+export default LoginScreen;
