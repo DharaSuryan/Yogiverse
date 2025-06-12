@@ -8,7 +8,6 @@ import {
   FlatList,
   Dimensions,
   SafeAreaView,
-  StatusBar,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {Camera, useCameraDevices} from 'react-native-vision-camera';
@@ -146,7 +145,6 @@ const StoryScreen: React.FC<StoryScreenProps> = ({navigation}) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
       {renderHeader()}
       {renderTabs()}
       {selectedTab === 'CAMERA' ? (
@@ -202,11 +200,8 @@ const styles = StyleSheet.create({
   },
   tabText: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  gridContainer: {
-    padding: 1,
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   photoItem: {
     width: ITEM_WIDTH,
@@ -216,28 +211,38 @@ const styles = StyleSheet.create({
   photo: {
     width: '100%',
     height: '100%',
+    backgroundColor: '#222',
+  },
+  gridContainer: {
+    paddingBottom: 100, // Adjust as needed for camera controls
   },
   cameraContainer: {
     flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
   },
   camera: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   captureButton: {
-    position: 'absolute',
-    bottom: 30,
-    alignSelf: 'center',
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderWidth: 4,
+    borderColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 20,
   },
   captureButtonInner: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: '#fff',
   },
 });

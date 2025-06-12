@@ -6,7 +6,6 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
-  StatusBar,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import {Ionicons} from 'react-native-vector-icons';
@@ -101,7 +100,6 @@ const StoryViewerScreen: React.FC<StoryViewerScreenProps> = ({ route, navigation
 
   return (
     <View style={styles.container}>
-      <StatusBar hidden />
       
       {/* Progress Bars */}
       <View style={styles.progressContainer}>
@@ -199,26 +197,28 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: '#fff',
   },
   username: {
     color: '#fff',
+    fontWeight: 'bold',
     fontSize: 16,
-    fontWeight: '600',
     marginLeft: 10,
   },
   timestamp: {
-    color: '#fff',
-    fontSize: 12,
+    color: '#ccc',
+    fontSize: 14,
     marginLeft: 10,
   },
   locationContainer: {
     position: 'absolute',
-    bottom: 30,
+    bottom: 50,
     left: 15,
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 20,
   },
   locationText: {
     color: '#fff',
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 50,
     right: 15,
-    padding: 5,
+    zIndex: 1,
   },
 });
 

@@ -46,7 +46,7 @@ interface Location {
 }
 
 interface SignUpFormValues {
-  profileImage: any;
+  profileImage?: any; // Made optional as it might be null initially
   first_name: string;
   last_name: string;
   username: string;
@@ -200,7 +200,90 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
     });
   };
 
-  const renderCountryPicker = () => (
+  const handleSubmit = async (values: SignUpFormValues, { setSubmitting }: { setSubmitting: (isSubmitting: boolean) => void }) => {
+    let formData = new FormData();
+
+    // User data
+    const user = {
+      first_name: values.first_name || "",
+      last_name: values.last_name || "",
+      email: values.email || "",
+      phone_no: values.phone_no || "",
+      username: values.username || "",
+      password: values.password || "",
+      country: selectedCountry ? selectedCountry.id.toString() : "",
+      state: selectedState ? selectedState.id.toString() : "",
+      city: selectedCity ? selectedCity.id.toString() : "",
+      role: role,
+    };
+    formData.append("user", JSON.stringify(user));
+
+    // Profile data
+    const profile = {
+      bio: values.bio || "",
+    };
+    formData.append("profile", JSON.stringify(profile));
+
+    // Vendor data (only if role is vendor)
+    if (role === "vendor") {
+      const vendor = {
+        business_name: values.business_name || "",
+        main_categories: values.main_categories || [],
+        subcategories: values.subcategories || [],
+      };
+      formData.append("vendor", JSON.stringify(vendor));
+    }
+
+    // Profile image (if present)
+    if (profileImage) {
+      formData.append('profile_image', {
+        uri: profileImage,
+        type: 'image/jpeg',
+        name: 'profile.jpg',
+      });
+    }
+
+    console.log("formdata", formData);
+
+    try {
+      const response = await registerUser(formData);
+      if (response.status === 200) {
+        Alert.alert('Success', 'Registration successful!');
+        console.log(" registration response",response);
+        
+        navigation.navigate('Login');
+      } else {
+        Alert.alert('Error', response.data.message || 'Registration failed. Please try again.');
+      }
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      Alert.alert('Error', error.message || 'An error occurred during registration.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const initialValues: SignUpFormValues = {
+    profileImage: null,
+    first_name: '',
+    last_name: '',
+    username: '',
+    email: '',
+    phone_no: '',
+    password: '',
+    confirm_password: '',
+    country: '',
+    state: '',
+    city: '',
+    ...(role === 'vendor' && {
+      business_name: '',
+      main_categories: [],
+      subcategories: [],
+      status: 'published'
+    }),
+  };
+
+  const renderCountryPicker = (setFieldValue: (field: string, value: any, shouldValidate?: boolean) => void) => (
     <Modal
       visible={showCountryPicker}
       transparent
@@ -271,7 +354,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
     </Modal>
   );
 
-  const renderStatePicker = () => (
+  const renderStatePicker = (setFieldValue: (field: string, value: any, shouldValidate?: boolean) => void) => (
     <Modal
       visible={showStatePicker}
       transparent
@@ -302,6 +385,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
                 style={styles.locationItem}
                 onPress={() => {
                   setSelectedState(item);
+                  setFieldValue('state', item.id.toString());
                   setShowStatePicker(false);
                   setSelectedCity(null);
                   setFilteredCities([]);
@@ -332,7 +416,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
     </Modal>
   );
 
-  const renderCityPicker = () => (
+  const renderCityPicker = (setFieldValue: (field: string, value: any, shouldValidate?: boolean) => void) => (
     <Modal
       visible={showCityPicker}
       transparent
@@ -363,6 +447,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
                 style={styles.locationItem}
                 onPress={() => {
                   setSelectedCity(item);
+                  setFieldValue('city', item.id.toString());
                   setShowCityPicker(false);
                 }}
               >
@@ -388,88 +473,6 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
     </Modal>
   );
 
-  const handleSubmit = async (values: SignUpFormValues, { setSubmitting }: any) => {
-    let formData = new FormData();
-
-    // User data
-    const user = {
-      first_name: values.first_name || "",
-      last_name: values.last_name || "",
-      email: values.email || "",
-      phone_no: values.phone_no || "",
-      username: values.username || "",
-      password: values.password || "",
-      country: selectedCountry ? selectedCountry.id.toString() : "",
-      state: selectedState ? selectedState.id.toString() : "",
-      city: selectedCity ? selectedCity.id.toString() : "",
-      role: role,
-    };
-    formData.append("user", JSON.stringify(user));
-
-    // Profile data
-    const profile = {
-      bio: values.bio || "",
-    };
-    formData.append("profile", JSON.stringify(profile));
-
-    // Vendor data (only if role is vendor)
-    if (role === "vendor") {
-      const vendor = {
-        business_name: values.business_name || "",
-        main_categories: values.main_categories || [],
-        subcategories: values.subcategories || [],
-      };
-      formData.append("vendor", JSON.stringify(vendor));
-    }
-
-    // Profile image (if present)
-    if (profileImage) {
-      formData.append('profile_image', {
-        uri: profileImage,
-        type: 'image/jpeg',
-        name: 'profile.jpg',
-      });
-    }
-
-    console.log("formdata", formData);
-
-    try {
-      const response = await registerUser(formData);
-      if (response.status === 200) {
-        Alert.alert('Success', 'Registration successful!');
-        console.log(" registration response",response);
-        
-        navigation.navigate('Login');
-      } else {
-        Alert.alert('Error', response.data.message || 'Registration failed. Please try again.');
-      }
-    } catch (error) {
-      console.error("Registration error:", error);
-      Alert.alert('Error', error.message || 'An error occurred during registration.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const initialValues: SignUpFormValues = {
-    first_name: '',
-    last_name: '',
-    username: '',
-    email: '',
-    phone_no: '',
-    password: '',
-    confirm_password: '',
-    country: '',
-    state: '',
-    city: '',
-    ...(role === 'vendor' && {
-      business_name: '',
-      main_categories: [],
-      subcategories: [],
-      status: 'published'
-    }),
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -479,7 +482,16 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
           validationSchema={role === 'user' ? UserSchema : VendorSchema}
           onSubmit={handleSubmit}
         >
-          {({ handleChange, handleBlur, handleSubmit, setFieldValue, values, errors, touched, isSubmitting }) => (
+          {({ handleChange, handleBlur, handleSubmit, setFieldValue, values, errors, touched, isSubmitting }: {
+            handleChange: (field: string) => (text: string | React.ChangeEvent<any>) => void;
+            handleBlur: (field: string) => (e: any) => void;
+            handleSubmit: (e?: React.FormEvent<HTMLFormElement> | undefined) => void;
+            setFieldValue: (field: string, value: any, shouldValidate?: boolean) => void;
+            values: SignUpFormValues;
+            errors: FormikErrors<SignUpFormValues>;
+            touched: FormikTouched<SignUpFormValues>;
+            isSubmitting: boolean;
+          }) => (
             <View style={styles.formContainer}>
               {/* Profile Image */}
               <View style={styles.profileImageContainer}>
@@ -574,9 +586,9 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
                       </Text>
                     </TouchableOpacity>
                   </View>
-                  {renderCountryPicker()}
-                  {renderStatePicker()}
-                  {renderCityPicker()}
+                  {renderCountryPicker(setFieldValue)}
+                  {renderStatePicker(setFieldValue)}
+                  {renderCityPicker(setFieldValue)}
 
                   <Text style={styles.sectionTitle}>Business Information</Text>
                   <Text style={styles.label}>Business Name</Text>
@@ -615,7 +627,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
                 </>
               )}
 
-              <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={isSubmitting}>
+              <TouchableOpacity style={styles.button} onPress={() => handleSubmit()} disabled={isSubmitting}>
                 <Text style={styles.buttonText}>{isSubmitting ? 'Signing Up...' : 'Sign Up'}</Text>
               </TouchableOpacity>
             </View>
@@ -817,6 +829,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SignUpScreen;
-
-
+export default SignUpScreen; 

@@ -1,16 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Platform,
   Keyboard, StatusBar, TouchableWithoutFeedback, Alert
 } from 'react-native';
 import { useDispatch } from 'react-redux';
-import { loginSuccess } from '../../Store/slices/authSlice';
+import { loginSuccess } from '../../Store/actions/authActions';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AuthStackParamList } from '../../Navigation/types';
+import { RootStackParamList, AuthStackParamList } from '../../Navigation/types';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { loginUser } from '../../Api/Api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { useBackHandler } from '../../Utils/BackHandler';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 0;
 
@@ -23,29 +26,42 @@ const LoginSchema = Yup.object().shape({
   password: Yup.string().required('Password is required'),
 });
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
+const LoginScreen: React.FC<LoginScreenProps> = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const dispatch = useDispatch();
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Add back handler
+  useBackHandler();
 
   const handleLogin = async (values: { username: string; password: string }) => {
     try {
       const response = await loginUser(values);
-
-
-    // Store token (already saved in apiService.js), also store user info here
-    await AsyncStorage.setItem('userData', JSON.stringify(response.user));
-      dispatch(
-        loginSuccess({
-          user: {
-       
-            username: response.user.username,
-            email: response.user.email,
-            
-          },
-          token: response.token,
-        })
-      );
-    } catch (error) {
-      Alert.alert('Login Failed', 'Invalid username or password');
+      if (response.status === 200 && response.data) {
+        // Store tokens and user data
+        await AsyncStorage.setItem('accessToken', response.data.access_token);
+        await AsyncStorage.setItem('refreshToken', response.data.refresh_token);
+        await AsyncStorage.setItem('userData', JSON.stringify(response.data.user));
+        
+        // Update Redux state
+        dispatch(
+          loginSuccess({
+            user: response.data.user,
+            token: response.data.access_token,
+            refreshToken: response.data.refresh_token,
+          })
+        );
+        
+        // Navigate to main tab
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainTab' }],
+        });
+      } else {
+        Alert.alert('Login Failed', 'Invalid username or password');
+      }
+    } catch (error: any) {
+      Alert.alert('Login Failed', error.response?.data?.message || 'Invalid username or password');
     }
   };
 
@@ -56,7 +72,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         <View style={styles.logoContainer}>
           <Image source={require('../../Assets/yoga.jpg')} style={styles.logo} resizeMode="contain" />
         </View>
-
         <Formik
           initialValues={{ username: '', password: '' }}
           validationSchema={LoginSchema}
@@ -74,31 +89,39 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               />
               {touched.username && errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
 
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                onChangeText={handleChange('password')}
-                onBlur={handleBlur('password')}
-                value={values.password}
-                secureTextEntry
-              />
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={[styles.input, styles.passwordInput]}
+                  placeholder="Password"
+                  onChangeText={handleChange('password')}
+                  onBlur={handleBlur('password')}
+                  value={values.password}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity
+                  style={styles.eyeIcon}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  <Icon
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={24}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
               {touched.password && errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-
-              <TouchableOpacity style={styles.forgotPassword} onPress={() => navigation.navigate('ForgotPassword')}>
+              <TouchableOpacity style={styles.forgotPassword} onPress={() => navigation.navigate('Auth', { screen: 'ForgotPassword' })}>
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
-
               <TouchableOpacity style={styles.loginButton} onPress={() => handleSubmit()}>
                 <Text style={styles.loginButtonText}>Log In</Text>
               </TouchableOpacity>
-
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
                 <Text style={styles.dividerText}>OR</Text>
                 <View style={styles.dividerLine} />
               </View>
-
-              <TouchableOpacity style={styles.signupButton} onPress={() => navigation.navigate('RoleSelection')}>
+              <TouchableOpacity style={styles.signupButton} onPress={() => navigation.navigate('Auth', { screen: 'RoleSelection' })}>
                 <Text style={styles.signupButtonText}>
                   Don't have an account? Sign up
                 </Text>
@@ -184,6 +207,20 @@ const styles = StyleSheet.create({
   signupButtonText: {
     color: '#003569',
     fontSize: 14,
+  },
+  passwordContainer: {
+    position: 'relative',
+    width: '100%',
+  },
+  passwordInput: {
+    paddingRight: 50, // Make room for the eye icon
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: 15,
+    top: '50%',
+    transform: [{ translateY: -12 }],
+    padding: 5,
   },
 });
 

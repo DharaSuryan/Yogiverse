@@ -8,7 +8,6 @@ import {
   FlatList,
   Dimensions,
   SafeAreaView,
-  StatusBar,
   Platform,
   Alert,
   BackHandler,
@@ -143,7 +142,6 @@ const StoryAddScreen: React.FC<StoryAddScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -202,59 +200,60 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 15,
-    height: 56,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
   },
   headerButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 5,
   },
   headerTitle: {
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
-    flex: 1,
-    textAlign: 'center',
   },
   previewContainer: {
-    width: width,
-    height: width,
-    backgroundColor: '#222',
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
   },
   previewImage: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
+    resizeMode: 'contain',
   },
   galleryContainer: {
     flex: 1,
-    backgroundColor: '#000',
+  },
+  cameraButton: {
+    width: ITEM_WIDTH,
+    height: ITEM_HEIGHT,
+    backgroundColor: '#333',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 1,
+  },
+  cameraText: {
+    color: '#fff',
+    marginTop: 5,
+    fontSize: 12,
   },
   photoItem: {
     width: ITEM_WIDTH,
     height: ITEM_HEIGHT,
     padding: 1,
   },
-  selectedPhoto: {
-    opacity: 0.7,
-  },
   photo: {
     width: '100%',
     height: '100%',
-  },
-  cameraButton: {
-    width: ITEM_WIDTH,
-    height: ITEM_HEIGHT,
     backgroundColor: '#222',
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: 1,
   },
-  cameraText: {
-    color: '#fff',
-    marginTop: 4,
-    fontSize: 12,
+  selectedPhoto: {
+    borderWidth: 2,
+    borderColor: '#0095F6',
   },
 });
 

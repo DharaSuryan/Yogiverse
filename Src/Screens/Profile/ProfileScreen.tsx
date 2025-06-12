@@ -8,6 +8,7 @@ import {
   Modal,
   ScrollView,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MainTabParamList } from '../../Navigation/types';
@@ -15,8 +16,8 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../Store/store';
 import SearchGrid from '../../Components/SearchGrid';
-import Navigation from '../../Navigation/Navigation';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type ProfileScreenProps = {
   navigation: NativeStackNavigationProp<MainTabParamList, 'Profile'>;
@@ -25,8 +26,24 @@ type ProfileScreenProps = {
 const ProfileScreen: React.FC<ProfileScreenProps> = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const user = useSelector((state: RootState) => state.auth.user);
-    const navigation = useNavigation<any>();
+  const user = useSelector((state: RootState) => state.profile.currentProfile);
+  const navigation = useNavigation<any>();
+
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('token');
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'Auth' }],
+        })
+      );
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Logout Error', 'Failed to log out. Please try again.');
+    }
+  };
+
   const menuOptions = [
     {
       icon: 'settings-outline',
@@ -63,10 +80,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = () => {
     {
       icon: 'log-out-outline',
       label: 'Log Out',
-      onPress: () => {
-        setShowMenu(false);
-        // Handle logout
-      },
+      onPress: handleLogout,
     },
   ];
 

@@ -1,125 +1,157 @@
-import React, {useState} from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  Image,
   FlatList,
+  Image,
+  TouchableOpacity,
   Dimensions,
   SafeAreaView,
-  StatusBar,
-  Modal,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import StoryGalleryModal from './StoryGalleryModal';
+import Video from 'react-native-video';
 
-interface PhotoItem {
-  id: string;
-  uri: string;
-}
-
-// Mock data for recent photos
-const MOCK_PHOTOS: PhotoItem[] = [
-  { id: '1', uri: 'https://picsum.photos/400/400?random=1' },
-  { id: '2', uri: 'https://picsum.photos/400/400?random=2' },
-  { id: '3', uri: 'https://picsum.photos/400/400?random=3' },
-  { id: '4', uri: 'https://picsum.photos/400/400?random=4' },
-  { id: '5', uri: 'https://picsum.photos/400/400?random=5' },
-  { id: '6', uri: 'https://picsum.photos/400/400?random=6' },
-  { id: '7', uri: 'https://picsum.photos/400/400?random=7' },
-  { id: '8', uri: 'https://picsum.photos/400/400?random=8' },
-  { id: '9', uri: 'https://picsum.photos/400/400?random=9' },
-];
-
-const {width} = Dimensions.get('window');
-const COLUMN_COUNT = 3;
-const ITEM_WIDTH = width / COLUMN_COUNT;
-const ITEM_HEIGHT = ITEM_WIDTH;
+const { width, height } = Dimensions.get('window');
 
 const StoryScreen = () => {
-  const [isGalleryModalVisible, setIsGalleryModalVisible] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<PhotoItem | null>(null);
+  const navigation = useNavigation();
+  const [stories, setStories] = useState<any[]>([
+    // Dummy stories data
+    {
+      id: '1',
+      user: {
+        id: 'user1',
+        username: 'user_one',
+        profilePicture: 'https://i.pravatar.cc/100?img=1',
+      },
+      media: [
+        { id: 'media1', type: 'image', uri: 'https://picsum.photos/id/237/800/1200', duration: 5000 },
+        { id: 'media2', type: 'video', uri: 'https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4', duration: 15000 },
+      ],
+    },
+    {
+      id: '2',
+      user: {
+        id: 'user2',
+        username: 'user_two',
+        profilePicture: 'https://i.pravatar.cc/100?img=2',
+      },
+      media: [
+        { id: 'media3', type: 'image', uri: 'https://picsum.photos/id/238/800/1200', duration: 5000 },
+      ],
+    },
+  ]);
+  const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const videoRef = useRef<any>(null);
+  const [mediaProgress, setMediaProgress] = useState(0);
+  const progressInterval = useRef<NodeJS.Timeout | null>(null);
 
-  const handlePhotoPress = (photo: PhotoItem) => {
-    setSelectedImage(photo);
-    setIsGalleryModalVisible(true);
+  useEffect(() => {
+    startMediaProgress();
+    return () => {
+      if (progressInterval.current) {
+        clearInterval(progressInterval.current);
+      }
+    };
+  }, [currentStoryIndex, currentMediaIndex]);
+
+  const startMediaProgress = () => {
+    if (progressInterval.current) {
+      clearInterval(progressInterval.current);
+    }
+    const currentMedia = stories[currentStoryIndex].media[currentMediaIndex];
+    const duration = currentMedia.duration;
+
+    setMediaProgress(0);
+    progressInterval.current = setInterval(() => {
+      setMediaProgress(prev => {
+        const newProgress = prev + (1000 / duration) * 100;
+        if (newProgress >= 100) {
+          clearInterval(progressInterval.current!); // Ensure interval is cleared
+          handleNextMedia();
+          return 100;
+        }
+        return newProgress;
+      });
+    }, 1000);
   };
 
-  const handleCloseGallery = () => {
-    setIsGalleryModalVisible(false);
+  const handleNextMedia = () => {
+    const currentStory = stories[currentStoryIndex];
+    if (currentMediaIndex < currentStory.media.length - 1) {
+      setCurrentMediaIndex(prev => prev + 1);
+    } else {
+      handleNextStory();
+    }
   };
 
-  const handleSelectImage = (image: PhotoItem) => {
-    setSelectedImage(image);
-    setIsGalleryModalVisible(false);
-    // Here you would typically navigate to the story editor screen
-    // with the selected image
+  const handlePreviousMedia = () => {
+    if (currentMediaIndex > 0) {
+      setCurrentMediaIndex(prev => prev - 1);
+    } else {
+      // Optionally go to previous story or do nothing if first media of first story
+      navigation.goBack(); // Or handle going back to stories list
+    }
   };
 
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <TouchableOpacity style={styles.closeButton}>
-        <Icon name="close" size={28} color="#fff" />
-      </TouchableOpacity>
-      <Text style={styles.headerTitle}>Add to story</Text>
-      <TouchableOpacity style={styles.settingsButton}>
-        <Icon name="settings-outline" size={24} color="#fff" />
-      </TouchableOpacity>
-    </View>
-  );
+  const handleNextStory = () => {
+    if (currentStoryIndex < stories.length - 1) {
+      setCurrentStoryIndex(prev => prev + 1);
+      setCurrentMediaIndex(0);
+    } else {
+      navigation.goBack(); // All stories viewed
+    }
+  };
 
-  const renderCameraSection = () => (
-    <TouchableOpacity style={styles.cameraSection}>
-      <View style={styles.cameraIcon}>
-        <Icon name="camera" size={32} color="#fff" />
-      </View>
-      <Text style={styles.cameraText}>Camera</Text>
-    </TouchableOpacity>
-  );
+  const handleClose = () => {
+    navigation.goBack();
+  };
 
-  const renderPhotoItem = ({item, index}: {item: PhotoItem; index: number}) => (
-    <TouchableOpacity 
-      style={styles.photoItem}
-      onPress={() => handlePhotoPress(item)}>
-      <Image source={{uri: item.uri}} style={styles.photo} />
-    </TouchableOpacity>
-  );
-
-  const renderRecentsSection = () => (
-    <View style={styles.recentsSection}>
-      <View style={styles.recentsTitleContainer}>
-        <Text style={styles.recentsTitle}>Recents</Text>
-        <TouchableOpacity>
-          <Text style={styles.selectMultiple}>Select Multiple</Text>
-        </TouchableOpacity>
-      </View>
-      <FlatList
-        data={MOCK_PHOTOS}
-        renderItem={renderPhotoItem}
-        keyExtractor={item => item.id}
-        numColumns={COLUMN_COUNT}
-        showsVerticalScrollIndicator={false}
-      />
-    </View>
-  );
+  const currentStory = stories[currentStoryIndex];
+  const currentMedia = currentStory.media[currentMediaIndex];
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
-      {renderHeader()}
-      {renderCameraSection()}
-      {renderRecentsSection()}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+          <Icon name="close" size={24} color="#fff" />
+        </TouchableOpacity>
+        <Image source={{ uri: currentStory.user.profilePicture }} style={styles.profilePicture} />
+        <Text style={styles.username}>{currentStory.user.username}</Text>
+      </View>
 
-      <Modal
-        visible={isGalleryModalVisible}
-        animationType="slide"
-        presentationStyle="fullScreen">
-        <StoryGalleryModal
-          onClose={handleCloseGallery}
-          onSelectImage={handleSelectImage}
-        />
-      </Modal>
+      <View style={styles.mediaContainer}>
+        {currentMedia.type === 'image' ? (
+          <Image source={{ uri: currentMedia.uri }} style={styles.media} resizeMode="contain" />
+        ) : (
+          <Video
+            ref={videoRef}
+            source={{ uri: currentMedia.uri }}
+            style={styles.media}
+            resizeMode="contain"
+            paused={mediaProgress >= 100} // Pause when progress is done or next media
+            onLoad={() => setMediaProgress(0)} // Reset progress for video
+          />
+        )}
+        <TouchableOpacity style={styles.leftTap} onPress={handlePreviousMedia} />
+        <TouchableOpacity style={styles.rightTap} onPress={handleNextMedia} />
+      </View>
+
+      <View style={styles.progressBarContainer}>
+        {currentStory.media.map((_: any, index: number) => (
+          <View
+            key={index}
+            style={[
+              styles.progressBar,
+              index < currentMediaIndex && styles.progressBarFilled,
+              index === currentMediaIndex && { width: `${mediaProgress}%` },
+            ]}
+          />
+        ))}
+      </View>
     </SafeAreaView>
   );
 };
@@ -131,70 +163,68 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 15,
+    padding: 10,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
   },
   closeButton: {
-    padding: 5,
+    marginRight: 10,
   },
-  headerTitle: {
+  profilePicture: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    marginRight: 10,
+  },
+  username: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
-  settingsButton: {
-    padding: 5,
-  },
-  cameraSection: {
-    height: 100,
-    borderBottomWidth: 1,
-    borderBottomColor: '#222',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  cameraIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#405DE6',
+  mediaContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
   },
-  cameraText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
+  media: {
+    width: width,
+    height: height,
   },
-  recentsSection: {
-    flex: 1,
+  leftTap: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: '50%',
   },
-  recentsTitleContainer: {
+  rightTap: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: '50%',
+  },
+  progressBarContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 15,
+    position: 'absolute',
+    top: 50,
+    left: 10,
+    right: 10,
+    zIndex: 1,
   },
-  recentsTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  selectMultiple: {
-    color: '#0095F6',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  photoItem: {
-    width: ITEM_WIDTH,
-    height: ITEM_HEIGHT,
-    padding: 1,
-  },
-  photo: {
+  progressBar: {
+    height: 3,
     flex: 1,
-    backgroundColor: '#222',
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    marginHorizontal: 2,
+    borderRadius: 5,
+  },
+  progressBarFilled: {
+    backgroundColor: '#fff',
   },
 });
 

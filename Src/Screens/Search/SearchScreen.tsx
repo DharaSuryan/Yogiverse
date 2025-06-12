@@ -60,16 +60,14 @@ export default function SearchScreen() {
       </View>
 
       {/* Banner Text */}
-      <View style={styles.bannerTextContainer}>
-        <Text style={styles.bannerSubheading}>Adorable snapshots</Text>
-        <Text style={styles.bannerHeading}>Pet photo ideas</Text>
-      </View>
+      
 
       {/* Suggestions Section */}
       <Text style={styles.suggestionTitle}>Ideas you might like</Text>
       <FlatList
         data={suggestions}
         numColumns={3}
+        key={3}
         scrollEnabled={false} // Important: disable scroll here
         keyExtractor={(item, index) => index.toString()}
         contentContainerStyle={styles.suggestionList}
@@ -89,8 +87,9 @@ export default function SearchScreen() {
      <FlatList
   data={reelsAndPosts}
   numColumns={2}
+  key={2}
   scrollEnabled={false} // Important: disable scroll here
-  keyExtractor={(item, index) => index.toString()}
+  keyExtractor={(item, index) => item.id.toString()}
   columnWrapperStyle={styles.column}
   contentContainerStyle={styles.gridContainer}
   renderItem={({ item, index }) => (
@@ -141,13 +140,13 @@ const styles = StyleSheet.create({
   suggestionCard: {
     width: screenWidth / 3 - 15,
     marginHorizontal: 5,
-    backgroundColor: '#d4b981',
+    backgroundColor: '#D3D3D3',
     padding: 10,
     borderRadius: 10,
   },
-  cardImage: { width: '100%', height: 70, borderRadius: 40 },
-  cardTitle: { fontSize: 14, fontWeight: 'bold', marginTop: 5, color: 'white' },
-  cardSubtitle: { fontSize: 12, color: 'white' },
+  cardImage: { width: '95%', height: 70, borderRadius: 40 },
+  cardTitle: { fontSize: 14, fontWeight: 'bold', marginTop: 5, color: 'black' },
+  cardSubtitle: { fontSize: 12, color: 'black' },
   gridContainer: { paddingHorizontal: 8, paddingBottom: 20 },
   column: { justifyContent: 'space-between', marginBottom: 12 },
   card: {

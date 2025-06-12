@@ -1,7 +1,6 @@
-
 //  navigation.navigate('PostDetails', { images: selectedImages });
 // MediaPickerScreen
- import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   FlatList,
@@ -11,12 +10,14 @@ import {
   StyleSheet,
   Dimensions,
   SafeAreaView,
-  StatusBar,
   Platform,
+  Alert,
 } from 'react-native';
 import ImagePicker from 'react-native-image-crop-picker';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { CreatePostStackParamList } from '../../Navigation/types';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -30,8 +31,12 @@ export default function MediaPickerScreen() {
   const [galleryMedia, setGalleryMedia] = useState<{ uri: string, type: string }[]>([]);
   const [selectedMedia, setSelectedMedia] = useState<{ uri: string, type: string }[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<CreatePostStackParamList>>();
   const flatListRef = useRef<FlatList>(null);
+
+  const handleClose = () => {
+    navigation.navigate('UploadOptions');
+  };
 
   useEffect(() => {
     openGallery();
@@ -65,8 +70,15 @@ export default function MediaPickerScreen() {
       setGalleryMedia(formatted);
       setSelectedMedia(formatted.length ? [formatted[0]] : []);
       setCurrentIndex(0);
-    } catch (error) {
-      setGalleryMedia([]);
+    } catch (error: any) {
+      if (error.code === 'E_PICKER_CANCELLED') {
+        // If picker is cancelled, go back to upload options
+        navigation.navigate('UploadOptions');
+      } else {
+        // Log other errors
+        console.error('Image picker error:', error);
+      }
+      setGalleryMedia([]); // Clear media on error
       setSelectedMedia([]);
       setCurrentIndex(0);
     }
@@ -75,12 +87,39 @@ export default function MediaPickerScreen() {
   // ---- Select/deselect media ----
   const toggleSelectMedia = (media: { uri: string; type: string }) => {
     if (selectedMedia.find((m) => m.uri === media.uri)) {
+      // Remove from selected
       setSelectedMedia((prev) => prev.filter((m) => m.uri !== media.uri));
     } else {
+      // Add to selected
       setSelectedMedia((prev) =>
         SINGLE_SELECT_ONLY ? [media] : [...prev, media]
       );
     }
+  };
+
+  // ---- Delete selected media ----
+  const handleDeleteSelected = (uri: string) => {
+    Alert.alert(
+      'Delete Image',
+      'Are you sure you want to remove this image?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            setSelectedMedia((prev) => prev.filter((m) => m.uri !== uri));
+            setGalleryMedia((prev) => prev.filter((m) => m.uri !== uri));
+            if (currentIndex >= selectedMedia.length - 1) {
+              setCurrentIndex(Math.max(0, selectedMedia.length - 2));
+            }
+          },
+        },
+      ]
+    );
   };
 
   // ---- Swipe preview logic ----
@@ -95,7 +134,7 @@ export default function MediaPickerScreen() {
 
     if (ENABLE_FILTER_SCREEN) {
       // Pass to filter screen
-      navigation.navigate('MediaFilterScreen', { media: selectedMedia });
+      navigation.navigate('MediaFilter', { media: selectedMedia[0] });
     } else {
       // Pass to post details (caption/location)
       navigation.navigate('PostDetails', { media: selectedMedia });
@@ -110,113 +149,143 @@ export default function MediaPickerScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+          <Icon name="close" size={24} color="#000" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Select Media</Text>
+        <TouchableOpacity 
+          onPress={handleNext}
+          disabled={!selectedMedia.length}
+          style={[styles.nextButton, !selectedMedia.length && styles.nextButtonDisabled]}
+        >
+          <Text style={[styles.nextButtonText, !selectedMedia.length && styles.nextButtonTextDisabled]}>
+            Next
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Gallery (refresh) button */}
       <TouchableOpacity style={styles.galleryButton} onPress={openGallery}>
         <Icon name="images-outline" size={26} color="#fff" />
       </TouchableOpacity>
 
-      {/* Close button */}
-      <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
-        <Icon name="close" size={26} color="#fff" />
-      </TouchableOpacity>
-
       {/* Selected Media Preview Carousel */}
-      {selectedMedia.length > 0 && (
-        <View>
-          <FlatList
-            ref={flatListRef}
-            data={selectedMedia}
-            horizontal
-            pagingEnabled
-            keyExtractor={(item, index) => item.uri + index}
-            showsHorizontalScrollIndicator={false}
-            renderItem={({ item }) =>
-              item.type === 'video' ? (
-                <View style={styles.previewImage}>
-                  <Icon name="videocam" size={32} color="#fff" style={{ alignSelf: 'center', marginTop: '50%' }} />
-                  <Text style={{ color: '#fff', alignSelf: 'center' }}>Video</Text>
-                </View>
-              ) : (
-                <Image source={{ uri: item.uri }} style={styles.previewImage} />
-              )
-            }
-            onScroll={handleScroll}
-            style={styles.carousel}
-          />
-          {/* Image index */}
-          <Text style={styles.indexText}>
-            {currentIndex + 1} / {selectedMedia.length}
-          </Text>
-        </View>
-      )}
-
-      {/* Thumbnails (for selected media) */}
-      {selectedMedia.length > 1 && (
-        <View style={styles.selectedThumbnails}>
-          {selectedMedia.map((img, idx) => (
-            <TouchableOpacity key={img.uri} onPress={() => handlePreviewPress(idx)}>
-              {img.type === 'video' ? (
-                <View style={[styles.thumbnail, { backgroundColor: '#111', justifyContent: 'center', alignItems: 'center' }]}>
-                  <Icon name="videocam" size={20} color="#fff" />
-                </View>
-              ) : (
-                <Image
-                  source={{ uri: img.uri }}
-                  style={[
-                    styles.thumbnail,
-                    currentIndex === idx && styles.activeThumbnail,
-                  ]}
-                />
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {/* Media Grid */}
       <FlatList
+        ref={flatListRef}
         data={galleryMedia}
-        numColumns={3}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={handleScroll}
         keyExtractor={(item, index) => item.uri + index}
-        renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => toggleSelectMedia(item)}>
+        renderItem={({ item, index }) => (
+          <View style={styles.carousel}>
             {item.type === 'video' ? (
-              <View style={[styles.gridImage, { backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' }]}>
-                <Icon name="videocam" size={28} color="#aaa" />
+              <View style={styles.videoStub}>
+                <Icon name="videocam" size={40} color="#fff" />
+                <Text style={{ color: '#fff' }}>Video</Text>
               </View>
             ) : (
-              <Image
-                source={{ uri: item.uri }}
-                style={[
-                  styles.gridImage,
-                  selectedMedia.find((m) => m.uri === item.uri) && styles.selectedBorder,
-                ]}
-              />
+              <Image source={{ uri: item.uri }} style={styles.previewImage} />
             )}
+            <Text style={styles.indexText}>{index + 1}/{galleryMedia.length}</Text>
+            
+            {/* Delete button for selected media */}
+            {selectedMedia.find(m => m.uri === item.uri) && (
+              <TouchableOpacity 
+                style={styles.deleteButton}
+                onPress={() => handleDeleteSelected(item.uri)}
+              >
+                <Icon name="trash-outline" size={24} color="#fff" />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+        style={{ flexGrow: 0 }}
+      />
+
+      {/* Selected Thumbnails */}
+      <FlatList
+        data={galleryMedia}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.selectedThumbnails}
+        keyExtractor={(item, index) => item.uri + index}
+        renderItem={({ item, index }) => (
+          <TouchableOpacity
+            onPress={() => handlePreviewPress(index)}
+            style={styles.thumbnailContainer}
+          >
+            <Image
+              source={{ uri: item.uri }}
+              style={[
+                styles.thumbnail,
+                currentIndex === index && styles.activeThumbnail,
+              ]}
+            />
             {selectedMedia.find((m) => m.uri === item.uri) && (
               <View style={styles.selectedCheck}>
-                <Icon name="checkmark-circle" size={28} color="#3897f0" />
+                <Icon name="checkmark-circle" size={24} color="#0095f6" />
               </View>
             )}
           </TouchableOpacity>
         )}
-        style={styles.gridList}
       />
 
-      {/* Next button */}
-      {selectedMedia.length > 0 && (
-        <TouchableOpacity style={styles.postButton} onPress={handleNext}>
-          <Text style={styles.postText}>Next ({selectedMedia.length})</Text>
-        </TouchableOpacity>
-      )}
+      <FlatList
+        ref={flatListRef}
+        data={galleryMedia}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        pagingEnabled
+        onMomentumScrollEnd={handleScroll}
+        keyExtractor={(item) => item.uri}
+        renderItem={({ item, index }) => (
+          <View style={styles.mediaContainer}>
+            <Image
+              source={{ uri: item.uri }}
+              style={styles.media}
+              resizeMode="contain"
+            />
+            {selectedMedia.some(media => media.uri === item.uri) && (
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => handleDeleteSelected(item.uri)}
+              >
+                <Icon name="trash-outline" size={24} color="#fff" />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+        contentContainerStyle={styles.mediaList}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#000' 
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+    textAlign: 'center',
+  },
   galleryButton: {
     position: 'absolute',
     top: 45,
@@ -226,16 +295,11 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 4,
   },
-  closeButton: {
-    position: 'absolute',
-    top: 45,
-    right: 18,
-    zIndex: 3,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    borderRadius: 24,
-    padding: 4,
+  carousel: { 
+    backgroundColor: '#000',
+    width: screenWidth,
+    position: 'relative',
   },
-  carousel: { backgroundColor: '#000' },
   previewImage: {
     width: screenWidth,
     height: screenWidth * 1.2,
@@ -254,6 +318,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 8,
   },
+  deleteButton: {
+    position: 'absolute',
+    top: 20,
+    right: 24,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
+  },
   selectedThumbnails: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -261,10 +333,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     paddingHorizontal: 12,
   },
+  thumbnailContainer: {
+    marginRight: 8,
+    position: 'relative',
+  },
   thumbnail: {
     width: 44,
     height: 44,
-    marginRight: 8,
     borderRadius: 5,
     borderWidth: 1,
     borderColor: '#666',
@@ -274,40 +349,49 @@ const styles = StyleSheet.create({
     borderColor: '#3897f0',
     opacity: 1,
   },
-  gridList: {
-    flex: 1,
-  },
-  gridImage: {
-    width: screenWidth / 3,
-    height: screenWidth / 2.6,
-    borderWidth: 0.5,
-    borderColor: '#222',
-    marginBottom: 2,
-  },
-  selectedBorder: {
-    borderColor: '#3897f0',
-    borderWidth: 2,
-  },
   selectedCheck: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    borderRadius: 16,
+    top: -4,
+    right: -4,
+    backgroundColor: '#000',
+    borderRadius: 12,
   },
-  postButton: {
-    position: 'absolute',
-    bottom: 28,
-    right: 24,
-    backgroundColor: '#3897f0',
-    paddingHorizontal: 26,
-    paddingVertical: 13,
-    borderRadius: 25,
-    zIndex: 2,
+  nextButton: {
+    padding: 8,
+    backgroundColor: '#0095F6',
+    borderRadius: 5,
   },
-  postText: {
+  nextButtonText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 14,
+  },
+  nextButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  nextButtonTextDisabled: {
+    color: '#666',
+  },
+  videoStub: {
+    width: screenWidth,
+    height: screenWidth * 1.2,
+    backgroundColor: '#1a1a1a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mediaContainer: {
+    width: screenWidth,
+    height: screenWidth * 1.2,
+    position: 'relative',
+  },
+  media: {
+    width: screenWidth,
+    height: screenWidth * 1.2,
+    resizeMode: 'contain',
+    alignSelf: 'center',
+    backgroundColor: '#000',
+  },
+  mediaList: {
+    alignItems: 'center',
   },
 });

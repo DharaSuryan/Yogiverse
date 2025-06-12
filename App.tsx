@@ -11,10 +11,12 @@ import { store } from './Src/Store/store';
 import Navigation from './Src/Navigation/Navigation';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+
 const App = () => {
   return (
     <Provider store={store}>
       <SafeAreaProvider>
+
         <Navigation />
       </SafeAreaProvider>
     </Provider>

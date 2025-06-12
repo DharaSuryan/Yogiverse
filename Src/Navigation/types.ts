@@ -3,53 +3,60 @@ import { Story } from '../Types';
 
 export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
-  Main: NavigatorScreenParams<MainTabParamList>;
+  MainTab: NavigatorScreenParams<MainTabParamList>;
+  RoleSelection: undefined;
 };
 
 export type AuthStackParamList = {
   Login: undefined;
-  Register: undefined;
+  SignUp: undefined;
   ForgotPassword: undefined;
+  RoleSelection: undefined;
 };
 
 export type MainTabParamList = {
-  Home: NavigatorScreenParams<HomeStackParamList>;
-  Search: undefined;
-  CreatePost: undefined;
-  Notifications: undefined;
-  Profile: undefined;
+  HomeTab: NavigatorScreenParams<HomeStackParamList>;
+  SearchTab: NavigatorScreenParams<SearchStackParamList>;
+  CreatePost: NavigatorScreenParams<CreatePostStackParamList>;
+  NotificationsTab: undefined;
+  ProfileTab: NavigatorScreenParams<ProfileStackParamList>;
 };
 
 export type HomeStackParamList = {
-  HomeScreen: undefined;
+  Home: undefined;
   PostDetails: { postId: string };
-  StoryViewer: { stories: Story[]; initialIndex: number };
-  CreateStory: undefined;
+  StoryViewer: { storyId: string };
 };
 
 export type SearchStackParamList = {
   Search: undefined;
- SearchDetail:{id:any}
+  SearchDetail: { query: string };
 };
 
 export type ProfileStackParamList = {
-  ProfileMain: undefined;
+  Profile: undefined;
   EditProfile: undefined;
   Settings: undefined;
-  SavedPosts: undefined;
-  Followers: { userId: string };
-  Following: { userId: string };
-  UserProfile: { userId: string };
-  PostDetails: { postId: string };
-}; 
-export type CreatePostStackParamList = {
-  MediaPicker: undefined;
-  PostDetails: { image: string }; // ✅ image passed from MediaPicker
 };
+
+export type CreatePostStackParamList = {
+  CreatePost: undefined;
+  UploadOptions: undefined;
+  MediaPicker: undefined;
+  MediaFilter: { media: { uri: string; type: string } };
+  PostPreview: { media: { uri: string; type: string } };
+  PostDetails: { media: { uri: string; type: string }[] };
+  CreateStory: undefined;
+  CreateReel: undefined;
+  ReelPreview: { uri: string };
+  PostScreen: undefined;
+};
+
 export type CreatePostPreviewStackParamList = {
   PostPreviewScreen: { images: string[] };
   // ...other screens
 };
+
 export type CreateSearchDetailStackParamList = {
   SearchDetailScreen:any;
   // ...other screens

@@ -1,149 +1,118 @@
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  Image,
-  TouchableOpacity,
-  RefreshControl,
-  Dimensions,
-  ActivityIndicator,
-} from 'react-native';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../../Store/store';
-import { fetchPosts } from '../../Store/slices/postSlice';
-import { fetchStoriesStart, fetchStoriesSuccess, fetchStoriesFailure } from '../../Store/slices/storySlice';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, FlatList } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { HomeStackParamList } from '../../Navigation/types';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import StoryItem from '../../Components/StoryItem';
-import PostItem from '../../Components/PostItem';
-import StoryList from '../../Components/StoryList';
-import { Post } from '../../Types';
+import { HomeStackParamList, CreatePostStackParamList } from '../../Navigation/types';
 
-type HomeScreenProps = {
-  navigation: NativeStackNavigationProp<HomeStackParamList, 'HomeScreen'>;
-};
+type HomeNavigationProp = NativeStackNavigationProp<HomeStackParamList, 'Home'>;
+type CreatePostNavigationProp = NativeStackNavigationProp<CreatePostStackParamList, 'CreateStory'>;
 
-const { width } = Dimensions.get('window');
+const dummyStories = [
+  { id: 'add', type: 'add' }, // Represents the "Add Story" button
+  { id: '1', user: 'Your Story', avatar: require('../../Assets/yoga.jpg'), isYours: true },
+  { id: '2', user: 'Jane Doe', avatar: require('../../Assets/yoga.jpg') },
+  { id: '3', user: 'John Smith', avatar: require('../../Assets/yoga.jpg') },
+  { id: '4', user: 'Alice', avatar: require('../../Assets/yoga.jpg') },
+  { id: '5', user: 'Bob', avatar: require('../../Assets/yoga.jpg') },
+];
 
-const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-  const dispatch = useDispatch();
-  const { posts, loading } = useSelector((state: RootState) => state.posts);
-  const stories = useSelector((state: RootState) => state.stories.stories);
-  const [refreshing, setRefreshing] = useState(false);
+const dummyPosts = [
+  { id: '1', user: 'Jane Doe', avatar: require('../../Assets/yoga.jpg'), image: require('../../Assets/yoga.jpg'), caption: 'Beautiful sunset!', likes: 120, comments: 15 },
+  { id: '2', user: 'John Smith', avatar: require('../../Assets/yoga.jpg'), image: require('../../Assets/yoga.jpg'), caption: 'Exploring the mountains.', likes: 230, comments: 30 },
+];
 
-  useEffect(() => {
-    loadPosts();
-  }, []);
+export default function HomeScreen() {
+  const navigation = useNavigation<HomeNavigationProp>();
+  const createPostNavigation = useNavigation<CreatePostNavigationProp>();
 
-  const loadPosts = () => {
-    dispatch(fetchPosts());
+  const handleAddStory = () => {
+    createPostNavigation.navigate('CreateStory');
   };
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    loadPosts();
-    setRefreshing(false);
+  const handleViewStory = (storyId: string) => {
+    // Navigate to a StoryViewerScreen or similar
+    navigation.navigate('StoryViewer', { storyId });
   };
-
-  const handleLike = (postId: string) => {
-    // Handle like action
-    console.log('Like post:', postId);
-  };
-
-  const handleComment = (postId: string, comment: string) => {
-    // Handle comment action
-    console.log('Comment on post:', postId, comment);
-  };
-
-  const handleShare = (postId: string) => {
-    // Handle share action
-    console.log('Share post:', postId);
-  };
-
-  const handleSave = (postId: string) => {
-    // Handle save action
-    console.log('Save post:', postId);
-  };
-
-  const handleLikeComment = (postId: string, commentId: string) => {
-    // Handle like comment action
-    console.log('Like comment:', postId, commentId);
-  };
-
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <Text style={styles.headerTitle}>Yogiverse</Text>
-      <View style={styles.headerIcons}>
-        <TouchableOpacity style={styles.iconButton}>
-          <Ionicons name="heart-outline" size={24} color="#000" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.iconButton}>
-          <Ionicons name="chatbubble-outline" size={24} color="#000" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderStories = () => (
-    <View style={styles.storiesContainer}>
-      <FlatList
-        data={stories}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <StoryItem
-            story={item}
-            onPress={() => navigation.navigate('StoryViewer', { stories, initialIndex: stories.indexOf(item) })}
-          />
-        )}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.storiesList}
-      />
-    </View>
-  );
-
-  const renderItem = ({ item }: { item: Post }) => (
-    <PostItem
-      post={item}
-      onLike={handleLike}
-      onComment={handleComment}
-      onShare={handleShare}
-      onSave={handleSave}
-      onLikeComment={handleLikeComment}
-    />
-  );
-
-  if (loading && !refreshing) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.logo}>Yogiverse</Text>
+        <View style={styles.headerIcons}>
+          <TouchableOpacity onPress={() => console.log('Notifications')}>
+            <Icon name="heart-outline" size={24} style={styles.icon} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => console.log('Messages')}>
+            <Icon name="chatbubble-outline" size={24} style={styles.icon} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Stories Section */}
       <FlatList
-        data={posts}
-        renderItem={renderItem}
-        keyExtractor={item => item.id}
-        ListHeaderComponent={
-          <>
-            {renderHeader()}
-            <StoryList />
-          </>
-        }
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
+        data={dummyStories}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.storyList}
+        renderItem={({ item }) => (
+          item.type === 'add' ? (
+            <TouchableOpacity style={styles.addStoryButton} onPress={handleAddStory}>
+              <Icon name="add" size={30} color="#fff" />
+              <Text style={styles.addStoryText}>Add Story</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.storyItem} onPress={() => handleViewStory(item.id)}>
+              <Image source={item.avatar} style={styles.storyAvatar} />
+              <Text style={styles.storyUsername} numberOfLines={1}>{item.user}</Text>
+            </TouchableOpacity>
+          )
+        )}
       />
+
+      {/* Posts Section */}
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {dummyPosts.map(post => (
+          <View key={post.id} style={styles.postCard}>
+            <View style={styles.postHeader}>
+              <Image source={post.avatar} style={styles.postAvatar} />
+              <Text style={styles.postUsername}>{post.user}</Text>
+              <TouchableOpacity style={styles.moreIcon}>
+                <Icon name="ellipsis-vertical" size={20} color="#000" />
+              </TouchableOpacity>
+            </View>
+            <Image source={post.image} style={styles.postImage} />
+            <View style={styles.postActions}>
+              <TouchableOpacity>
+                <Icon name="heart-outline" size={24} style={styles.icon} />
+              </TouchableOpacity>
+              <TouchableOpacity>
+                <Icon name="chatbubble-outline" size={24} style={styles.icon} />
+              </TouchableOpacity>
+              <TouchableOpacity>
+                <Icon name="paper-plane-outline" size={24} style={styles.icon} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.bookmarkIcon}>
+                <Icon name="bookmark-outline" size={24} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.postDetails}>
+              <Text style={styles.likesText}>{post.likes} likes</Text>
+              <Text style={styles.captionText}>
+                <Text style={styles.postUsername}>{post.user}</Text> {post.caption}
+              </Text>
+              <TouchableOpacity>
+                <Text style={styles.commentsText}>View all {post.comments} comments</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ))}
+      </ScrollView>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -156,32 +125,103 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#dbdbdb',
+    borderBottomColor: '#eee',
   },
-  headerTitle: {
-    fontSize: 24,
+  logo: {
+    fontSize: 22,
     fontWeight: 'bold',
-    color:'black'
   },
   headerIcons: {
     flexDirection: 'row',
   },
-  iconButton: {
+  icon: {
     marginLeft: 15,
   },
-  storiesContainer: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#dbdbdb',
+  storyList: {
     paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
-  storiesList: {
-    paddingHorizontal: 10,
-  },
-  loadingContainer: {
-    flex: 1,
+  addStoryButton: {
+    width: 70,
+    height: 70,
+    borderRadius: 40,
+    backgroundColor: '#0095F6',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 15,
+    borderColor: '#ddd',
+    borderWidth: 1,
+  },
+  addStoryText: {
+    color: '#fff',
+    fontSize: 12,
+    // marginTop: 5,
+  },
+  storyItem: {
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  storyAvatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 3,
+    borderColor: '#E1306C',
+  },
+  storyUsername: {
+    fontSize: 12,
+    marginTop: 5,
+    color: '#000',
+  },
+  postCard: {
+    backgroundColor: '#fff',
+    marginBottom: 10,
+  },
+  postHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+  },
+  postAvatar: {
+    width: 35,
+    height: 35,
+    borderRadius: 17.5,
+    marginRight: 10,
+  },
+  postUsername: {
+    fontWeight: 'bold',
+  },
+  moreIcon: {
+    marginLeft: 'auto',
+    padding: 5,
+  },
+  postImage: {
+    width: '100%',
+    height: 400,
+    resizeMode: 'cover',
+  },
+  postActions: {
+    flexDirection: 'row',
+    padding: 10,
+    alignItems: 'center',
+  },
+  bookmarkIcon: {
+    marginLeft: 'auto',
+  },
+  postDetails: {
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+  },
+  likesText: {
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  captionText: {
+    marginBottom: 5,
+  },
+  commentsText: {
+    color: '#888',
   },
 });
-
-export default HomeScreen;

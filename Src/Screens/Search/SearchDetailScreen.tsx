@@ -87,9 +87,9 @@ useEffect(
       </View>
 
       <View style={styles.captionWrapper}>
-        <Text style={styles.username}>Fiya</Text>
-        <Text style={styles.title}>HAPPY EID AL ASDHA...</Text>
-        <Text style={styles.caption}>Ma Shaa ALLAH Ma shaa ALLAH 😍🤍 See more</Text>
+        <Text style={styles.username}>Yoga</Text>
+        <Text style={styles.title}>HAPPY Yoga day..</Text>
+        <Text style={styles.caption}>.....</Text>
       </View>
 
       <Text style={styles.moreText}>More to explore</Text>
