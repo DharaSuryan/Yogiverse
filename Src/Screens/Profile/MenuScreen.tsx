@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal, Image, Switch } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal, Image, Switch, Alert } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-
+import { useDispatch } from 'react-redux';
+import { logoutUser } from '../../Api/Api';
+import { logout } from 'Src/Store/actions/authActions';
 const MENU_SECTIONS = [
   {
     title: 'Account Center',
@@ -73,15 +75,58 @@ const ACCOUNT_CENTER_DATA = {
 export default function MenuScreen({ navigation }) {
   const [accountCenterModal, setAccountCenterModal] = useState(false);
   const [twoFA, setTwoFA] = useState(ACCOUNT_CENTER_DATA.security.twoFactorEnabled);
+ const dispatch = useDispatch();
 
   // If you want other items to navigate, you can handle here
   const handleMenuAction = (action) => {
     // Example: navigation logic for other menu options
     // switch(action) { ... }
   };
-
+ const handleLogout = async () => {
+    try {
+      // Show confirmation dialog
+      Alert.alert(
+        'Logout',
+        'Are you sure you want to logout?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          },
+          {
+            text: 'Logout',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                // Call logout API
+                await logoutUser();
+                
+                // Dispatch logout action to clear Redux state
+                dispatch(logout());
+                
+                // Navigate to Auth screen
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Auth' }]
+                });
+              } catch (error) {
+                console.error('Logout error:', error);
+                Alert.alert('Error', 'Failed to logout. Please try again.');
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Error', 'Failed to logout. Please try again.');
+    }
+  };
   const MenuOption = ({ icon, label, action, onPress }) => (
-    <TouchableOpacity style={styles.optionRow} onPress={onPress ? onPress : () => handleMenuAction(action)}>
+    <TouchableOpacity 
+      style={styles.optionRow} 
+      onPress={onPress ? onPress : () => handleMenuAction(action)}
+    >
       <Ionicons name={icon} size={22} color="#222" style={{ width: 28 }} />
       <Text style={styles.optionText}>{label}</Text>
       <Ionicons name="chevron-forward-outline" size={18} color="#bbb" style={{ marginLeft: 'auto' }} />
@@ -109,13 +154,14 @@ export default function MenuScreen({ navigation }) {
                   label={item.label}
                   action={item.action}
                   onPress={() => setAccountCenterModal(true)}
+                    
                 />
               ) : (
                 <MenuOption
-                  key={item.label}
-                  icon={item.icon}
-                  label={item.label}
-                  action={item.action} onPress={undefined} />
+                    key={item.label}
+                    icon={item.icon}
+                    label={item.label}
+                    onPress={item.action === 'Logout' ? handleLogout : undefined} action={undefined}/>
               )
             )}
           </View>

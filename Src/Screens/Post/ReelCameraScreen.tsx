@@ -8,7 +8,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { RNCamera } from 'react-native-camera';
+import { Camera } from 'react-native-camera';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CreatePostStackParamList } from '../../Navigation/types';
@@ -19,47 +19,29 @@ type ReelCameraScreenNavigationProp = NativeStackNavigationProp<CreatePostStackP
 
 const ReelCameraScreen = () => {
   const navigation = useNavigation<ReelCameraScreenNavigationProp>();
+  const cameraRef = useRef(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [cameraType, setCameraType] = useState<'front' | 'back'>('back');
   const [recordingTime, setRecordingTime] = useState(0);
-  const cameraRef = useRef<RNCamera>(null);
-  const recordingTimerRef = useRef<NodeJS.Timeout>();
 
   const startRecording = async () => {
     if (cameraRef.current) {
       try {
         setIsRecording(true);
-        setRecordingTime(0);
-        
-        // Start recording timer
-        recordingTimerRef.current = setInterval(() => {
-          setRecordingTime(prev => prev + 1);
-        }, 1000);
-
         const data = await cameraRef.current.recordAsync({
-          quality: RNCamera.Constants.VideoQuality['720p'],
-          maxDuration: 60, // 60 seconds max
+          maxDuration: 60, // Maximum 60 seconds
+          quality: '720p',
         });
-
-        navigation.navigate('ReelPreview', {
-          media: { uri: data.uri, type: 'video' }
-        });
+        navigation.navigate('ReelPreview', { uri: data.uri });
       } catch (error) {
-        console.error('Error recording video:', error);
-        Alert.alert('Error', 'Failed to record video. Please try again.');
-      } finally {
-        stopRecording();
+        console.error('Error recording:', error);
       }
     }
   };
 
   const stopRecording = () => {
-    if (cameraRef.current && isRecording) {
+    if (cameraRef.current) {
       cameraRef.current.stopRecording();
       setIsRecording(false);
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-      }
     }
   };
 
@@ -74,10 +56,6 @@ const ReelCameraScreen = () => {
     });
   };
 
-  const toggleCamera = () => {
-    setCameraType(prev => prev === 'back' ? 'front' : 'back');
-  };
-
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -86,43 +64,34 @@ const ReelCameraScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <RNCamera
+      <Camera
         ref={cameraRef}
         style={styles.camera}
-        type={cameraType === 'back' ? RNCamera.Constants.Type.back : RNCamera.Constants.Type.front}
+        type={Camera.Constants.Type.back}
         captureAudio={true}
       >
-        <View style={styles.overlay}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Icon name="close" size={24} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleGalleryPick}>
-              <Icon name="images-outline" size={24} color="#fff" />
-            </TouchableOpacity>
-          </View>
+        <View style={styles.controls}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="close" size={24} color="#fff" />
+          </TouchableOpacity>
 
-          {isRecording && (
-            <View style={styles.recordingIndicator}>
-              <View style={styles.recordingDot} />
-              <Text style={styles.recordingTime}>{formatTime(recordingTime)}</Text>
-            </View>
-          )}
-
-          <View style={styles.controls}>
-            <TouchableOpacity onPress={toggleCamera}>
-              <Icon name="camera-reverse-outline" size={24} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.recordButton, isRecording && styles.recordingButton]} 
+          <View style={styles.recordingControls}>
+            <TouchableOpacity
+              style={[styles.recordButton, isRecording && styles.recording]}
               onPress={isRecording ? stopRecording : startRecording}
             >
-              <View style={styles.recordButtonInner} />
+              {isRecording ? (
+                <View style={styles.stopIcon} />
+              ) : (
+                <View style={styles.recordIcon} />
+              )}
             </TouchableOpacity>
-            <View style={{ width: 24 }} />
           </View>
         </View>
-      </RNCamera>
+      </Camera>
     </SafeAreaView>
   );
 };
@@ -135,62 +104,43 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
   },
-  overlay: {
+  controls: {
     flex: 1,
     backgroundColor: 'transparent',
-    justifyContent: 'space-between',
-  },
-  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 15,
-    paddingTop: Platform.OS === 'ios' ? 0 : 15,
+    padding: 20,
   },
-  controls: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+  closeButton: {
+    padding: 10,
+  },
+  recordingControls: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'flex-end',
     paddingBottom: 30,
   },
   recordButton: {
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  recordingButton: {
-    backgroundColor: 'rgba(255,0,0,0.3)',
+  recording: {
+    backgroundColor: 'rgba(255, 0, 0, 0.3)',
   },
-  recordButtonInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#ff0000',
+  recordIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#fff',
   },
-  recordingIndicator: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : 70,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  recordingDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#ff0000',
-    marginRight: 8,
-  },
-  recordingTime: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  stopIcon: {
+    width: 30,
+    height: 30,
+    backgroundColor: '#fff',
   },
 });
 

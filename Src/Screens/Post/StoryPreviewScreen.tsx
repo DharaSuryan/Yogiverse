@@ -1,38 +1,38 @@
 import React, { useState } from 'react';
 import {
   View,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
   Text,
-  TextInput,
+  StyleSheet,
+  TouchableOpacity,
   SafeAreaView,
-  Platform,
+  Image,
+  TextInput,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp, CommonActions } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { CreatePostStackParamList } from '../../Navigation/types';
-import Icon from 'react-native-vector-icons/Ionicons';
-
-type StoryPreviewScreenNavigationProp = NativeStackNavigationProp<CreatePostStackParamList, 'StoryPreview'>;
-type StoryPreviewScreenRouteProp = RouteProp<CreatePostStackParamList, 'StoryPreview'>;
+import Video from 'react-native-video';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 const StoryPreviewScreen = () => {
-  const navigation = useNavigation<StoryPreviewScreenNavigationProp>();
-  const route = useRoute<StoryPreviewScreenRouteProp>();
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { uri } = route.params;
   const [caption, setCaption] = useState('');
-  const { media } = route.params;
 
-  const handleShare = async () => {
+  const handlePost = async () => {
     try {
-      // TODO: Implement story upload logic
-      // await uploadStory(media.uri, caption);
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: 'Main' }],
-        })
-      );
+      // Here you would implement the logic to upload the story
+      // to your backend server
+      const formData = new FormData();
+      formData.append('media', {
+        uri,
+        type: uri.includes('video') ? 'video/mp4' : 'image/jpeg',
+        name: uri.includes('video') ? 'story.mp4' : 'story.jpg',
+      });
+      formData.append('caption', caption);
+
+      // Example API call
+      // await api.post('/stories', formData);
+      
+      navigation.navigate('HomeTab');
     } catch (error) {
       console.error('Error uploading story:', error);
     }
@@ -42,32 +42,37 @@ const StoryPreviewScreen = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="close" size={24} color="#fff" />
+          <Text style={styles.backButton}>Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.shareButton}
-          onPress={handleShare}
-        >
-          <Text style={styles.shareButtonText}>Share</Text>
+        <Text style={styles.title}>Preview Story</Text>
+        <TouchableOpacity onPress={handlePost}>
+          <Text style={styles.postButton}>Post</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.content}>
-        <Image
-          source={{ uri: media.uri }}
-          style={styles.preview}
-          resizeMode="cover"
-        />
-        <View style={styles.captionContainer}>
-          <TextInput
-            style={styles.captionInput}
-            placeholder="Add caption..."
-            placeholderTextColor="#999"
-            value={caption}
-            onChangeText={setCaption}
-            multiline
+      <View style={styles.previewContainer}>
+        {uri.includes('video') ? (
+          <Video
+            source={{ uri }}
+            style={styles.preview}
+            resizeMode="cover"
+            repeat
+            paused={false}
           />
-        </View>
+        ) : (
+          <Image source={{ uri }} style={styles.preview} />
+        )}
+      </View>
+
+      <View style={styles.captionContainer}>
+        <TextInput
+          style={styles.captionInput}
+          placeholder="Add a caption..."
+          placeholderTextColor="#fff"
+          value={caption}
+          onChangeText={setCaption}
+          multiline
+        />
       </View>
     </SafeAreaView>
   );
@@ -80,27 +85,30 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 15,
-    paddingTop: Platform.OS === 'ios' ? 0 : 15,
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
-  shareButton: {
-    backgroundColor: '#0095f6',
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 5,
-  },
-  shareButtonText: {
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
     color: '#fff',
+  },
+  backButton: {
+    color: '#0095f6',
+  },
+  postButton: {
+    color: '#0095f6',
     fontWeight: '600',
   },
-  content: {
+  previewContainer: {
     flex: 1,
+    backgroundColor: '#000',
   },
   preview: {
     flex: 1,
-    width: '100%',
   },
   captionContainer: {
     position: 'absolute',
@@ -108,7 +116,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 15,
+    padding: 16,
   },
   captionInput: {
     color: '#fff',

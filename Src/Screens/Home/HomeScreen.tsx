@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, FlatList } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { HomeStackParamList, CreatePostStackParamList } from '../../Navigation/types';
+import ShareModal from '../../Components/ShareModal';
 
 type HomeNavigationProp = NativeStackNavigationProp<HomeStackParamList, 'Home'>;
 type CreatePostNavigationProp = NativeStackNavigationProp<CreatePostStackParamList, 'CreateStory'>;
@@ -25,7 +26,8 @@ const dummyPosts = [
 export default function HomeScreen() {
   const navigation = useNavigation<HomeNavigationProp>();
   const createPostNavigation = useNavigation<CreatePostNavigationProp>();
-
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [selectedPost, setSelectedPost] = useState(null);
   const handleAddStory = () => {
     createPostNavigation.navigate('CreateStory');
   };
@@ -34,6 +36,10 @@ export default function HomeScreen() {
     // Navigate to a StoryViewerScreen or similar
     navigation.navigate('StoryViewer', { storyId });
   };
+ const handleShare = (post) => {
+    setSelectedPost(post);
+    setShareModalVisible(true);
+  };
 
   return (
     <View style={styles.container}>
@@ -41,7 +47,7 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <Text style={styles.logo}>Yogiverse</Text>
         <View style={styles.headerIcons}>
-          <TouchableOpacity onPress={() => console.log('Notifications')}>
+          <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
             <Icon name="heart-outline" size={24} style={styles.icon} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => console.log('Messages')}>
@@ -91,7 +97,7 @@ export default function HomeScreen() {
               <TouchableOpacity>
                 <Icon name="chatbubble-outline" size={24} style={styles.icon} />
               </TouchableOpacity>
-              <TouchableOpacity>
+           <TouchableOpacity onPress={() => setShareModalVisible(true)}>
                 <Icon name="paper-plane-outline" size={24} style={styles.icon} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.bookmarkIcon}>
@@ -110,6 +116,11 @@ export default function HomeScreen() {
           </View>
         ))}
       </ScrollView>
+      <ShareModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        post={selectedPost}
+      />
     </View>
   );
 }

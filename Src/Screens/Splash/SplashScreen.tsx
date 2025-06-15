@@ -1,86 +1,70 @@
 import React, { useEffect } from 'react';
-import { View, Image, Animated, Dimensions, SafeAreaView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useDispatch } from 'react-redux';
-import { loginSuccess } from '../../Store/slices/authSlice';
-import styles from './Style';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../Navigation/types';
+
+type SplashNavProp = NativeStackNavigationProp<RootStackParamList, 'SplashScreen'>;
 
 const SplashScreen = () => {
-    const navigation = useNavigation();
-    const dispatch = useDispatch();
-    const fadeAnim = new Animated.Value(0);
-    const insets = useSafeAreaInsets();
+  const navigation = useNavigation<SplashNavProp>();
 
-    const checkLoginStatus = async () => {
-        try {
-            const accessToken = await AsyncStorage.getItem('accessToken');
-            const userData = await AsyncStorage.getItem('userData');
-            if (accessToken && userData) {
-                dispatch(loginSuccess({
-                    user: JSON.parse(userData),
-                    token: accessToken,
-                    refreshToken: await AsyncStorage.getItem('refreshToken') || '',
-                }));
-                navigation.reset({
-                    index: 0,
-                    routes: [{ name: 'Main' }],
-                });
-            } else {
-                navigation.reset({
-                    index: 0,
-                    routes: [{ name: 'Auth' }],
-                });
-            }
-        } catch (error) {
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const [accessToken, userData] = await Promise.all([
+          AsyncStorage.getItem('accessToken'),
+          AsyncStorage.getItem('userData'),
+        ]);
+
+        const isLoggedIn = !!(accessToken && userData);
+
+        setTimeout(() => {
+          if (isLoggedIn) {
             navigation.reset({
-                index: 0,
-                routes: [{ name: 'Auth' }],
+              index: 0,
+              routes: [{ name: 'MainTab' }],
             });
-        }
+          } else {
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Auth' }],
+            });
+          }
+        }, 1500); // 1.5 sec splash delay
+      } catch (error) {
+        console.error('Splash auth check error:', error);
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Auth' }],
+        });
+      }
     };
 
-    useEffect(() => {
-        Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-        }).start();
+    checkAuth();
+  }, []);
 
-        const timer = setTimeout(() => {
-            checkLoginStatus();
-        }, 1500);
-
-        return () => clearTimeout(timer);
-    }, []);
-
-    return (
-        <SafeAreaView style={styles.container}>
-            <Animated.View 
-                style={[
-                    styles.content,
-                    { 
-                        opacity: fadeAnim,
-                        paddingTop: insets.top,
-                        paddingBottom: insets.bottom,
-                    }
-                ]}
-            >
-                <Image
-                    source={require('../../Assets/yoga.jpg')}
-                    style={styles.image}
-                    resizeMode="cover"
-                />
-                <Animated.Text style={[styles.title, { opacity: fadeAnim }]}>
-                    YOGIVERSE
-                </Animated.Text>
-                <Animated.Text style={[styles.subtitle, { opacity: fadeAnim }]}>
-                    Body, Mind, and Spirit
-                </Animated.Text>
-            </Animated.View>
-        </SafeAreaView>
-    );
+  return (
+    <View style={styles.container}>
+      <Text style={styles.logoText}>Yogiverse</Text>
+      {/* <ActivityIndicator size="large" color="#bea063" style={{ marginTop: 20 }} /> */}
+    </View>
+  );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#bea063',
+  },
+});
 
 export default SplashScreen;

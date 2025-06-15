@@ -5,7 +5,6 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import HomeScreen from '../Screens/Home/HomeScreen';
 import SearchScreen from '../Screens/Search/SearchDetailScreen';
 import CreatePostScreen from '../Screens/Post/CreatePostScreen';
-import NotificationsScreen from '../Screens/NotificationsScreen';
 import ProfileScreen from '../Screens/Profile/ProfileScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -27,9 +26,9 @@ const MainNavigator = () => {
             case 'CreatePost':
               iconName = focused ? 'add-circle' : 'add-circle-outline';
               break;
-            case 'Notifications':
-              iconName = focused ? 'heart' : 'heart-outline';
-              break;
+            // case 'Notifications':
+            //   iconName = focused ? 'heart' : 'heart-outline';
+            //   break;
             case 'Profile':
               iconName = focused ? 'person' : 'person-outline';
               break;
@@ -71,13 +70,13 @@ const MainNavigator = () => {
           tabBarLabel: 'Post',
         }}
       />
-      <Tab.Screen 
+      {/* <Tab.Screen 
         name="Notifications" 
         component={NotificationsScreen}
         options={{
           tabBarLabel: 'Notifications',
         }}
-      />
+      /> */}
       <Tab.Screen 
         name="Profile" 
         component={ProfileScreen}

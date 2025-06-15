@@ -18,6 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { CreatePostStackParamList } from '../../Navigation/types';
+import { CommonActions } from '@react-navigation/native';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -136,8 +137,20 @@ export default function MediaPickerScreen() {
       // Pass to filter screen
       navigation.navigate('MediaFilter', { media: selectedMedia[0] });
     } else {
-      // Pass to post details (caption/location)
-      navigation.navigate('PostDetails', { media: selectedMedia });
+      // Navigate to main tab after successful selection
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'MainTab',
+              state: {
+                routes: [{ name: 'HomeTab' }],
+              },
+            },
+          ],
+        })
+      );
     }
   };
 
@@ -146,6 +159,9 @@ export default function MediaPickerScreen() {
     setCurrentIndex(index);
     flatListRef.current?.scrollToIndex({ index, animated: true });
   };
+
+  console.log('Navigation state:', navigation.getState());
+  console.log('Current route:', navigation.getCurrentRoute());
 
   return (
     <SafeAreaView style={styles.container}>

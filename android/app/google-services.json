@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "122423620014",
+    "project_id": "yogiverse-4480e",
+    "storage_bucket": "yogiverse-4480e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:122423620014:android:1ed86a93f2ae4fff05183f",
+        "android_client_info": {
+          "package_name": "com.yogiverse"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRRDUh7GpgW-pcWlES7C5ygIjqIe8Fqsg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

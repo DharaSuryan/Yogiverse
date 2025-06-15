@@ -1,57 +1,58 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { CreatePostStackParamList } from '../../Navigation/types';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  SafeAreaView,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-
-type NavigationProp = NativeStackNavigationProp<CreatePostStackParamList>;
+import { useNavigation } from '@react-navigation/native';
 
 const UploadOptionsScreen = () => {
-  const navigation = useNavigation<NavigationProp>();
+  const navigation = useNavigation();
 
-  const handleMediaPicker = () => {
-    navigation.navigate('MediaPicker');
-  };
-
-  const handleCreateStory = () => {
-    navigation.navigate('CreateStory');
-  };
-
-  const handleCreateReel = () => {
-    navigation.navigate('CreateReel');
-  };
-
-  const handleGoBack = () => {
-    navigation.goBack();
-  };
+  const options = [
+    {
+      title: 'Post',
+      icon: 'image-outline',
+      onPress: () => navigation.navigate('MediaPicker', { type: 'post' }),
+    },
+    {
+      title: 'Reel',
+      icon: 'videocam-outline',
+      onPress: () => navigation.navigate('CreateReel'),
+    },
+    {
+      title: 'Story',
+      icon: 'camera-outline',
+      onPress: () => navigation.navigate('CreateStory'),
+    },
+  ];
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
           <Icon name="close" size={24} color="#000" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create New Post</Text>
+        <Text style={styles.title}>Create New</Text>
+        <View style={{ width: 24 }} />
       </View>
 
       <View style={styles.optionsContainer}>
-        <TouchableOpacity style={styles.option} onPress={handleMediaPicker}>
-          <Icon name="images-outline" size={32} color="#000" />
-          <Text style={styles.optionText}>Upload Photo/Video</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.option} onPress={handleCreateStory}>
-          <Icon name="add-circle-outline" size={32} color="#000" />
-          <Text style={styles.optionText}>Create Story</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.option} onPress={handleCreateReel}>
-          <Icon name="videocam-outline" size={32} color="#000" />
-          <Text style={styles.optionText}>Create Reel</Text>
-        </TouchableOpacity>
+        {options.map((option, index) => (
+          <TouchableOpacity
+            key={index}
+            style={styles.option}
+            onPress={option.onPress}
+          >
+            <Icon name={option.icon} size={32} color="#000" />
+            <Text style={styles.optionText}>{option.title}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -63,31 +64,29 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 15,
+    justifyContent: 'space-between',
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
-  backButton: {
-    padding: 5,
-  },
-  headerTitle: {
+  title: {
     fontSize: 18,
     fontWeight: '600',
-    marginLeft: 15,
   },
   optionsContainer: {
+    flex: 1,
     padding: 20,
   },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 15,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
   optionText: {
+    marginLeft: 16,
     fontSize: 16,
-    marginLeft: 15,
   },
 });
 

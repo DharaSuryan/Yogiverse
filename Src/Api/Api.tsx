@@ -4,11 +4,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Types
 interface ApiResponse {
-  user: any;
-  token: string;
   data: any;
   status: number;
   message: string;
+  user?: any;
+  token?: string;
 }
 interface Location {
   id: number;
@@ -35,107 +35,171 @@ interface LoginCredentials {
 }
 
 // API Configuration
-const BASE_URL = 'http://192.168.1.160:9001';  // Your local API endpoint
-const apiRequest = async (method: string, endpoint: string, data?: any) => {
-  try {
-    const isFormData = (typeof data === 'object') && (data instanceof FormData);
-    const headers: any = {
-      Accept: 'application/json',
-      'Content-Type': isFormData ? 'multipart/form-data' : 'application/json',
-    };
-    const config = {
-      method,
-      url: `${BASE_URL}${endpoint}`,
-      data,
-      headers,
-      timeout: 30000,
-    };
-    const response = await axios(config);
-    return response;
-  } catch (error: any) {
-    console.error('API Request Error:', error);
-    throw error;
+export const BASE_URL = 'http://192.168.1.107:8000';  // Your local API endpoint
+
+export const API_INTERNET_CONNECTION_CAPTION_EN =
+  'Sorry, No Internet connectivity detected. Please reconnect and try again';
+
+// Create axios instance with default config
+const api = axios.create({
+  baseURL: BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add request interceptor to add token to all requests
+api.interceptors.request.use(
+  async (config) => {
+    const token = await AsyncStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-};
+);
+
+// Add response interceptor to handle token refresh
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If error is 401 and we haven't tried to refresh token yet
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const refreshToken = await AsyncStorage.getItem('refreshToken');
+        if (!refreshToken) {
+          throw new Error('No refresh token available');
+        }
+
+        // Call your refresh token endpoint
+        const response = await axios.post('YOUR_REFRESH_TOKEN_ENDPOINT', {
+          refreshToken,
+        });
+
+        const { accessToken, newRefreshToken } = response.data;
+
+        // Store new tokens
+        await Promise.all([
+          AsyncStorage.setItem('accessToken', accessToken),
+          AsyncStorage.setItem('refreshToken', newRefreshToken),
+        ]);
+
+        // Update the failed request with new token
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        // If refresh token fails, logout user
+        await logoutUser();
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 export const registerUser  = async (formData: FormData): Promise<ApiResponse> => {
-  return apiRequest('post', '/vendor_register/', formData);
+  return api.post('/vendor_register/', formData);
 };
-export const loginUser  = async (credentials: LoginCredentials): Promise<ApiResponse> => {
+export const loginUser = async (credentials: { username: string; password: string }): Promise<ApiResponse> => {
   try {
-    return await apiRequest('post', '/login/', credentials);
-  } catch (error: any) {
-    console.error('Login User Error:', error);
+    const response = await api.post('/login/', credentials);
+    return {
+      data: response.data,
+      status: response.status,
+      message: 'Login successful',
+      user: response.data.user,
+      token: response.data.token
+    };
+  } catch (error) {
     throw error;
   }
 };
-export const logoutUser  = async () => {
+export const logoutUser = async () => {
   try {
-    await AsyncStorage.removeItem('authToken');
+    await Promise.all([
+      AsyncStorage.removeItem('accessToken'),
+      AsyncStorage.removeItem('refreshToken'),
+      AsyncStorage.removeItem('userData'),
+    ]);
   } catch (error) {
     console.error('Logout Error:', error);
     throw error;
   }
 };
-export const fetchCountries = async (page: number = 1, limit: number = 10) => {
+
+export const fetchCountries = async (page = 1, limit = 10): Promise<ApiResponse> => {
   try {
-    console.log('Fetching countries... Page:', page, 'Limit:', limit);
-    const response = await apiRequest('get', `/helper_app/countries/?page=${page}&limit=${limit}`);
-    
-    console.log('Raw Countries Response:', {
-      status: response.status,
-      statusText: response.statusText,
-      headers: response.headers,
-      data: response.data
-    });
-    
-    if (!response || !response.data) {
-      throw new Error('No response received from server');
-    }
-
-    // Log the exact structure of the response data
-    console.log('Response Data Structure:', {
-      isArray: Array.isArray(response.data),
-      hasResults: response.data.results ? true : false,
-      dataType: typeof response.data,
-      keys: Object.keys(response.data)
-    });
-
+    const response = await api.get('/helper_app/countries/', { params: { page, limit } });
     return {
       data: response.data,
       status: response.status,
-      message: 'Success'
+      message: 'Countries fetched successfully'
     };
-  } catch (error: any) {
-    console.error('Fetch Countries Error:', error);
+  } catch (error) {
     throw error;
   }
 };
 
 export const fetchStates = async (countryId: number, page = 1, limit = 10): Promise<ApiResponse> => {
   try {
-    const response = await apiRequest('get', `/helper_app/states/${countryId}/`);
+    const response = await api.get('/helper_app/states/', { params: { countryId, page, limit } });
     return {
       data: response.data,
       status: response.status,
-      message: 'Success'
+      message: 'States fetched successfully'
     };
-  } catch (error: any) {
-    console.error('Fetch States Error:', error);
+  } catch (error) {
     throw error;
   }
 };
 
 export const fetchCities = async (stateId: number, page = 1, limit = 10): Promise<ApiResponse> => {
   try {
-    const response = await apiRequest('get', `/helper_app/cities/${stateId}/`);
+    const response = await api.get('/helper_app/cities/', { params: { stateId, page, limit } });
     return {
       data: response.data,
       status: response.status,
-      message: 'Success'
+      message: 'Cities fetched successfully'
     };
-  } catch (error: any) {
-    console.error('Fetch Cities Error:', error);
+  } catch (error) {
     throw error;
   }
 };
-export { apiRequest };
+
+const _REQUEST2SERVER_Authorization_Post_FCM = async (url, params = null) => {
+  const token = await AsyncStorage.getItem('emp_token');
+  var config = {
+    method: 'post',
+    url: BASE_URL + url,
+    headers: {
+      Accept: 'application/json',
+      Authorization: 'token ' + token,
+     
+    },
+    data: params,
+  };
+  return await new Promise(function (resolve, reject) {
+    console.log('config--->', config);
+    axios(config)
+      .then((data) => {
+        if (data.data.status) resolve(data.data);
+        else reject(data.data);
+      })
+      .catch((error) => {
+        reject(error);
+      });
+  });
+};
+export const onAddDevicesAPICall = (params) => {
+  return _REQUEST2SERVER_Authorization_Post_FCM(`/fcm-token/`, params);
+};
+export default api;

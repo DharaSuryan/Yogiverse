@@ -7,11 +7,14 @@ import {
   TouchableOpacity,
   Image,
   SafeAreaView,
+  Alert,
+  BackHandler,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MainTabParamList } from '../../Navigation/types';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Notification } from '../../Types';
+import { useFocusEffect } from '@react-navigation/native';
 
 type NotificationsScreenProps = {
   navigation: NativeStackNavigationProp<MainTabParamList, 'Notifications'>;
@@ -94,7 +97,21 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
         return 'interacted with your post';
     }
   };
+useFocusEffect(
+  React.useCallback(() => {
+    const onBackPress = () => {
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        BackHandler.exitApp(); // Exit app if there's no back screen
+      }
+      return true;
+    };
 
+    BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+  }, [navigation])
+);
   const handleNotificationPress = (notification: Notification) => {
     // Mark as read
     setNotifications(prev =>

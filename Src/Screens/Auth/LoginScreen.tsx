@@ -38,10 +38,14 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
     try {
       const response = await loginUser(values);
       if (response.status === 200 && response.data) {
-        // Store tokens and user data
-        await AsyncStorage.setItem('accessToken', response.data.access_token);
-        await AsyncStorage.setItem('refreshToken', response.data.refresh_token);
-        await AsyncStorage.setItem('userData', JSON.stringify(response.data.user));
+        console.log("Login response", response);
+        
+        // Store tokens and user data using Promise.all for better performance
+        await Promise.all([
+          AsyncStorage.setItem('accessToken', response.data.access_token),
+          AsyncStorage.setItem('refreshToken', response.data.refresh_token),
+          AsyncStorage.setItem('userData', JSON.stringify(response.data.user))
+        ]);
         
         // Update Redux state
         dispatch(
@@ -52,15 +56,16 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
           })
         );
         
-        // Navigate to main tab
+        // Navigate to main tab using reset
         navigation.reset({
-          index: 0,
-          routes: [{ name: 'MainTab' }],
-        });
+    index: 0,
+    routes: [{ name: 'MainTab' }], 
+  });
       } else {
         Alert.alert('Login Failed', 'Invalid username or password');
       }
     } catch (error: any) {
+      console.error('Login error:', error);
       Alert.alert('Login Failed', error.response?.data?.message || 'Invalid username or password');
     }
   };

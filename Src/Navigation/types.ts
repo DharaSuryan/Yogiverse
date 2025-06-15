@@ -2,9 +2,14 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 import { Story } from '../Types';
 
 export type RootStackParamList = {
+  SplashScreen: undefined;
   Auth: NavigatorScreenParams<AuthStackParamList>;
   MainTab: NavigatorScreenParams<MainTabParamList>;
   RoleSelection: undefined;
+  Profile: undefined;
+  HighlightViewer: { highlightId: string };
+  PostDetails: { postId: string };
+  StoryCreation: undefined;
 };
 
 export type AuthStackParamList = {
@@ -15,41 +20,39 @@ export type AuthStackParamList = {
 };
 
 export type MainTabParamList = {
-  HomeTab: NavigatorScreenParams<HomeStackParamList>;
-  SearchTab: NavigatorScreenParams<SearchStackParamList>;
+  Home: NavigatorScreenParams<HomeStackParamList>;
+  Search: NavigatorScreenParams<SearchStackParamList>;
   CreatePost: NavigatorScreenParams<CreatePostStackParamList>;
-  NotificationsTab: undefined;
-  ProfileTab: NavigatorScreenParams<ProfileStackParamList>;
+  Profile: NavigatorScreenParams<ProfileStackParamList>;
+  Vendor: undefined;
 };
 
 export type HomeStackParamList = {
   Home: undefined;
   PostDetails: { postId: string };
-  StoryViewer: { storyId: string };
+  Notifications: undefined;
 };
 
 export type SearchStackParamList = {
   Search: undefined;
-  SearchDetail: { query: string };
-};
-
-export type ProfileStackParamList = {
-  Profile: undefined;
-  EditProfile: undefined;
-  Settings: undefined;
+  SearchDetail: undefined;
 };
 
 export type CreatePostStackParamList = {
   CreatePost: undefined;
-  UploadOptions: undefined;
   MediaPicker: undefined;
-  MediaFilter: { media: { uri: string; type: string } };
-  PostPreview: { media: { uri: string; type: string } };
-  PostDetails: { media: { uri: string; type: string }[] };
-  CreateStory: undefined;
-  CreateReel: undefined;
-  ReelPreview: { uri: string };
-  PostScreen: undefined;
+  MediaFilter: { media: any };
+  UploadOptions: undefined;
+  StoryCamera: undefined;
+  StoryPreview: { imageUri: string };
+  ReelCamera: undefined;
+  ReelPreview: { videoUri: string };
+};
+
+export type ProfileStackParamList = {
+  Profile: undefined;
+  Menu: undefined;
+  HighlightViewer: { highlightId: string };
 };
 
 export type CreatePostPreviewStackParamList = {
@@ -60,4 +63,9 @@ export type CreatePostPreviewStackParamList = {
 export type CreateSearchDetailStackParamList = {
   SearchDetailScreen:any;
   // ...other screens
+};
+
+export type VendorStackParamList = {
+  VendorHome: undefined;
+  VendorList: undefined;
 };
