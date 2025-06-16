@@ -1,6 +1,7 @@
 // apiService.js (modified)
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 // Types
 interface ApiResponse {
@@ -35,7 +36,7 @@ interface LoginCredentials {
 }
 
 // API Configuration
-export const BASE_URL = 'http://192.168.1.107:8000';  // Your local API endpoint
+export const BASE_URL = 'http://192.168.1.160:9001';  // Your local API endpoint
 
 export const API_INTERNET_CONNECTION_CAPTION_EN =
   'Sorry, No Internet connectivity detected. Please reconnect and try again';
@@ -202,4 +203,35 @@ const _REQUEST2SERVER_Authorization_Post_FCM = async (url, params = null) => {
 export const onAddDevicesAPICall = (params) => {
   return _REQUEST2SERVER_Authorization_Post_FCM(`/fcm-token/`, params);
 };
+
+const registerFCMToken = async (token) => {
+  try {
+    const authToken = await AsyncStorage.getItem('authToken'); // Get your auth token
+    if (!authToken) {
+      console.log('No auth token available');
+      return;
+    }
+
+    const response = await axios.post('http://192.168.1.160:9001/fcm-token/', 
+      { token },
+      {
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `token ${authToken}`
+        }
+      }
+    );
+    console.log('FCM token registered successfully');
+  } catch (error) {
+    console.error('Error registering FCM token:', error);
+  }
+};
+
 export default api;
+
+type VendorListNavigationProp = NativeStackNavigationProp<VendorStackParamList, 'VendorList'>;
+
+export type VendorStackParamList = {
+  VendorList: undefined;
+  VendorDetail: { vendorId: string };
+};

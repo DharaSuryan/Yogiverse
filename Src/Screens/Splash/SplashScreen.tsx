@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -47,7 +47,10 @@ const SplashScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.logoText}>Yogiverse</Text>
+      <Image source={require('../../Assets/SplashScreen.jpeg')}  resizeMode={'contain'} style={{flex: 1, // Make ImageBackground cover the whole screen
+    justifyContent: 'center', // Center content vertically
+    alignItems: 'center',} }/>
+      {/* <Text style={styles.logoText}>Yogiverse</Text> */}
       {/* <ActivityIndicator size="large" color="#bea063" style={{ marginTop: 20 }} /> */}
     </View>
   );
@@ -56,7 +59,7 @@ const SplashScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    // backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
   },

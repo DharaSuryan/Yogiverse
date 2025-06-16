@@ -1,23 +1,44 @@
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Dimensions, SafeAreaView } from 'react-native'
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Dimensions, SafeAreaView, Platform } from 'react-native'
 import React from 'react'
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { VendorStackParamList } from '../../Navigation/types';
+
 const screenWidth = Dimensions.get('window').width;
 
 const { width } = Dimensions.get('window');
 const numColumns = 2;
 const tileSize = (width - (numColumns + 1) * 16) / numColumns;
-const VenderList = () => {
-    const suggestions = [
-  { title: 'Lemon recipes', subtitle: 'Food', image: require('../../Assets/yoga.jpg') },
-  { title: 'Heritage Desserts', subtitle: 'Food', image: require('../../Assets/yoga.jpg') },
-  { title: 'Yoga Lifestyle', subtitle: 'Health', image: require('../../Assets/yoga.jpg') },
-  { title: 'Healing Foods', subtitle: 'Ayurveda', image: require('../../Assets/yoga.jpg') },
-  { title: 'Daily Detox', subtitle: 'Health', image: require('../../Assets/yoga.jpg') },
-  { title: 'Organic Choices', subtitle: 'Market', image: require('../../Assets/yoga.jpg') },
-];
 
-   const renderVendorCard = ({ item }) => (
-      <TouchableOpacity style={styles.vendorCard}>
+type VendorListNavigationProp = NativeStackNavigationProp<VendorStackParamList, 'Vendor'>;
+
+interface VendorItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  image: any;
+  isVerified?: boolean;
+  location?: string;
+}
+
+export default function VenderList (){
+ const navigation = useNavigation<VendorListNavigationProp>();
+    
+    const suggestions: VendorItem[] = [
+        { id: '1', title: 'Lemon recipes', subtitle: 'Food', image: require('../../Assets/yoga.jpg') },
+        { id: '2', title: 'Heritage Desserts', subtitle: 'Food', image: require('../../Assets/yoga.jpg') },
+        { id: '3', title: 'Yoga Lifestyle', subtitle: 'Health', image: require('../../Assets/yoga.jpg') },
+        { id: '4', title: 'Healing Foods', subtitle: 'Ayurveda', image: require('../../Assets/yoga.jpg') },
+        { id: '5', title: 'Daily Detox', subtitle: 'Health', image: require('../../Assets/yoga.jpg') },
+        { id: '6', title: 'Organic Choices', subtitle: 'Market', image: require('../../Assets/yoga.jpg') },
+    ];
+
+   const renderVendorCard = ({ item }: { item: VendorItem }) => (
+      <TouchableOpacity 
+        style={styles.vendorCard}
+        onPress={() => navigation.navigate('VenderDetail', { vendorId: item.id })}
+      >
         <View style={styles.imageContainer}>
           <Image
             source={item.image }
@@ -80,7 +101,7 @@ const VenderList = () => {
     );
 }
 
-export default VenderList
+
 const styles =  StyleSheet.create({container: {
     flex: 1,
     backgroundColor: '#fff',
@@ -107,6 +128,7 @@ const styles =  StyleSheet.create({container: {
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
+    color: '#bea063',
   },
   filterButton: {
     padding: 8,

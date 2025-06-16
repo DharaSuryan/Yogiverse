@@ -25,6 +25,7 @@
     "@reduxjs/toolkit": "^2.8.2",
     "axios": "^1.9.0",
     "chalk": "^4.1.2",
+    "deprecated-react-native-prop-types": "^5.0.0",
     "formik": "^2.4.6",
     "metro": "^0.82.2",
     "react": "18.3.1",

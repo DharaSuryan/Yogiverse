@@ -23,8 +23,9 @@ export type MainTabParamList = {
   Home: NavigatorScreenParams<HomeStackParamList>;
   Search: NavigatorScreenParams<SearchStackParamList>;
   CreatePost: NavigatorScreenParams<CreatePostStackParamList>;
+  Vendor: NavigatorScreenParams<VendorStackParamList>;
   Profile: NavigatorScreenParams<ProfileStackParamList>;
-  Vendor: undefined;
+    
 };
 
 export type HomeStackParamList = {
@@ -66,6 +67,6 @@ export type CreateSearchDetailStackParamList = {
 };
 
 export type VendorStackParamList = {
-  VendorHome: undefined;
-  VendorList: undefined;
+  Vendor: undefined;
+  VenderDetail: { vendorId: string };
 };

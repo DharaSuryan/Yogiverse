@@ -4,6 +4,9 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useDispatch } from 'react-redux';
 import { logoutUser } from '../../Api/Api';
 import { logout } from 'Src/Store/actions/authActions';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack'; // Added NativeStackNavigationProp
+import { RootStackParamList } from '../../Navigation/types';
 const MENU_SECTIONS = [
   {
     title: 'Account Center',
@@ -42,7 +45,8 @@ const MENU_SECTIONS = [
   },
 ];
 
-// Dummy account center data (replace with API later)
+
+
 const ACCOUNT_CENTER_DATA = {
   user: {
     username: 'yogi_123',
@@ -71,8 +75,10 @@ const ACCOUNT_CENTER_DATA = {
     lastPasswordChange: '2024-05-15',
   }
 };
-
-export default function MenuScreen({ navigation }) {
+type MenuScreenProps = {
+  navigation: NativeStackNavigationProp<RootStackParamList>;
+};
+export default function MenuScreen({ navigation }: MenuScreenProps) {
   const [accountCenterModal, setAccountCenterModal] = useState(false);
   const [twoFA, setTwoFA] = useState(ACCOUNT_CENTER_DATA.security.twoFactorEnabled);
  const dispatch = useDispatch();
@@ -98,13 +104,11 @@ export default function MenuScreen({ navigation }) {
             style: 'destructive',
             onPress: async () => {
               try {
-                // Call logout API
-                await logoutUser();
-                
-                // Dispatch logout action to clear Redux state
-                dispatch(logout());
-                
-                // Navigate to Auth screen
+                // Clear AsyncStorage first
+                logoutUser()
+              
+
+                // Navigate to Login screen
                 navigation.reset({
                   index: 0,
                   routes: [{ name: 'Auth' }]
@@ -122,6 +126,9 @@ export default function MenuScreen({ navigation }) {
       Alert.alert('Error', 'Failed to logout. Please try again.');
     }
   };
+
+  // ... rest of your component code ...
+
   const MenuOption = ({ icon, label, action, onPress }) => (
     <TouchableOpacity 
       style={styles.optionRow} 
@@ -161,7 +168,7 @@ export default function MenuScreen({ navigation }) {
                     key={item.label}
                     icon={item.icon}
                     label={item.label}
-                    onPress={item.action === 'Logout' ? handleLogout : undefined} action={undefined}/>
+                    onPress={item.action === 'Logout' ? handleLogout : () => handleMenuAction(item.action)} action={undefined}/>
               )
             )}
           </View>

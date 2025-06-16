@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { RootStackParamList, AuthStackParamList, MainTabParamList, HomeStackParamList, CreatePostStackParamList, SearchStackParamList, ProfileStackParamList } from './types';
+import { RootStackParamList, AuthStackParamList, MainTabParamList, HomeStackParamList, CreatePostStackParamList, SearchStackParamList, ProfileStackParamList, VendorStackParamList } from './types';
 import Icon from 'react-native-vector-icons/Ionicons';
 import SplashScreen from '../Screens/Splash/SplashScreen';
 import LoginScreen from '../Screens/Auth/LoginScreen';
@@ -40,6 +40,7 @@ import VenderList from '../Screens/Vender/VenderList';
 import StoryCreation from '../Screens/Story/StoryCreation';
 import ProfileStack from './ProfileStack';
 import HighlightViewer from '../Screens/Profile/HighlightViewer';
+import VendorDetailScreen from '../Screens/Vender/VenderDetail';
 // import VendorStackScreen from '../Screens/Vendor/VendorStack';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -49,7 +50,8 @@ const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 const CreatePostStack = createNativeStackNavigator<CreatePostStackParamList>();
 const SearchStack = createNativeStackNavigator<SearchStackParamList>();
 const ProfileStackNavigator = createNativeStackNavigator<ProfileStackParamList>();
-const VenderStack = createNativeStackNavigator()
+const VenderStack = createNativeStackNavigator<VendorStackParamList>();
+
 
 function AuthStackScreen() {
   return (
@@ -61,13 +63,43 @@ function AuthStackScreen() {
   );
 }
 
-function VendorStackScreen (){
-  return(
-    <VenderStack.Navigator screenOptions={{headerShown:false}}>
-      <VenderStack.Screen name="VenderList" component={VenderList}/>
-      
+function VendorStackScreen() {
+  return (
+    <VenderStack.Navigator 
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: true,
+        gestureDirection: 'horizontal',
+        // Reverting to default presentation for stability
+        // animation: 'slide_from_right',
+        // presentation: 'card',
+        // animationDuration: 200,
+        // contentStyle: {
+        //   backgroundColor: 'white'
+        // }
+      }}
+    >
+      <VenderStack.Screen 
+        name="Vendor" 
+        component={VenderList}
+        options={{
+          gestureEnabled: false,
+          // animation: 'none' // Removed custom animation
+        }}
+      />
+      <VenderStack.Screen 
+        name="VenderDetail" 
+        component={VendorDetailScreen}
+        options={{
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
+          animation: 'slide_from_right',
+          // Reverting to default presentation for stability
+          // presentation: 'card' // Using default if not specified
+        }}
+      />
     </VenderStack.Navigator>
-  )
+  );
 }
 
 function HomeStackScreen() {
@@ -144,13 +176,20 @@ function MainTabScreen() {
 
           return <Icon name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#0095f6',
+        tabBarActiveTintColor: '#bea063',
         tabBarInactiveTintColor: '#8e8e8e',
         tabBarShowLabel: true,
         tabBarStyle: {
           height: 60,
           paddingBottom: 10,
           paddingTop: 5,
+          backgroundColor: '#fff',
+          borderTopWidth: 1,
+          borderTopColor: '#f0f0f0',
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '500',
         },
       })}
     >

@@ -42,16 +42,16 @@ const StoryViewer = ({ route, navigation }) => {
   const startStoryProgress = () => {
     setProgress(new Animated.Value(0));
     Animated.timing(progress, {
-      toValue: 1,
+        toValue: 1,
       duration: 5000,
-      useNativeDriver: false,
+        useNativeDriver: false,
     }).start(() => {
       if (currentStoryIndex < currentStory.media.length - 1) {
         setCurrentStoryIndex(prev => prev + 1);
-      } else {
-        navigation.goBack();
-      }
-    });
+          } else {
+            navigation.goBack();
+          }
+      });
   };
 
   const handlePress = (side) => {
@@ -64,13 +64,13 @@ const StoryViewer = ({ route, navigation }) => {
     } else {
       if (currentStoryIndex < currentStory.media.length - 1) {
         setCurrentStoryIndex(prev => prev + 1);
-      } else {
-        navigation.goBack();
-      }
+    } else {
+      navigation.goBack();
+    }
     }
   };
 
-  return (
+    return (
     <View style={styles.container}>
       <View style={styles.progressContainer}>
         {currentStory.media.map((_, index) => (
@@ -80,8 +80,8 @@ const StoryViewer = ({ route, navigation }) => {
                 styles.progressBar,
                 {
                   width: progress.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['0%', '100%'],
+                        inputRange: [0, 1],
+                        outputRange: ['0%', '100%'],
                   }),
                 },
                 index === currentStoryIndex && styles.activeProgressBar,
@@ -90,7 +90,7 @@ const StoryViewer = ({ route, navigation }) => {
           </View>
         ))}
       </View>
-
+      
       <View style={styles.header}>
         <View style={styles.userInfo}>
           <Image source={{ uri: currentStory.user.image }} style={styles.userImage} />

@@ -120,21 +120,21 @@ const navigation = useNavigation<ProfileNavigationProp>();
   };
 
   const renderHighlight = ({ item }) => (
-    <TouchableOpacity 
+      <TouchableOpacity
       style={styles.highlightContainer}
       onPress={() => navigation.navigate('HighlightViewer', { highlightId: item.id })}
     >
       <View style={styles.highlightImageContainer}>
         <Image source={{ uri: item.image }} style={styles.highlightImage} />
-      </View>
+        </View>
       <Text style={styles.highlightTitle} numberOfLines={1}>
         {item.title}
       </Text>
-    </TouchableOpacity>
+      </TouchableOpacity>
   );
 
   const renderPost = ({ item }) => (
-    <TouchableOpacity 
+      <TouchableOpacity
       style={styles.postContainer}
       onPress={() => navigation.navigate('PostDetails', { postId: item.id })}
     >
@@ -155,41 +155,39 @@ const navigation = useNavigation<ProfileNavigationProp>();
             <Text style={styles.statText}>{item.comments}</Text>
           </View>
         </View>
-      </View>
-    </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-      <TouchableOpacity onPress={() => navigation.navigate('Menu')}>
-          <Icon name="menu-outline" size={24} color="#000" />
+        <TouchableOpacity onPress={() => navigation.navigate('Menu')}>
+          <Icon name="menu-outline" size={24} color="#bea063" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{user.username}</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('StoryCreation')}>
-          <Icon name="add-circle-outline" size={24} color="#000" />
-        </TouchableOpacity>
+        <View style={{ width: 24 }} /> {/* Placeholder for balance */}
       </View>
 
       <ScrollView>
         <View style={styles.profileSection}>
           <View style={styles.profileHeader}>
             <Image source={{ uri: user.profileImage }} style={styles.profileImage} />
-            <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{user.posts}</Text>
-                <Text style={styles.statLabel}>Posts</Text>
-              </View>
-              <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Posts</Text>
+            </View>
+            <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{user.followers}</Text>
-                <Text style={styles.statLabel}>Followers</Text>
-              </View>
-              <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Followers</Text>
+            </View>
+            <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{user.following}</Text>
-                <Text style={styles.statLabel}>Following</Text>
-              </View>
+              <Text style={styles.statLabel}>Following</Text>
             </View>
           </View>
+        </View>
 
           <View style={styles.bioSection}>
             <Text style={styles.fullName}>
@@ -199,13 +197,13 @@ const navigation = useNavigation<ProfileNavigationProp>();
               )}
             </Text>
             <Text style={styles.bio}>{user.bio}</Text>
-          </View>
+        </View>
 
-          <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.editButton}>
-              <Text style={styles.editButtonText}>Edit Profile</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.shareButton}>
+        <View style={styles.actionButtons}>
+          <TouchableOpacity style={styles.editButton}>
+            <Text style={styles.editButtonText}>Edit Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.shareButton}>
               <Icon name="share-outline" size={20} color="#000" />
             </TouchableOpacity>
           </View>
@@ -227,19 +225,19 @@ const navigation = useNavigation<ProfileNavigationProp>();
             style={[styles.tab, activeTab === 'posts' && styles.activeTab]}
             onPress={() => setActiveTab('posts')}
           >
-            <Icon name="grid-outline" size={24} color={activeTab === 'posts' ? '#000' : '#666'} />
+            <Icon name="grid-outline" size={24} color={activeTab === 'posts' ? '#bea063' : '#666'} />
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.tab, activeTab === 'reels' && styles.activeTab]}
             onPress={() => setActiveTab('reels')}
           >
-            <Icon name="play-outline" size={24} color={activeTab === 'reels' ? '#000' : '#666'} />
+            <Icon name="play-outline" size={24} color={activeTab === 'reels' ? '#bea063' : '#666'} />
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.tab, activeTab === 'tagged' && styles.activeTab]}
             onPress={() => setActiveTab('tagged')}
           >
-            <Icon name="bookmark-outline" size={24} color={activeTab === 'tagged' ? '#000' : '#666'} />
+            <Icon name="bookmark-outline" size={24} color={activeTab === 'tagged' ? '#bea063' : '#666'} />
           </TouchableOpacity>
         </View>
 
@@ -262,23 +260,19 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    ...Platform.select({
-      ios: {
-        paddingTop: 50,
-      },
-      android: {
-        paddingTop: 16,
-      },
-    }),
+    borderBottomColor: '#bea063',
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    color: '#bea063',
+    textAlign: 'center',
+    flex: 1,
   },
   profileSection: {
     padding: 16,
@@ -332,14 +326,16 @@ const styles = StyleSheet.create({
   },
   editButton: {
     flex: 1,
-    borderWidth: 1,
+    borderWidth: 0,
     borderColor: '#ddd',
     borderRadius: 4,
     padding: 8,
     marginRight: 8,
     alignItems: 'center',
+    backgroundColor:'#bea063'
   },
   editButtonText: {
+    color:'white',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -380,17 +376,18 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
     borderTopWidth: 1,
+    borderTopColor: '#bea063',
     borderBottomWidth: 1,
-    borderColor: '#eee',
+    borderBottomColor: '#bea063',
   },
   tab: {
     flex: 1,
     alignItems: 'center',
-    padding: 12,
+    paddingVertical: 10,
   },
   activeTab: {
     borderBottomWidth: 2,
-    borderBottomColor: '#000',
+    borderBottomColor: '#bea063',
   },
   postContainer: {
     width: tileSize,

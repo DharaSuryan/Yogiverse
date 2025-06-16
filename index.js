@@ -10,4 +10,4 @@ AppRegistry.registerComponent(appName, () => App);
 AppRegistry.registerHeadlessTask(
   'RNFirebaseBackgroundMessage',
   () => PushNotifications,
-);
+);                                                                                           
