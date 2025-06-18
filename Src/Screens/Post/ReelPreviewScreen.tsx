@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
+  TextInput,
 } from 'react-native';
 import Video from 'react-native-video';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -68,6 +69,13 @@ const ReelPreviewScreen = () => {
           multiline
         />
       </View>
+
+      <TouchableOpacity
+        style={styles.filterButton}
+        onPress={() => navigation.navigate('MediaFilter', { media: [{ uri, type: 'video' }] })}
+      >
+        <Text style={styles.filterButtonText}>Filter</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -110,6 +118,17 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     padding: 10,
     minHeight: 100,
+  },
+  filterButton: {
+    position: 'absolute',
+    bottom: 40,
+    right: 20,
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 8,
+  },
+  filterButtonText: {
+    color: '#000',
   },
 });
 

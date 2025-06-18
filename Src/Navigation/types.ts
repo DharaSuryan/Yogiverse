@@ -20,12 +20,11 @@ export type AuthStackParamList = {
 };
 
 export type MainTabParamList = {
-  Home: NavigatorScreenParams<HomeStackParamList>;
-  Search: NavigatorScreenParams<SearchStackParamList>;
-  CreatePost: NavigatorScreenParams<CreatePostStackParamList>;
-  Vendor: NavigatorScreenParams<VendorStackParamList>;
-  Profile: NavigatorScreenParams<ProfileStackParamList>;
-    
+  HomeTab: NavigatorScreenParams<HomeStackParamList>;
+  SearchTab: NavigatorScreenParams<SearchStackParamList>;
+  CreatePostTab: NavigatorScreenParams<CreatePostStackParamList>;
+  VendorTab: NavigatorScreenParams<VendorStackParamList>;
+  ProfileTab: NavigatorScreenParams<ProfileStackParamList>;
 };
 
 export type HomeStackParamList = {
@@ -36,18 +35,46 @@ export type HomeStackParamList = {
 
 export type SearchStackParamList = {
   Search: undefined;
-  SearchDetail: undefined;
+  SearchDetail: { id: string };
 };
 
 export type CreatePostStackParamList = {
-  CreatePost: undefined;
-  MediaPicker: undefined;
-  MediaFilter: { media: any };
   UploadOptions: undefined;
+  StoryReelsSelection: undefined;
+  MediaPicker: { 
+    type: 'post' | 'reel' | 'story';
+    maxSelection?: number;
+  };
+  MediaFilter: { 
+    media: {
+      uri: string;
+      type: string;
+    }[];
+  };
   StoryCamera: undefined;
-  StoryPreview: { imageUri: string };
+  StoryPreview: { 
+    uri: string;
+    type?: 'image' | 'video';
+    caption?: string;
+  };
   ReelCamera: undefined;
-  ReelPreview: { videoUri: string };
+  ReelPreview: { 
+    uri: string;
+    caption?: string;
+  };
+  ReelEditor: { 
+    media: {
+      uri: string;
+      type: string;
+    };
+  };
+  PostPreview: { 
+    images: string[];
+    caption?: string;
+  };
+  PostDetails: { 
+    postId: string;
+  };
 };
 
 export type ProfileStackParamList = {

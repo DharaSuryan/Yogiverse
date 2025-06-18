@@ -21,9 +21,17 @@ type PostPreviewScreenNavigationProp = NativeStackNavigationProp<CreatePostStack
 type PostPreviewScreenRouteProp = RouteProp<CreatePostStackParamList, 'PostPreview'>;
 
 const PostPreviewScreen = () => {
-  const navigation = useNavigation<PostPreviewScreenNavigationProp>();
-  const route = useRoute<PostPreviewScreenRouteProp>();
-  const { media } = route.params;
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { images } = route.params;
+
+  if (!images || images.length === 0) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
+        <Text style={{ color: '#fff' }}>No images selected.</Text>
+      </View>
+    );
+  }
 
   // Add back handler
   useBackHandler(() => {
@@ -35,10 +43,6 @@ const PostPreviewScreen = () => {
     navigation.goBack();
   };
 
-  const handleNext = () => {
-    navigation.navigate('PostDetails', { media: [media] });
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -46,18 +50,22 @@ const PostPreviewScreen = () => {
           <Icon name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Preview</Text>
-        <TouchableOpacity onPress={handleNext} style={styles.nextButton}>
-          <Text style={styles.nextButtonText}>Next</Text>
-        </TouchableOpacity>
       </View>
 
       <View style={styles.mediaContainer}>
         <Image
-          source={{ uri: media.uri }}
+          source={{ uri: images[0] }}
           style={styles.imagePreview}
           resizeMode="contain"
         />
       </View>
+
+      <TouchableOpacity
+        style={styles.filterButton}
+        onPress={() => navigation.navigate('MediaFilter', { media: [{ uri: images[0], type: 'image' }] })}
+      >
+        <Text style={styles.filterButtonText}>Filter</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -83,14 +91,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-  nextButton: {
-    padding: 8,
-  },
-  nextButtonText: {
-    color: '#0095f6',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   mediaContainer: {
     flex: 1,
     alignItems: 'center',
@@ -100,6 +100,17 @@ const styles = StyleSheet.create({
     width: screenWidth,
     height: screenWidth,
     resizeMode: 'contain',
+  },
+  filterButton: {
+    position: 'absolute',
+    bottom: 40,
+    right: 20,
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 8,
+  },
+  filterButtonText: {
+    color: '#000',
   },
 });
 

@@ -12,13 +12,17 @@ import {
   SafeAreaView,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import ImagePicker from 'react-native-image-crop-picker';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { CreatePostStackParamList } from '../../Navigation/types';
 import { CommonActions } from '@react-navigation/native';
+import * as ImagePickerRN from 'react-native-image-picker';
+import { check, PERMISSIONS, request, RESULTS } from 'react-native-permissions';
+import { launchImageLibrary, Asset } from 'react-native-image-picker';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -28,41 +32,70 @@ const ENFORCE_SQUARE = true;           // enforce crop to square for images
 const ENABLE_FILTER_SCREEN = true;     // navigate to "Filter" after Next
 const SINGLE_SELECT_ONLY = false;      // set to true if you want only one at a time
 
-export default function MediaPickerScreen() {
-  const [galleryMedia, setGalleryMedia] = useState<{ uri: string, type: string }[]>([]);
-  const [selectedMedia, setSelectedMedia] = useState<{ uri: string, type: string }[]>([]);
+type MediaPickerScreenRouteProp = RouteProp<CreatePostStackParamList, 'MediaPicker'>;
+type MediaPickerScreenNavigationProp = NativeStackNavigationProp<CreatePostStackParamList, 'MediaPicker'>;
+
+// Define the type for media items
+interface MediaItem {
+  uri: string;
+  type: 'image' | 'video';
+}
+
+const MediaPicker = () => {
+  const navigation = useNavigation<MediaPickerScreenNavigationProp>();
+  const route = useRoute<MediaPickerScreenRouteProp>();
+  const { type, maxSelection = type === 'post' ? 10 : 1 } = route.params;
+  const [galleryMedia, setGalleryMedia] = useState<MediaItem[]>([]);
+  const [selectedMedia, setSelectedMedia] = useState<MediaItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const navigation = useNavigation<NativeStackNavigationProp<CreatePostStackParamList>>();
+  const [hasPermission, setHasPermission] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const [loading, setLoading] = useState(false);
+  const [navigating, setNavigating] = useState(false);
+
+  const isPost = type === 'post';
+  const isReel = type === 'reel';
+  const isStory = type === 'story';
 
   const handleClose = () => {
     navigation.navigate('UploadOptions');
   };
 
+  const requestPermission = async () => {
+    try {
+      if (Platform.OS === 'ios') {
+        const result = await request(PERMISSIONS.IOS.PHOTO_LIBRARY);
+        setHasPermission(result === RESULTS.GRANTED);
+      } else {
+        const result = await request(PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE);
+        setHasPermission(result === RESULTS.GRANTED);
+      }
+    } catch (error) {
+      console.error('Error requesting permission:', error);
+    }
+  };
+
   useEffect(() => {
+    requestPermission();
     openGallery();
   }, []);
 
   // ----- Open Gallery Picker -----
   const openGallery = async () => {
     try {
-      const pickerOptions: any = {
-        multiple: !SINGLE_SELECT_ONLY,
-        mediaType: ALLOW_VIDEO ? 'any' : 'photo',
-        cropping: ENFORCE_SQUARE,
+      let pickerOptions: any = {
+        multiple: route.params?.type === 'post', // multi-select for post
+        mediaType: route.params?.type === 'reel' ? 'video' : 'any',
+        cropping: route.params?.type === 'story',
         cropperCircleOverlay: false,
         compressImageQuality: 0.9,
+        width: route.params?.type === 'story' ? 1080 : undefined,
+        height: route.params?.type === 'story' ? 1920 : undefined,
       };
-      // If single select, disable multiple and cropping for video
-      if (SINGLE_SELECT_ONLY) pickerOptions.multiple = false;
-      if (!ALLOW_VIDEO) pickerOptions.mediaType = 'photo';
 
       const results = await ImagePicker.openPicker(pickerOptions);
-
-      // If user picked only one, wrap in array
       const mediaArray = Array.isArray(results) ? results : [results];
 
-      // For each, get uri and type (photo/video)
       const formatted = mediaArray.map((item: any) => ({
         uri: Platform.OS === 'ios' ? item.sourceURL || item.path : item.path,
         type: item.mime && item.mime.startsWith('video') ? 'video' : 'photo',
@@ -73,13 +106,11 @@ export default function MediaPickerScreen() {
       setCurrentIndex(0);
     } catch (error: any) {
       if (error.code === 'E_PICKER_CANCELLED') {
-        // If picker is cancelled, go back to upload options
         navigation.navigate('UploadOptions');
       } else {
-        // Log other errors
         console.error('Image picker error:', error);
       }
-      setGalleryMedia([]); // Clear media on error
+      setGalleryMedia([]);
       setSelectedMedia([]);
       setCurrentIndex(0);
     }
@@ -133,22 +164,18 @@ export default function MediaPickerScreen() {
   const handleNext = () => {
     if (!selectedMedia.length) return;
 
-    if (ENABLE_FILTER_SCREEN) {
-      // Pass to filter screen
+    if (route.params?.type === 'story') {
+      navigation.navigate('StoryPreview', { 
+        uri: selectedMedia[0].uri,
+        type: selectedMedia[0].type
+      });
+    } else if (route.params?.type === 'post') {
       navigation.navigate('MediaFilter', { media: selectedMedia[0] });
     } else {
-      // Navigate to main tab after successful selection
       navigation.dispatch(
         CommonActions.reset({
           index: 0,
-          routes: [
-            {
-              name: 'MainTab',
-              state: {
-                routes: [{ name: 'HomeTab' }],
-              },
-            },
-          ],
+          routes: [{ name: 'MainTab' }],
         })
       );
     }
@@ -160,8 +187,116 @@ export default function MediaPickerScreen() {
     flatListRef.current?.scrollToIndex({ index, animated: true });
   };
 
-  console.log('Navigation state:', navigation.getState());
-  console.log('Current route:', navigation.getCurrentRoute());
+  const handleImagePicker = () => {
+    const options = {
+      mediaType: 'mixed' as const,
+      selectionLimit: 10,
+      includeExtra: true,
+    };
+
+    ImagePickerRN.launchImageLibrary(options, (response) => {
+      if (response.didCancel) {
+        return;
+      }
+
+      if (response.errorCode) {
+        console.error('ImagePicker Error: ', response.errorMessage);
+        return;
+      }
+
+      if (response.assets) {
+        const newMedia = response.assets.map(asset => ({
+          uri: asset.uri || '',
+          type: asset.type === 'video' ? 'video' : 'photo',
+        }));
+        setSelectedMedia(newMedia);
+      }
+    });
+  };
+
+  const handleMediaSelect = async () => {
+    if (navigating) return;
+    setNavigating(true);
+    try {
+      const result = await launchImageLibrary({
+        mediaType: isPost ? 'mixed' : 'video',
+        selectionLimit: isPost ? 10 : 1,
+        quality: 1,
+      });
+      if (result.assets && result.assets.length > 0) {
+        const formatted: MediaItem[] = result.assets.map((a: Asset) => ({
+          uri: a.uri || '',
+          type: a.type && a.type.startsWith('video') ? 'video' : 'image',
+        })).filter(m => m.uri);
+        setGalleryMedia(formatted);
+        if (isPost || isReel) {
+          setSelectedMedia([]); // Start with no selection
+        } else if (isStory) {
+          navigation.navigate('StoryPreview', {
+            uri: formatted[0].uri,
+            type: formatted[0].type,
+          });
+        }
+      }
+    } finally {
+      setTimeout(() => setNavigating(false), 500);
+    }
+  };
+
+  const handleMediaPress = (item: MediaItem) => {
+    if (isPost) {
+      const isSelected = selectedMedia.some(m => m.uri === item.uri);
+      if (isSelected) {
+        setSelectedMedia(selectedMedia.filter(m => m.uri !== item.uri));
+      } else {
+        setSelectedMedia([...selectedMedia, item]);
+      }
+    } else if (isReel) {
+      setSelectedMedia([item]);
+    } else if (isStory) {
+      navigation.navigate('StoryPreview', {
+        uri: item.uri,
+        type: item.type,
+      });
+    }
+  };
+
+  const handleAdd = () => {
+    if (navigating || selectedMedia.length === 0) return;
+    setNavigating(true);
+    if (isPost) {
+      navigation.navigate('PostPreview', { images: selectedMedia.map(m => m.uri) });
+    } else if (isReel) {
+      navigation.navigate('ReelPreview', { uri: selectedMedia[0].uri });
+    }
+    setTimeout(() => setNavigating(false), 500);
+  };
+
+  const renderItem = ({ item }: { item: MediaItem }) => (
+    <TouchableOpacity
+      style={styles.mediaItem}
+      onPress={() => handleMediaPress(item)}
+    >
+      <Image source={{ uri: item.uri }} style={styles.mediaThumbnail} />
+      {item.type === 'video' && (
+        <View style={styles.videoIndicator}>
+          <Icon name="play" size={20} color="#FFFFFF" />
+        </View>
+      )}
+      {isPost && selectedMedia.some(m => m.uri === item.uri) && (
+        <View style={styles.selectedIndicator}>
+          <Icon name="checkmark-circle" size={24} color="#0095F6" />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+
+  const handleNavigate = (target, params) => {
+    if (navigating) return;
+    setNavigating(true);
+    navigation.navigate(target, params);
+    setTimeout(() => setNavigating(false), 500);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -169,16 +304,24 @@ export default function MediaPickerScreen() {
         <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
           <Icon name="close" size={24} color="#000" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Select Media</Text>
-        <TouchableOpacity 
-          onPress={handleNext}
-          disabled={!selectedMedia.length}
-          style={[styles.nextButton, !selectedMedia.length && styles.nextButtonDisabled]}
-        >
-          <Text style={[styles.nextButtonText, !selectedMedia.length && styles.nextButtonTextDisabled]}>
-            Next
-          </Text>
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>
+          {route.params?.type === 'story' ? 'New Story' : 'Select Media'}
+        </Text>
+        {isPost ? (
+          <TouchableOpacity 
+            onPress={handleNext}
+            disabled={selectedMedia.length === 0}
+            style={[styles.nextButton, selectedMedia.length === 0 && styles.nextButtonDisabled]}
+          >
+            <Text style={[styles.nextButtonText, selectedMedia.length === 0 && styles.nextButtonTextDisabled]}>
+              Next ({selectedMedia.length})
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={handleMediaSelect} style={styles.selectButton}>
+            <Text style={styles.selectButtonText}>Select</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Gallery (refresh) button */}
@@ -194,60 +337,41 @@ export default function MediaPickerScreen() {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onScroll={handleScroll}
-        keyExtractor={(item, index) => item.uri + index}
+        keyExtractor={item => item.id?.toString() || item.uri || String(Math.random())}
         renderItem={({ item, index }) => (
           <View style={styles.carousel}>
             {item.type === 'video' ? (
               <View style={styles.videoStub}>
                 <Icon name="videocam" size={40} color="#fff" />
-                <Text style={{ color: '#fff' }}>Video</Text>
               </View>
             ) : (
-              <Image source={{ uri: item.uri }} style={styles.previewImage} />
-            )}
-            <Text style={styles.indexText}>{index + 1}/{galleryMedia.length}</Text>
-            
-            {/* Delete button for selected media */}
-            {selectedMedia.find(m => m.uri === item.uri) && (
-              <TouchableOpacity 
-                style={styles.deleteButton}
-                onPress={() => handleDeleteSelected(item.uri)}
-              >
-                <Icon name="trash-outline" size={24} color="#fff" />
-              </TouchableOpacity>
+              <Image source={{ uri: item.uri }} style={styles.preview} />
             )}
           </View>
         )}
-        style={{ flexGrow: 0 }}
       />
 
       {/* Selected Thumbnails */}
-      <FlatList
-        data={galleryMedia}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.selectedThumbnails}
-        keyExtractor={(item, index) => item.uri + index}
-        renderItem={({ item, index }) => (
+      <View style={styles.thumbnailContainer}>
+        {galleryMedia.map((item, index) => (
           <TouchableOpacity
+            key={index}
+            style={[
+              styles.thumbnail,
+              currentIndex === index && styles.selectedThumbnail,
+            ]}
             onPress={() => handlePreviewPress(index)}
-            style={styles.thumbnailContainer}
           >
-            <Image
-              source={{ uri: item.uri }}
-              style={[
-                styles.thumbnail,
-                currentIndex === index && styles.activeThumbnail,
-              ]}
-            />
-            {selectedMedia.find((m) => m.uri === item.uri) && (
-              <View style={styles.selectedCheck}>
-                <Icon name="checkmark-circle" size={24} color="#0095f6" />
+            {item.type === 'video' ? (
+              <View style={styles.videoThumbnail}>
+                <Icon name="videocam" size={16} color="#fff" />
               </View>
+            ) : (
+              <Image source={{ uri: item.uri }} style={styles.thumbnailImage} />
             )}
           </TouchableOpacity>
-        )}
-      />
+        ))}
+      </View>
 
       <FlatList
         ref={flatListRef}
@@ -256,29 +380,38 @@ export default function MediaPickerScreen() {
         showsHorizontalScrollIndicator={false}
         pagingEnabled
         onMomentumScrollEnd={handleScroll}
-        keyExtractor={(item) => item.uri}
-        renderItem={({ item, index }) => (
-          <View style={styles.mediaContainer}>
-            <Image
-              source={{ uri: item.uri }}
-              style={styles.media}
-              resizeMode="contain"
-            />
-            {selectedMedia.some(media => media.uri === item.uri) && (
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => handleDeleteSelected(item.uri)}
-              >
-                <Icon name="trash-outline" size={24} color="#fff" />
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+        keyExtractor={item => item.id?.toString() || item.uri || String(Math.random())}
+        renderItem={renderItem}
         contentContainerStyle={styles.mediaList}
       />
+
+      {selectedMedia.length === 0 && (
+        <View style={styles.emptyContainer}>
+          <Icon name="images-outline" size={64} color="#bea063" />
+          <Text style={styles.emptyText}>Select photos and videos</Text>
+          <TouchableOpacity
+            style={styles.selectButton}
+            onPress={handleImagePicker}
+          >
+            <Text style={styles.selectButtonText}>Select from Gallery</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {(isPost || isReel) && selectedMedia.length > 0 && (
+        <TouchableOpacity onPress={handleAdd} style={styles.addButton}>
+          <Text style={styles.addButtonText}>Add</Text>
+        </TouchableOpacity>
+      )}
+
+      {loading && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#0095F6" />
+        </View>
+      )}
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: { 
@@ -290,49 +423,109 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: '#000',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
   },
   closeButton: {
     padding: 8,
   },
-  headerTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000',
-    textAlign: 'center',
-  },
   galleryButton: {
     position: 'absolute',
-    top: 45,
-    left: 18,
-    zIndex: 3,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    borderRadius: 24,
-    padding: 4,
+    top: 80,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#0095f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
   },
-  carousel: { 
+  carousel: {
+    width: screenWidth,
+    height: screenWidth,
     backgroundColor: '#000',
-    width: screenWidth,
-    position: 'relative',
   },
-  previewImage: {
-    width: screenWidth,
-    height: screenWidth * 1.2,
+  preview: {
+    width: '100%',
+    height: '100%',
     resizeMode: 'contain',
-    alignSelf: 'center',
+  },
+  videoStub: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#000',
   },
-  indexText: {
-    position: 'absolute',
-    top: 20,
-    left: 24,
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 15,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    paddingHorizontal: 8,
+  thumbnailContainer: {
+    flexDirection: 'row',
+    padding: 10,
+    backgroundColor: '#000',
+  },
+  thumbnail: {
+    width: 60,
+    height: 60,
+    marginRight: 10,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  selectedThumbnail: {
+    borderWidth: 2,
+    borderColor: '#0095f6',
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  videoThumbnail: {
+    flex: 1,
+    backgroundColor: '#333',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nextButton: {
+    padding: 8,
+  },
+  nextButtonDisabled: {
+    opacity: 0.5,
+  },
+  nextButtonText: {
+    color: '#0095f6',
+    fontWeight: '600',
+  },
+  nextButtonTextDisabled: {
+    color: '#666',
+  },
+  mediaList: {
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  selectButton: {
+    backgroundColor: '#bea063',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 8,
+  },
+  selectButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   deleteButton: {
     position: 'absolute',
@@ -342,72 +535,56 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 8,
   },
-  selectedThumbnails: {
-    flexDirection: 'row',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 6,
-    backgroundColor: '#000',
-    paddingHorizontal: 12,
   },
-  thumbnailContainer: {
-    marginRight: 8,
+  mediaItem: {
+    width: screenWidth / 3 - 4,
+    height: screenWidth / 3 - 4,
+    margin: 2,
     position: 'relative',
   },
-  thumbnail: {
-    width: 44,
-    height: 44,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#666',
-    opacity: 0.75,
+  mediaThumbnail: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 4,
   },
-  activeThumbnail: {
-    borderColor: '#3897f0',
-    opacity: 1,
-  },
-  selectedCheck: {
+  videoIndicator: {
     position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#000',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 12,
+    padding: 4,
+  },
+  selectedIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: 12,
   },
-  nextButton: {
-    padding: 8,
+  previewImage: {
+    width: 80,
+    height: 80,
+    marginHorizontal: 8,
+    borderRadius: 8,
+  },
+  addButton: {
     backgroundColor: '#0095F6',
-    borderRadius: 5,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginTop: 8,
   },
-  nextButtonText: {
+  addButtonText: {
     color: '#fff',
+    fontSize: 18,
     fontWeight: 'bold',
-    fontSize: 14,
-  },
-  nextButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  nextButtonTextDisabled: {
-    color: '#666',
-  },
-  videoStub: {
-    width: screenWidth,
-    height: screenWidth * 1.2,
-    backgroundColor: '#1a1a1a',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mediaContainer: {
-    width: screenWidth,
-    height: screenWidth * 1.2,
-    position: 'relative',
-  },
-  media: {
-    width: screenWidth,
-    height: screenWidth * 1.2,
-    resizeMode: 'contain',
-    alignSelf: 'center',
-    backgroundColor: '#000',
-  },
-  mediaList: {
-    alignItems: 'center',
   },
 });
+
+export default MediaPicker;

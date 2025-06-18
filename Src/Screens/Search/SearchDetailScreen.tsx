@@ -13,6 +13,8 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import Video from 'react-native-video';
 import { useNavigation } from '@react-navigation/native';
 import { BackHandler } from 'react-native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { SearchStackParamList } from '../../Navigation/types';
 const screenWidth = Dimensions.get('window').width;
 const reelsAndPosts = [
   { id: '1', type: 'image', src: 'https://picsum.photos/id/1015/400/600' },
@@ -33,99 +35,108 @@ const exploreMoreData = [
   require('../../Assets/yoga.jpg'),
 ];
 
+type SearchDetailScreenNavigationProp = NativeStackNavigationProp<SearchStackParamList, 'SearchDetail'>;
+
 const SearchDetailScreen = () => {
-    const navigation = useNavigation();
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(2100);
+    const navigation = useNavigation<SearchDetailScreenNavigationProp>();
+    const [liked, setLiked] = useState(false);
+    const [likeCount, setLikeCount] = useState(2100);
+    const [navigating, setNavigating] = React.useState(false);
 
-  const toggleLike = () => {
-    setLiked(!liked);
-    setLikeCount(prev => prev + (liked ? -1 : 1));
-  };
-useEffect(
-  React.useCallback(() => {
-    const onBackPress = () => {
-      navigation.navigate('SearchScreen'); // This assumes your tab is named 'Search'
-      return true; // Prevent default back behavior
+    const toggleLike = () => {
+        setLiked(!liked);
+        setLikeCount(prev => prev + (liked ? -1 : 1));
     };
 
-    BackHandler.addEventListener('hardwareBackPress', onBackPress);
-
-    return () => {
-      BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+    const handleBack = () => {
+        if (navigating) return;
+        setNavigating(true);
+        navigation.navigate('Search');
+        setTimeout(() => setNavigating(false), 500);
     };
-  }, [navigation])
-);
-  return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.mediaWrapper}>
-        <Image source={require('../../Assets/yoga.jpg')} style={styles.mainMedia} />
 
-        <TouchableOpacity style={styles.backButton}  onPress={() => navigation.navigate('SearchScreen')}>
-          <Ionicons name="arrow-back" size={28} color="#000" />
-        </TouchableOpacity>
-      </View>
+    useEffect(() => {
+        const onBackPress = () => {
+            handleBack();
+            return true;
+        };
 
-      <View style={styles.actionRow}>
-        <View style={styles.leftActions}>
-          <TouchableOpacity onPress={toggleLike} style={styles.iconWithText}>
-            <Ionicons name={liked ? 'heart' : 'heart-outline'} size={22} color={liked ? 'red' : 'black'} />
-            <Text style={styles.iconText}>{likeCount}</Text>
-          </TouchableOpacity>
+        BackHandler.addEventListener('hardwareBackPress', onBackPress);
 
-          <TouchableOpacity style={styles.iconWithText}>
-            <Ionicons name="chatbubble-outline" size={22} color="#000" />
-            <Text style={styles.iconText}>8</Text>
-          </TouchableOpacity>
+        return () => {
+            BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+        };
+    }, [navigation]);
 
-          <Ionicons name="share-outline" size={22} style={styles.icon} />
-        </View>
+    return (
+        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+            <View style={styles.mediaWrapper}>
+                <Image source={require('../../Assets/yoga.jpg')} style={styles.mainMedia} />
 
-        <TouchableOpacity style={styles.saveButton}>
-          <Text style={styles.saveButtonText}>Save</Text>
-        </TouchableOpacity>
-      </View>
+                <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+                    <Ionicons name="arrow-back" size={28} color="#000" />
+                </TouchableOpacity>
+            </View>
 
-      <View style={styles.captionWrapper}>
-        <Text style={styles.username}>Yoga</Text>
-        <Text style={styles.title}>HAPPY Yoga day..</Text>
-        <Text style={styles.caption}>.....</Text>
-      </View>
+            <View style={styles.actionRow}>
+                <View style={styles.leftActions}>
+                    <TouchableOpacity onPress={toggleLike} style={styles.iconWithText}>
+                        <Ionicons name={liked ? 'heart' : 'heart-outline'} size={22} color={liked ? 'red' : 'black'} />
+                        <Text style={styles.iconText}>{likeCount}</Text>
+                    </TouchableOpacity>
 
-      <Text style={styles.moreText}>More to explore</Text>
+                    <TouchableOpacity style={styles.iconWithText}>
+                        <Ionicons name="chatbubble-outline" size={22} color="#000" />
+                        <Text style={styles.iconText}>8</Text>
+                    </TouchableOpacity>
 
-        <FlatList
-  data={reelsAndPosts}
-  numColumns={2}
-  scrollEnabled={false} // Important: disable scroll here
-  keyExtractor={(item, index) => index.toString()}
-  columnWrapperStyle={styles.column}
-  contentContainerStyle={styles.gridContainer}
-  renderItem={({ item, index }) => (
-     <TouchableOpacity
-          style={[styles.card, { height:  230  }]}
-        
-        >
-          {item.type === 'image' ? (
-            <Image source={{ uri: item.src }} style={styles.image} />
-          ) : (
-            <Video
-              source={{ uri: item.src }}
-              style={styles.image}
-              muted
-              repeat
-              resizeMode="cover"
-              paused={true} // Lazy load
+                    <Ionicons name="share-outline" size={22} style={styles.icon} />
+                </View>
+
+                <TouchableOpacity style={styles.saveButton}>
+                    <Text style={styles.saveButtonText}>Save</Text>
+                </TouchableOpacity>
+            </View>
+
+            <View style={styles.captionWrapper}>
+                <Text style={styles.username}>Yoga</Text>
+                <Text style={styles.title}>HAPPY Yoga day..</Text>
+                <Text style={styles.caption}>.....</Text>
+            </View>
+
+            <Text style={styles.moreText}>More to explore</Text>
+
+            <FlatList
+                data={reelsAndPosts}
+                numColumns={2}
+                scrollEnabled={false}
+                keyExtractor={item => item.id?.toString() || item.src}
+                columnWrapperStyle={styles.column}
+                contentContainerStyle={styles.gridContainer}
+                renderItem={({ item, index }) => (
+                    <TouchableOpacity
+                        style={[styles.card, { height: 230 }]}
+                    >
+                        {item.type === 'image' ? (
+                            <Image source={{ uri: item.src }} style={styles.image} />
+                        ) : (
+                            <Video
+                                source={{ uri: item.src }}
+                                style={styles.image}
+                                muted
+                                repeat
+                                resizeMode="cover"
+                                paused={true}
+                            />
+                        )}
+                        <View style={styles.menuIconContainer}>
+                            <Ionicons name="ellipsis-vertical" size={18} color="#fff" />
+                        </View>
+                    </TouchableOpacity>
+                )}
             />
-          )}
-           <View style={styles.menuIconContainer}>
-                        <Ionicons name="ellipsis-vertical" size={18} color="#fff" />
-                      </View>
-        </TouchableOpacity>
-  )}
-/>
-    </ScrollView>
-  );
+        </ScrollView>
+    );
 };
 
 export default SearchDetailScreen;
@@ -193,7 +204,7 @@ const styles = StyleSheet.create({
   },
   durationText: { color: '#fff', fontSize: 10 },
   column: { justifyContent: 'space-between', marginBottom: 12 },
-    gridContainer: { paddingHorizontal: 8, paddingBottom: 20 },
+  gridContainer: { paddingHorizontal: 8, paddingBottom: 20 },
   card: {
     width: screenWidth / 2 - 12,
     borderRadius: 12,
@@ -201,7 +212,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#eee',
   },
   image: { width: '100%', height: '100%', },
-   menuIconContainer: {
+  menuIconContainer: {
     position: 'absolute',
     bottom: 8,
     right: 10,

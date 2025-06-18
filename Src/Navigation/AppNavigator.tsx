@@ -8,9 +8,9 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import HomeScreen from '../Screens/Home/HomeScreen';
 import SearchScreen from '../Screens/Search/SearchScreen';
 import ReelsScreen from '../Screens/Reels/ReelsScreen';
-import PostScreen from '../Screens/Post/PostScreen';
 import ProfileScreen from '../Screens/Profile/ProfileScreen';
 import StoryNavigator from './StoryNavigator';
+import CreatePostNavigator from './CreatePostNavigator';
 import LoginScreen from '../Screens/Auth/LoginScreen';
 import SignUpScreen from '../Screens/Auth/UserSignUpScreen';
 import SplashScreen from '../Screens/Splash/SplashScreen';
@@ -20,7 +20,6 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 const MainTabs = () => {
-  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -50,9 +49,9 @@ const MainTabs = () => {
         tabBarShowLabel: false,
       })}>
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="SearchScreen" component={SearchScreen} />
+      <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen name="Reels" component={ReelsScreen} />
-      <Tab.Screen name="Post" component={PostScreen} />
+      <Tab.Screen name="Post" component={CreatePostNavigator} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

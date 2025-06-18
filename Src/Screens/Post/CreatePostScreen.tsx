@@ -7,16 +7,40 @@ import {
   SafeAreaView,
   Image,
   TextInput,
+  FlatList,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { launchImageLibrary } from 'react-native-image-picker';
 
 const CreatePostScreen = () => {
   const navigation = useNavigation();
   const [caption, setCaption] = useState('');
+  const [navigated, setNavigated] = useState(false);
 
   const handleUploadOptions = () => {
     navigation.navigate('UploadOptions');
+  };
+
+  const handleMediaSelect = async () => {
+    if (navigated) return; // Prevent double navigation
+    setNavigated(true);
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'mixed',
+        selectionLimit: 1,
+        quality: 1,
+      });
+      if (result.assets && result.assets.length > 0) {
+        const selected = result.assets[0];
+        navigation.navigate('StoryPreview', {
+          uri: selected.uri,
+          type: selected.type?.startsWith('video') ? 'video' : 'image',
+        });
+      }
+    } finally {
+      setNavigated(false);
+    }
   };
 
   return (

@@ -11,13 +11,13 @@ import {
   BackHandler,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { MainTabParamList } from '../../Navigation/types';
+import { MainTabParamList, HomeStackParamList } from '../../Navigation/types';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Notification } from '../../Types';
 import { useFocusEffect } from '@react-navigation/native';
 
 type NotificationsScreenProps = {
-  navigation: NativeStackNavigationProp<MainTabParamList, 'Notifications'>;
+  navigation: NativeStackNavigationProp<HomeStackParamList, 'Notifications'>;
 };
 
 // Mock notifications data
@@ -31,6 +31,13 @@ const mockNotifications: Notification[] = [
     postId: '1',
     timestamp: '2h',
     isRead: false,
+    createdAt: new Date().toISOString(),
+    read: false,
+    user: {
+      username: 'user2',
+      email: 'user2@example.com',
+      isVerified: false
+    }
   },
   {
     id: '2',
@@ -42,6 +49,13 @@ const mockNotifications: Notification[] = [
     commentId: '1',
     timestamp: '3h',
     isRead: false,
+    createdAt: new Date().toISOString(),
+    read: false,
+    user: {
+      username: 'user3',
+      email: 'user3@example.com',
+      isVerified: false
+    }
   },
   {
     id: '3',
@@ -51,6 +65,13 @@ const mockNotifications: Notification[] = [
     userProfilePicture: 'https://i.pravatar.cc/150?u=4',
     timestamp: '4h',
     isRead: true,
+    createdAt: new Date().toISOString(),
+    read: true,
+    user: {
+      username: 'user4',
+      email: 'user4@example.com',
+      isVerified: false
+    }
   },
   {
     id: '4',
@@ -62,6 +83,13 @@ const mockNotifications: Notification[] = [
     commentId: '2',
     timestamp: '5h',
     isRead: false,
+    createdAt: new Date().toISOString(),
+    read: false,
+    user: {
+      username: 'user5',
+      email: 'user5@example.com',
+      isVerified: false
+    }
   },
 ];
 
@@ -124,7 +152,7 @@ useFocusEffect(
     if (notification.postId) {
       navigation.navigate('PostDetails', { postId: notification.postId });
     } else if (notification.type === 'follow') {
-      navigation.navigate('Profile');
+      navigation.navigate('Home');
     }
   };
 
@@ -154,6 +182,11 @@ useFocusEffect(
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.navigate('Home')}>
+          <Ionicons name="arrow-back" size={24} color="#000" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
       </View>
       <FlatList
@@ -176,6 +209,11 @@ const styles = StyleSheet.create({
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#dbdbdb',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButton: {
+    marginRight: 10,
   },
   headerTitle: {
     fontSize: 20,

@@ -41,6 +41,8 @@ import StoryCreation from '../Screens/Story/StoryCreation';
 import ProfileStack from './ProfileStack';
 import HighlightViewer from '../Screens/Profile/HighlightViewer';
 import VendorDetailScreen from '../Screens/Vender/VenderDetail';
+import ReelEditorScreen from '../Screens/Post/ReelEditorScreen';
+import PostPreviewScreen from '../Screens/Post/PostPreviewScreen';
 // import VendorStackScreen from '../Screens/Vendor/VendorStack';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -116,6 +118,7 @@ function SearchStackScreen() {
   return (
     <SearchStack.Navigator screenOptions={{ headerShown: false }}>
       <SearchStack.Screen name="Search" component={SearchScreen} />
+      <SearchStack.Screen name="SearchDetail" component={SearchDetailScreen}/>
     </SearchStack.Navigator>
   );
 }
@@ -141,15 +144,93 @@ function CreatePostStackScreen() {
         animation: 'slide_from_bottom',
       }}
     >
-      <CreatePostStack.Screen name="CreatePost" component={CreatePostScreen} />
-      <CreatePostStack.Screen name="UploadOptions" component={UploadOptionsScreen} />
-      <CreatePostStack.Screen name="MediaPicker" component={MediaPickerScreen} />
-      <CreatePostStack.Screen name="PostDetails" component={PostDetailsScreen} />
-      <CreatePostStack.Screen name="CreateStory" component={StoryCameraScreen} />
-      <CreatePostStack.Screen name="CreateReel" component={ReelCameraScreen} />
-      <CreatePostStack.Screen name="ReelPreview" component={ReelPreviewScreen} />
-      <CreatePostStack.Screen name="StoryPreview" component={StoryPreviewScreen} />
-      <CreatePostStack.Screen name="PostScreen" component={PostScreen} />
+      <CreatePostStack.Screen 
+        name="CreatePostHome" 
+        component={CreatePostScreen}
+        options={{
+          gestureEnabled: false
+        }}
+      />
+      <CreatePostStack.Screen 
+        name="UploadOptions" 
+        component={UploadOptionsScreen}
+        options={{
+          gestureEnabled: true,
+          gestureDirection: 'vertical'
+        }}
+      />
+      <CreatePostStack.Screen 
+        name="MediaPicker" 
+        component={MediaPickerScreen}
+        options={{
+          gestureEnabled: true,
+          gestureDirection: 'vertical'
+        }}
+      />
+      <CreatePostStack.Screen 
+        name="MediaFilter" 
+        component={MediaFilterScreen}
+        options={{
+          gestureEnabled: true,
+          gestureDirection: 'vertical'
+        }}
+      />
+      <CreatePostStack.Screen 
+        name="StoryCamera" 
+        component={StoryCameraScreen}
+        options={{
+          gestureEnabled: false,
+          animation: 'slide_from_right'
+        }}
+      />
+      <CreatePostStack.Screen 
+        name="StoryPreview" 
+        component={StoryPreviewScreen}
+        options={{
+          gestureEnabled: true,
+          gestureDirection: 'vertical'
+        }}
+      />
+      <CreatePostStack.Screen 
+        name="ReelCamera" 
+        component={ReelCameraScreen}
+        options={{
+          gestureEnabled: false,
+          animation: 'slide_from_right'
+        }}
+      />
+      <CreatePostStack.Screen 
+        name="ReelPreview" 
+        component={ReelPreviewScreen}
+        options={{
+          gestureEnabled: true,
+          gestureDirection: 'vertical'
+        }}
+      />
+      <CreatePostStack.Screen 
+        name="ReelEditor" 
+        component={ReelEditorScreen}
+        options={{
+          gestureEnabled: true,
+          gestureDirection: 'vertical'
+        }}
+      />
+      <CreatePostStack.Screen 
+        name="PostPreview" 
+        component={PostPreviewScreen}
+        options={{
+          gestureEnabled: true,
+          gestureDirection: 'vertical'
+        }}
+      />
+      <CreatePostStack.Screen 
+        name="PostDetails" 
+        component={PostDetailsScreen}
+        options={{
+          gestureEnabled: true,
+          gestureDirection: 'vertical'
+        }}
+      />
     </CreatePostStack.Navigator>
   );
 }
@@ -162,15 +243,15 @@ function MainTabScreen() {
         tabBarIcon: ({ focused, color, size }) => {
           let iconName = 'help-outline';
 
-          if (route.name === 'Home') {
+          if (route.name === 'HomeTab') {
             iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Search') {
+          } else if (route.name === 'SearchTab') {
             iconName = focused ? 'search' : 'search-outline';
-          } else if (route.name === 'CreatePost') {
+          } else if (route.name === 'CreatePostTab') {
             iconName = focused ? 'add-circle' : 'add-circle-outline';
-          } else if (route.name === 'Vendor') {
+          } else if (route.name === 'VendorTab') {
             iconName = focused ? 'business' : 'business-outline';
-          } else if (route.name === 'Profile') {
+          } else if (route.name === 'ProfileTab') {
             iconName = focused ? 'person' : 'person-outline';
           }
 
@@ -194,35 +275,35 @@ function MainTabScreen() {
       })}
     >
       <MainTabs.Screen 
-        name="Home" 
+        name="HomeTab" 
         component={HomeStackScreen}
         options={{
           tabBarLabel: 'Home',
         }}
       />
       <MainTabs.Screen 
-        name="Search" 
+        name="SearchTab" 
         component={SearchStackScreen}
         options={{
           tabBarLabel: 'Search',
         }}
       />
       <MainTabs.Screen 
-        name="CreatePost" 
+        name="CreatePostTab" 
         component={CreatePostStackScreen}
         options={{
           tabBarLabel: 'Post',
         }}
       />
       <MainTabs.Screen 
-        name="Vendor" 
+        name="VendorTab" 
         component={VendorStackScreen}
         options={{
           tabBarLabel: 'Vendor',
         }}
       />
       <MainTabs.Screen 
-        name="Profile" 
+        name="ProfileTab" 
         component={ProfileStackScreen}
         options={{
           tabBarLabel: 'Profile',

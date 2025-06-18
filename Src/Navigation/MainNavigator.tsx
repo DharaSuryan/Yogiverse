@@ -1,13 +1,25 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { MainTabParamList } from './types';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { MainTabParamList, SearchStackParamList } from './types';
 import Icon from 'react-native-vector-icons/Ionicons';
 import HomeScreen from '../Screens/Home/HomeScreen';
-import SearchScreen from '../Screens/Search/SearchDetailScreen';
+import SearchScreen from '../Screens/Search/SearchScreen';
+import SearchDetailScreen from '../Screens/Search/SearchDetailScreen';
 import CreatePostScreen from '../Screens/Post/CreatePostScreen';
 import ProfileScreen from '../Screens/Profile/ProfileScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
+const SearchStack = createNativeStackNavigator<SearchStackParamList>();
+
+const SearchNavigator = () => {
+  return (
+    <SearchStack.Navigator screenOptions={{ headerShown: false }}>
+      <SearchStack.Screen name="Search" component={SearchScreen} />
+      <SearchStack.Screen name="SearchDetail" component={SearchDetailScreen} />
+    </SearchStack.Navigator>
+  );
+};
 
 const MainNavigator = () => {
   return (
@@ -17,19 +29,19 @@ const MainNavigator = () => {
           let iconName;
 
           switch (route.name) {
-            case 'Home':
+            case 'HomeTab':
               iconName = focused ? 'home' : 'home-outline';
               break;
-            case 'Search':
+            case 'SearchTab':
               iconName = focused ? 'search' : 'search-outline';
               break;
-            case 'CreatePost':
+            case 'CreatePostTab':
               iconName = focused ? 'add-circle' : 'add-circle-outline';
               break;
             // case 'Notifications':
             //   iconName = focused ? 'heart' : 'heart-outline';
             //   break;
-            case 'Profile':
+            case 'ProfileTab':
               iconName = focused ? 'person' : 'person-outline';
               break;
             default:
@@ -50,21 +62,21 @@ const MainNavigator = () => {
       })}
     >
       <Tab.Screen 
-        name="Home" 
+        name="HomeTab" 
         component={HomeScreen}
         options={{
           tabBarLabel: 'Home',
         }}
       />
       <Tab.Screen 
-        name="Search" 
-        component={SearchScreen}
+        name="SearchTab" 
+        component={SearchNavigator}
         options={{
           tabBarLabel: 'Search',
         }}
       />
       <Tab.Screen 
-        name="CreatePost" 
+        name="CreatePostTab" 
         component={CreatePostScreen}
         options={{
           tabBarLabel: 'Post',
@@ -78,7 +90,7 @@ const MainNavigator = () => {
         }}
       /> */}
       <Tab.Screen 
-        name="Profile" 
+        name="ProfileTab" 
         component={ProfileScreen}
         options={{
           tabBarLabel: 'Profile',
