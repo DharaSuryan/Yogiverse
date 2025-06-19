@@ -15,7 +15,7 @@ import Video from 'react-native-video';
 import { useNavigation, useRoute, RouteProp, CommonActions } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { CreatePostStackParamList } from '../../Navigation/types';
+import { CreatePostStackParamList, RootStackParamList } from '../../Navigation/types';
 
 type StoryPreviewScreenRouteProp = RouteProp<CreatePostStackParamList, 'StoryPreview'>;
 type StoryPreviewScreenNavigationProp = NativeStackNavigationProp<CreatePostStackParamList, 'StoryPreview'>;
@@ -37,7 +37,7 @@ interface TextElement {
 const { width, height } = Dimensions.get('window');
 
 const StoryPreviewScreen = () => {
-  const navigation = useNavigation<StoryPreviewScreenNavigationProp>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<StoryPreviewScreenRouteProp>();
   const { uri, type = 'image' } = route.params;
   const [isPlaying, setIsPlaying] = useState(true);
@@ -89,12 +89,12 @@ const StoryPreviewScreen = () => {
     try {
       // Here you would typically upload the media to your backend
       // For now, we'll just navigate back to the main screen
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: 'MainTab' }],
-        })
-      );
+      navigation.navigate('MainTab', {
+  screen: 'HomeTab',
+  params: {
+    screen: 'Home',
+  },
+});
     } catch (error) {
       console.error('Error posting story:', error);
     }

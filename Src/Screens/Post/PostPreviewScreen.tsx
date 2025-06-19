@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { CreatePostStackParamList } from '../../Navigation/types';
+import { CreatePostStackParamList, RootStackParamList } from '../../Navigation/types';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useBackHandler } from '../../Utils/BackHandler';
 
@@ -21,7 +21,7 @@ type PostPreviewScreenNavigationProp = NativeStackNavigationProp<CreatePostStack
 type PostPreviewScreenRouteProp = RouteProp<CreatePostStackParamList, 'PostPreview'>;
 
 const PostPreviewScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
   const { images } = route.params;
 
@@ -32,7 +32,26 @@ const PostPreviewScreen = () => {
       </View>
     );
   }
+  const handlePost = async () => {
+    try {
+      // Here you would implement the logic to upload the reel
+      // to your backend server
+      const formData = new FormData();
+      formData.append('video', {
+        uri,
+        type: 'video/mp4',
+        name: 'reel.mp4',
+      });
+      formData.append('caption', caption);
 
+      // Example API call
+      // await api.post('/reels', formData);
+      
+  navigation.navigate('Post ', { media: [{ uri: images[0], type: 'image' }] });
+    } catch (error) {
+      console.error('Error uploading reel:', error);
+    }
+  };
   // Add back handler
   useBackHandler(() => {
     handleGoBack();
@@ -49,7 +68,9 @@ const PostPreviewScreen = () => {
         <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
           <Icon name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Preview</Text>
+        <TouchableOpacity onPress={()=>handlePost()}>
+        <Text style={styles.headerTitle}>Next</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.mediaContainer}>

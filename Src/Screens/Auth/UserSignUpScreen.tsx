@@ -121,14 +121,13 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
     try {
       setIsLoadingCountries(true);
       const response = await fetchCountries(countryPage, ITEMS_PER_PAGE);
-      if (!response || !response.data) throw new Error('No response received from server');
 
+      // The countries array is at response.data.data
       let countries;
-      if (Array.isArray(response.data)) {
-        countries = response.data;
-      } else if (response.data.results && Array.isArray(response.data.results)) {
-        countries = response.data.results;
+      if (response.data && Array.isArray(response.data.data)) {
+        countries = response.data.data;
       } else {
+        console.log('Unexpected country response:', response);
         throw new Error('Invalid data format received from server');
       }
 
@@ -142,7 +141,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
         setCountryPage(prev => prev + 1);
         setHasMoreCountries(true);
       }
-    } catch (error: any) {
+    } catch (error) {
       setHasMoreCountries(false);
       Alert.alert('Error Loading Countries', error.message || 'Failed to load countries.');
     } finally {
@@ -150,20 +149,29 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
     }
   };
 
-  const loadStates = async (countryId: number) => {
+  const loadStates = async (countryId) => {
     if (isLoadingStates || !hasMoreStates) return;
     try {
       setIsLoadingStates(true);
       const response = await fetchStates(countryId, statePage, ITEMS_PER_PAGE);
-      if (!response || !response.data) throw new Error('No data received from server');
-      const newStates = response.data;
-      if (newStates.length === 0) {
+
+      // The states array is at response.data.data
+      let states;
+      if (response.data && Array.isArray(response.data.data)) {
+        states = response.data.data;
+      } else {
+        states = [];
+        console.log('Invalid states response:', response);
+      }
+
+      if (states.length === 0) {
         setHasMoreStates(false);
       } else {
-        setFilteredStates(prev => [...prev, ...newStates]);
+        setFilteredStates(prev => [...prev, ...states]);
         setStatePage(prev => prev + 1);
+        setHasMoreStates(true);
       }
-    } catch (error: any) {
+    } catch (error) {
       setHasMoreStates(false);
       Alert.alert('Error', error.message || 'Failed to load states.');
     } finally {
@@ -171,20 +179,29 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
     }
   };
 
-  const loadCities = async (stateId: number) => {
+  const loadCities = async (stateId) => {
     if (isLoadingCities || !hasMoreCities) return;
     try {
       setIsLoadingCities(true);
       const response = await fetchCities(stateId, cityPage, ITEMS_PER_PAGE);
-      if (!response || !response.data) throw new Error('No data received from server');
-      const newCities = response.data;
-      if (newCities.length === 0) {
+
+      // The cities array is at response.data.data
+      let cities;
+      if (response.data && Array.isArray(response.data.data)) {
+        cities = response.data.data;
+      } else {
+        cities = [];
+        console.log('Invalid cities response:', response);
+      }
+
+      if (cities.length === 0) {
         setHasMoreCities(false);
       } else {
-        setFilteredCities(prev => [...prev, ...newCities]);
+        setFilteredCities(prev => [...prev, ...cities]);
         setCityPage(prev => prev + 1);
+        setHasMoreCities(true);
       }
-    } catch (error: any) {
+    } catch (error) {
       setHasMoreCities(false);
       Alert.alert('Error', error.message || 'Failed to load cities.');
     } finally {
@@ -200,7 +217,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
     });
   };
 
-  const renderCountryPicker = () => (
+  const renderCountryPicker = (setFieldValue) => (
     <Modal
       visible={showCountryPicker}
       transparent
@@ -223,7 +240,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
           />
           <FlatList
             data={allCountries.filter(country => {
-              const countryName = country?.name || country?.country_name || '';
+              const countryName = country?.country_name || country?.name || '';
               return countryName.toLowerCase().includes(countrySearch.toLowerCase());
             })}
             keyExtractor={(item) => item.id.toString()}
@@ -234,6 +251,8 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
                   setSelectedCountry(item);
                   setFieldValue('country', item.id.toString());
                   setShowCountryPicker(false);
+
+                  // Reset state and city
                   setSelectedState(null);
                   setSelectedCity(null);
                   setFilteredStates([]);
@@ -242,9 +261,12 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
                   setCityPage(1);
                   setHasMoreStates(true);
                   setHasMoreCities(true);
+
+                  // Fetch states for the selected country
+                  loadStates(item.id);
                 }}
               >
-                <Text style={styles.locationItemText}>{item.name || item.country_name}</Text>
+                <Text style={styles.locationItemText}>{item.country_name || item.name}</Text>
               </TouchableOpacity>
             )}
             onEndReached={() => {
@@ -271,7 +293,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
     </Modal>
   );
 
-  const renderStatePicker = () => (
+  const renderStatePicker = (setFieldValue) => (
     <Modal
       visible={showStatePicker}
       transparent
@@ -302,6 +324,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
                 style={styles.locationItem}
                 onPress={() => {
                   setSelectedState(item);
+                  setFieldValue('state', item.id.toString());
                   setShowStatePicker(false);
                   setSelectedCity(null);
                   setFilteredCities([]);
@@ -332,7 +355,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
     </Modal>
   );
 
-  const renderCityPicker = () => (
+  const renderCityPicker = (setFieldValue) => (
     <Modal
       visible={showCityPicker}
       transparent
@@ -363,6 +386,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
                 style={styles.locationItem}
                 onPress={() => {
                   setSelectedCity(item);
+                  setFieldValue('city', item.id.toString());
                   setShowCityPicker(false);
                 }}
               >
@@ -574,9 +598,9 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
                       </Text>
                     </TouchableOpacity>
                   </View>
-                  {renderCountryPicker()}
-                  {renderStatePicker()}
-                  {renderCityPicker()}
+                  {renderCountryPicker(setFieldValue)}
+                  {renderStatePicker(setFieldValue)}
+                  {renderCityPicker(setFieldValue)}
 
                   <Text style={styles.sectionTitle}>Business Information</Text>
                   <Text style={styles.label}>Business Name</Text>

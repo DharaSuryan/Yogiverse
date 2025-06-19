@@ -25,6 +25,7 @@ export const initializeAuth = createAsyncThunk(
         AsyncStorage.getItem('accessToken'),
         AsyncStorage.getItem('refreshToken'),
         AsyncStorage.getItem('userData')
+        
       ]);
 
       // If we have a token but no refresh token, try to get a new refresh token

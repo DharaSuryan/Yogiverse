@@ -136,6 +136,16 @@ export const logoutUser = async () => {
     throw error;
   }
 };
+export const getProfile = async (): Promise<ApiResponse> => {
+  console.log("get ");
+  
+  const response = await api.get(`/profile/`); // ✅ adjust if endpoint differs
+  return {
+    data: response.data,
+    status: response.status,
+    message: 'Profile fetched successfully',
+  };
+};
 
 export const fetchCountries = async (page = 1, limit = 10): Promise<ApiResponse> => {
   try {

@@ -44,6 +44,7 @@ import VendorDetailScreen from '../Screens/Vender/VenderDetail';
 // import ReelEditorScreen from '../Screens/Post/ReelEditorScreen';
 import PostPreviewScreen from '../Screens/Post/PostPreviewScreen';
 import ReelEditorScreen from '../Screens/Post/ReelEditorScreennew';
+import ProfilePostDetailScreen from '../Screens/Profile/ProfilePostDetailScreen';
 // import VendorStackScreen from '../Screens/Vendor/VendorStack';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -131,7 +132,7 @@ function ProfileStackScreen() {
       <ProfileStackNavigator.Screen name="Profile" component={ProfileScreen} />
         <ProfileStackNavigator.Screen name="Menu" component={MenuScreen} />
             {/* <Stack.Screen name="HighlightViewer" component={HighlightViewer} /> */}
-      {/* <Stack.Screen name="PostDetails" component={PostDetails} /> */}
+      <Stack.Screen name="ProfilePostDetailScreen" component={ProfilePostDetailScreen} />
       {/* <Stack.Screen name="StoryCreation" component={StoryCreation} /> */}
     </ProfileStackNavigator.Navigator>
   );
@@ -228,6 +229,14 @@ function CreatePostStackScreen() {
       <CreatePostStack.Screen 
         name="PostDetails" 
         component={PostDetailsScreen}
+        options={{
+          gestureEnabled: true,
+          gestureDirection: 'vertical'
+        }}
+      />
+      <CreatePostStack.Screen 
+        name="Post" 
+        component={PostScreen}
         options={{
           gestureEnabled: true,
           gestureDirection: 'vertical'

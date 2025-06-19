@@ -9,10 +9,16 @@ import {
 } from 'react-native';
 import Video from 'react-native-video';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute,CompositeNavigationProp } from '@react-navigation/native';
+
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { RootStackParamList, MainTabParamList } from '../../Navigation/types';
+
 
 const ReelPreviewScreen = () => {
-  const navigation = useNavigation();
+  
+const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
   const { uri } = route.params;
   const [caption, setCaption] = useState('');
@@ -32,7 +38,12 @@ const ReelPreviewScreen = () => {
       // Example API call
       // await api.post('/reels', formData);
       
-      navigation.navigate('HomeTab');
+navigation.navigate('MainTab', {
+  screen: 'HomeTab',
+  params: {
+    screen: 'Home',
+  },
+});
     } catch (error) {
       console.error('Error uploading reel:', error);
     }
@@ -72,7 +83,7 @@ const ReelPreviewScreen = () => {
 
       <TouchableOpacity
         style={styles.filterButton}
-        onPress={() => navigation.navigate('MediaFilter', { media: [{ uri, type: 'video' }] })}
+        onPress={() => navigation.navigate('ReelEditor', { media: [{ uri, type: 'video' }] })}
       >
         <Text style={styles.filterButtonText}>Filter</Text>
       </TouchableOpacity>

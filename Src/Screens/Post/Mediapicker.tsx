@@ -298,6 +298,21 @@ const MediaPicker = () => {
     setTimeout(() => setNavigating(false), 500);
   };
 
+  const renderPost = ({ item }) => (
+    <TouchableOpacity
+      style={styles.postContainer}
+      onPress={() => navigation.navigate('ProfilePostDetailScreen', { post: item })}
+      activeOpacity={0.8}
+    >
+      <Image source={{ uri: item.image }} style={styles.postImage} />
+      {item.type === 'reel' && (
+        <View style={styles.reelIndicator}>
+          <Icon name="play" size={20} color="#fff" />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -584,6 +599,25 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  postContainer: {
+    width: screenWidth / 3,
+    height: screenWidth / 3,
+    margin: 2,
+    position: 'relative',
+  },
+  postImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 4,
+  },
+  reelIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 12,
+    padding: 4,
   },
 });
 

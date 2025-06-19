@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,10 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ProfileStackParamList } from '../../Navigation/types';
+import { getProfile,  } from '../../Api/Api';
+import { useSelector } from 'react-redux';
+import { RootState } from 'Src/Store/store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const { width } = Dimensions.get('window');
 const numColumns = 3;
 const tileSize = width / numColumns;
@@ -23,10 +27,14 @@ type ProfileNavigationProp = NativeStackNavigationProp<ProfileStackParamList>;
 const ProfileScreen = () => {
   const [activeTab, setActiveTab] = useState('posts');
   const [likedPosts, setLikedPosts] = useState({});
-  const [savedPosts, setSavedPosts] = useState({});
+   const [savedPosts, setSavedPosts] = useState({});
+  const [profile, setProfile] = useState<any>();
+  const [loading, setLoading] = useState(true);
+  const[user,setUser]=useState<any>();
+  const [error, setError] = useState<string | null>(null);
 const navigation = useNavigation<ProfileNavigationProp>();
   // Dummy user data
-  const user = {
+  const userinfo = {
     id: '1',
     username: 'yoga_master',
     fullName: 'Yoga Master',
@@ -37,6 +45,7 @@ const navigation = useNavigation<ProfileNavigationProp>();
     profileImage: 'https://picsum.photos/200',
     isVerified: true,
   };
+console.log("profile",profile);
 
   // Dummy highlights data
   const highlights = [
@@ -104,7 +113,54 @@ const navigation = useNavigation<ProfileNavigationProp>();
       timestamp: '3d'
     },
   ];
+// const user = useSelector((state: RootState) => state.auth.user);
+//    const profileId :any = user?.data?.profile?.id;
+//    console.log("user",user);
+useEffect(() => {
+  const fetchProfile = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('userData');
+      const parsedUser = stored ? JSON.parse(stored) : null;
 
+      if (!parsedUser || !parsedUser.id) {
+        console.warn("⚠️ Invalid user data in AsyncStorage");
+        return;
+      }
+
+      console.log("👉 Calling getProfile with ID:", parsedUser.id);
+
+      const response = await getProfile();
+      console.log("✅ Profile fetched:", response.data.data);
+      setProfile(response.data.data.profile);
+    } catch (error: any) {
+      console.error("Error fetching profile:", error?.response || error.message);
+      setError("Something went wrong while loading profile.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchProfile();
+}, []);
+
+
+  // useEffect(() => {
+  //   if (user?.id) {
+  //     setLoading(true);
+  //     getProfile(user?.id)
+  //       .then(response => {
+  //         console.log("response",response);
+          
+  //         setProfile(response.data);
+  //         setError(null);
+  //       })
+  //       .catch(err => {
+  //         setError('Failed to fetch profile');
+  //       })
+  //       .finally(() => setLoading(false));
+  //   }
+  // }, [user?.id]);
+ 
   const handleLike = (postId) => {
     setLikedPosts(prev => ({
       ...prev,
@@ -133,31 +189,35 @@ const navigation = useNavigation<ProfileNavigationProp>();
       </TouchableOpacity>
   );
 
-  const renderPost = ({ item }) => (
-      <TouchableOpacity
-      style={styles.postContainer}
-      onPress={() => navigation.navigate('PostDetails', { postId: item.id })}
-    >
-      <Image source={{ uri: item.image }} style={styles.postImage} />
-      {item.type === 'reel' && (
-        <View style={styles.reelIndicator}>
-          <Icon name="play" size={20} color="#fff" />
-        </View>
-      )}
-      <View style={styles.postOverlay}>
-        <View style={styles.postStats}>
-          <View style={styles.stat}>
-            <Icon name="heart" size={20} color="#fff" />
-            <Text style={styles.statText}>{item.likes}</Text>
-          </View>
-          <View style={styles.stat}>
-            <Icon name="chatbubble" size={20} color="#fff" />
-            <Text style={styles.statText}>{item.comments}</Text>
-          </View>
-        </View>
-        </View>
-      </TouchableOpacity>
-  );
+const renderPost = ({ item }) => (
+  <TouchableOpacity
+    style={styles.postContainer}
+    onPress={() => navigation.navigate('ProfilePostDetailScreen', { post: item })}
+    activeOpacity={0.8}
+  >
+    <Image source={{ uri: item.image }} style={styles.postImage} />
+    {item.type === 'reel' && (
+      <View style={styles.reelIndicator}>
+        <Icon name="play" size={20} color="#fff" />
+      </View>
+    )}
+  </TouchableOpacity>
+)
+
+  // useEffect(() => {
+  //   if (profileId) {
+  //     getProfileById(profileId)
+  //       .then(response => {
+  //         console.log('Profile by ID:', response.data);
+  //       })
+  //       .catch(error => {
+  //         console.error(error);
+  //       });
+  //   }
+  // }, [profileId]);
+
+  // if (loading) return <Text>Loading...</Text>;
+  // if (error) return <Text>{error}</Text>;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -165,25 +225,25 @@ const navigation = useNavigation<ProfileNavigationProp>();
         <TouchableOpacity onPress={() => navigation.navigate('Menu')}>
           <Icon name="menu-outline" size={24} color="#bea063" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{user.username}</Text>
+        <Text style={styles.headerTitle}>{profile?.username}</Text>
         <View style={{ width: 24 }} /> {/* Placeholder for balance */}
       </View>
 
       <ScrollView>
         <View style={styles.profileSection}>
           <View style={styles.profileHeader}>
-            <Image source={{ uri: user.profileImage }} style={styles.profileImage} />
+            <Image source={{ uri: profile?.profile_picture}} style={styles.profileImage} />
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{user.posts}</Text>
+                <Text style={styles.statNumber}>{userinfo.posts}</Text>
               <Text style={styles.statLabel}>Posts</Text>
             </View>
             <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{user.followers}</Text>
+                <Text style={styles.statNumber}>{userinfo.followers}</Text>
               <Text style={styles.statLabel}>Followers</Text>
             </View>
             <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{user.following}</Text>
+                <Text style={styles.statNumber}>{userinfo.following}</Text>
               <Text style={styles.statLabel}>Following</Text>
             </View>
           </View>
@@ -191,12 +251,12 @@ const navigation = useNavigation<ProfileNavigationProp>();
 
           <View style={styles.bioSection}>
             <Text style={styles.fullName}>
-              {user.fullName}
-              {user.isVerified && (
+              {profile?.first_name +' '+ profile?.last_name}
+              {/* {userinfo.isVerified && (
                 <Icon name="checkmark-circle" size={16} color="#0095f6" style={styles.verifiedIcon} />
-              )}
+              )} */}
             </Text>
-            <Text style={styles.bio}>{user.bio}</Text>
+            <Text style={styles.bio}>{profile?.bio}</Text>
         </View>
 
         <View style={styles.actionButtons}>

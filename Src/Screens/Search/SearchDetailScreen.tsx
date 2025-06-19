@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { BackHandler } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SearchStackParamList } from '../../Navigation/types';
+import { Formik } from 'formik';
 const screenWidth = Dimensions.get('window').width;
 const reelsAndPosts = [
   { id: '1', type: 'image', src: 'https://picsum.photos/id/1015/400/600' },
