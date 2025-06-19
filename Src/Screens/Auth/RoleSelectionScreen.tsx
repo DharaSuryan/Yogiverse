@@ -12,7 +12,7 @@ export default function RoleSelectionScreen() {
       <View style={styles.roleContainer}>
         <TouchableOpacity
           style={[styles.roleCard, { backgroundColor: '#f4f8fb' }]}
-          onPress={() => navigation.navigate('Signup', { role: 'user' })}
+          onPress={() => navigation.navigate('SignUp', { role: 'user' })}
           activeOpacity={0.85}
         >
           <Ionicons name="person-outline" size={42} color="#1E90FF" style={styles.icon} />
@@ -22,7 +22,7 @@ export default function RoleSelectionScreen() {
 
         <TouchableOpacity
           style={[styles.roleCard, { backgroundColor: '#fff9f2' }]}
-          onPress={() => navigation.navigate('Signup', { role: 'vendor' })}
+          onPress={() => navigation.navigate('SignUp', { role: 'vendor' })}
           activeOpacity={0.85}
         >
           <Ionicons name="storefront-outline" size={42} color="#ef934b" style={styles.icon} />

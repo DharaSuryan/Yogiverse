@@ -41,8 +41,9 @@ import StoryCreation from '../Screens/Story/StoryCreation';
 import ProfileStack from './ProfileStack';
 import HighlightViewer from '../Screens/Profile/HighlightViewer';
 import VendorDetailScreen from '../Screens/Vender/VenderDetail';
-import ReelEditorScreen from '../Screens/Post/ReelEditorScreen';
+// import ReelEditorScreen from '../Screens/Post/ReelEditorScreen';
 import PostPreviewScreen from '../Screens/Post/PostPreviewScreen';
+import ReelEditorScreen from '../Screens/Post/ReelEditorScreennew';
 // import VendorStackScreen from '../Screens/Vendor/VendorStack';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -61,6 +62,7 @@ function AuthStackScreen() {
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="SignUp" component={SignUpScreen} />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <AuthStack.Screen name="RoleSelection" component={RoleSelectionScreen}/>
     </AuthStack.Navigator>
   );
 }

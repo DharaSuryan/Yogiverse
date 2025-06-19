@@ -140,6 +140,8 @@ export const logoutUser = async () => {
 export const fetchCountries = async (page = 1, limit = 10): Promise<ApiResponse> => {
   try {
     const response = await api.get('/helper_app/countries/', { params: { page, limit } });
+    console.log("response",response);
+    
     return {
       data: response.data,
       status: response.status,
@@ -166,6 +168,7 @@ export const fetchStates = async (countryId: number, page = 1, limit = 10): Prom
 export const fetchCities = async (stateId: number, page = 1, limit = 10): Promise<ApiResponse> => {
   try {
     const response = await api.get('/helper_app/cities/', { params: { stateId, page, limit } });
+
     return {
       data: response.data,
       status: response.status,
