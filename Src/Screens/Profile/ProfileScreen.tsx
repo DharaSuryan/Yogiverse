@@ -57,62 +57,62 @@ console.log("profile",profile);
   ];
 
   // Dummy posts data
-  const posts = [
-    { 
-      id: '1', 
-      image: 'https://picsum.photos/500', 
-      type: 'image', 
-      likes: 123, 
-      comments: 45,
-      caption: 'Morning yoga session 🌅',
-      timestamp: '2h'
-    },
-    { 
-      id: '2', 
-      image: 'https://picsum.photos/501', 
-      type: 'reel', 
-      likes: 456, 
-      comments: 78,
-      caption: 'New meditation technique',
-      timestamp: '3h'
-    },
-    { 
-      id: '3', 
-      image: 'https://picsum.photos/502', 
-      type: 'image', 
-      likes: 789, 
-      comments: 123,
-      caption: 'Sunset yoga flow',
-      timestamp: '5h'
-    },
-    { 
-      id: '4', 
-      image: 'https://picsum.photos/503', 
-      type: 'reel', 
-      likes: 234, 
-      comments: 56,
-      caption: 'Yoga for beginners',
-      timestamp: '1d'
-    },
-    { 
-      id: '5', 
-      image: 'https://picsum.photos/504', 
-      type: 'image', 
-      likes: 567, 
-      comments: 89,
-      caption: 'Peaceful morning',
-      timestamp: '2d'
-    },
-    { 
-      id: '6', 
-      image: 'https://picsum.photos/505', 
-      type: 'image', 
-      likes: 890, 
-      comments: 234,
-      caption: 'Mindful living',
-      timestamp: '3d'
-    },
-  ];
+  // const posts = [
+  //   { 
+  //     id: '1', 
+  //     image: 'https://picsum.photos/500', 
+  //     type: 'image', 
+  //     likes: 123, 
+  //     comments: 45,
+  //     caption: 'Morning yoga session 🌅',
+  //     timestamp: '2h'
+  //   },
+  //   { 
+  //     id: '2', 
+  //     image: 'https://picsum.photos/501', 
+  //     type: 'reel', 
+  //     likes: 456, 
+  //     comments: 78,
+  //     caption: 'New meditation technique',
+  //     timestamp: '3h'
+  //   },
+  //   { 
+  //     id: '3', 
+  //     image: 'https://picsum.photos/502', 
+  //     type: 'image', 
+  //     likes: 789, 
+  //     comments: 123,
+  //     caption: 'Sunset yoga flow',
+  //     timestamp: '5h'
+  //   },
+  //   { 
+  //     id: '4', 
+  //     image: 'https://picsum.photos/503', 
+  //     type: 'reel', 
+  //     likes: 234, 
+  //     comments: 56,
+  //     caption: 'Yoga for beginners',
+  //     timestamp: '1d'
+  //   },
+  //   { 
+  //     id: '5', 
+  //     image: 'https://picsum.photos/504', 
+  //     type: 'image', 
+  //     likes: 567, 
+  //     comments: 89,
+  //     caption: 'Peaceful morning',
+  //     timestamp: '2d'
+  //   },
+  //   { 
+  //     id: '6', 
+  //     image: 'https://picsum.photos/505', 
+  //     type: 'image', 
+  //     likes: 890, 
+  //     comments: 234,
+  //     caption: 'Mindful living',
+  //     timestamp: '3d'
+  //   },
+  // ];
 // const user = useSelector((state: RootState) => state.auth.user);
 //    const profileId :any = user?.data?.profile?.id;
 //    console.log("user",user);

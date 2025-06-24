@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -9,12 +9,17 @@ import HomeScreen from '../Screens/Home/HomeScreen';
 import SearchScreen from '../Screens/Search/SearchScreen';
 import ReelsScreen from '../Screens/Reels/ReelsScreen';
 import ProfileScreen from '../Screens/Profile/ProfileScreen';
+import { UserProfileScreen } from '../Screens/Profile/UserProfileScreen';
 import StoryNavigator from './StoryNavigator';
 import CreatePostNavigator from './CreatePostNavigator';
 import LoginScreen from '../Screens/Auth/LoginScreen';
 import SignUpScreen from '../Screens/Auth/UserSignUpScreen';
 import SplashScreen from '../Screens/Splash/SplashScreen';
 import SearchDetailScreen from '../Screens/Search/SearchDetailScreen';
+import CommentScreen from '../Screens/Comment/CommentScreen';
+import SubCateGoryDisplay from 'Src/Screens/Search/SubCateGoryDisplay';
+
+
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -68,10 +73,18 @@ const AppNavigator = () => {
         <Stack.Screen name="SignUpScreen" component={SignUpScreen} />
         <Stack.Screen name="MainTabs" component={MainTabs} />
         <Stack.Screen name="StoryNavigator" component={StoryNavigator} />
+        <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+        <Stack.Screen name="CommentScreen" component={CommentScreen} />
+        <Stack.Screen name="SubCateGoryDisplay" component={SubCateGoryDisplay} />
+
+
         {/* <Stack.Screen name="SearchDetail" component={SearchDetailScreen}/> */}
       </Stack.Navigator>
     </NavigationContainer>
   );
 };
+export const navigationRef = createNavigationContainerRef();
 
-export default AppNavigator; 
+
+
+export default AppNavigator;

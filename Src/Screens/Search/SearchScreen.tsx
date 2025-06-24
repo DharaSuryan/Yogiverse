@@ -1,5 +1,5 @@
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,165 +10,346 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import Video from 'react-native-video';
 import { SearchStackParamList } from '../../Navigation/types';
 import { useNavigation } from '@react-navigation/native';
-
-type SearchScreenNavigationProp = NativeStackNavigationProp<SearchStackParamList, 'Search'>;
+// import WarpperComponent from './warppercomponets';
+import axios from 'axios';
 
 const screenWidth = Dimensions.get('window').width;
+const imageSource = require('../../Assets/yoga.jpg');
 
 const suggestions = [
-  { title: 'Lemon recipes', subtitle: 'Food', image: require('../../Assets/yoga.jpg') },
-  { title: 'Heritage Desserts', subtitle: 'Food', image: require('../../Assets/yoga.jpg') },
-  { title: 'Yoga Lifestyle', subtitle: 'Health', image: require('../../Assets/yoga.jpg') },
-  { title: 'Healing Foods', subtitle: 'Ayurveda', image: require('../../Assets/yoga.jpg') },
-  { title: 'Daily Detox', subtitle: 'Health', image: require('../../Assets/yoga.jpg') },
-  { title: 'Organic Choices', subtitle: 'Market', image: require('../../Assets/yoga.jpg') },
+  { title: 'Lemon recipes', subtitle: 'Food', image: imageSource },
+  { title: 'Heritage Desserts', subtitle: 'Food', image: imageSource },
+  { title: 'Yoga Lifestyle', subtitle: 'Health', image: imageSource },
+  { title: 'Healing Foods', subtitle: 'Ayurveda', image: imageSource },
+  { title: 'Daily Detox', subtitle: 'Health', image: imageSource },
+  { title: 'Organic Choices', subtitle: 'Market', image: imageSource },
 ];
 
-const imageData = [
-  require('../../Assets/yoga.jpg'),
-  require('../../Assets/yoga.jpg'),
-  require('../../Assets/yoga.jpg'),
-  require('../../Assets/yoga.jpg'),
-  require('../../Assets/yoga.jpg'),
-  require('../../Assets/yoga.jpg'),
-];
-const reelsAndPosts = [
-  { id: '1', type: 'image', src: 'https://picsum.photos/id/1015/400/600' },
-  { id: '2', type: 'video', src: 'https://samplelib.com/lib/preview/mp4/sample-5s.mp4' },
-  { id: '3', type: 'image', src: 'https://picsum.photos/id/1018/400/400' },
-  { id: '4', type: 'image', src: 'https://picsum.photos/id/1024/400/500' },
-  { id: '5', type: 'video', src: 'https://samplelib.com/lib/preview/mp4/sample-10s.mp4' },
-  { id: '6', type: 'image', src: 'https://picsum.photos/id/1027/400/450' },
-  { id: '7', type: 'image', src: 'https://picsum.photos/id/1035/400/700' },
-  { id: '8', type: 'video', src: 'https://samplelib.com/lib/preview/mp4/sample-3s.mp4' },
-  { id: '9', type: 'image', src: 'https://picsum.photos/id/1042/400/500' },
-  { id: '10', type: 'image', src: 'https://picsum.photos/id/1049/400/600' }
-];
+type SearchScreenNavigationProp = NativeStackNavigationProp<
+  SearchStackParamList,
+  'Search'
+>;
 
+const SearchScreen = () => {
+  const navigation = useNavigation<SearchScreenNavigationProp>();
 
-export default function SearchScreen() {
-    const navigation = useNavigation<SearchScreenNavigationProp>();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const NUM_COLUMNS = 2;
+  const ITEM_MARGIN = 10;
+  const { width } = Dimensions.get('window');
+
+  const ITEM_WIDTH = (width - ITEM_MARGIN * (NUM_COLUMNS + 1)) / NUM_COLUMNS;
+  
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async (query = '') => {
+    setLoading(true);
+    setError(null);
+    try {
+      const mainCategoryRes = await axios.get(
+        `https://pashuahar.com/main_with_sub_categories?search=${query}`
+      );
+      // console.log("here comes resoponse ...",mainCategoryRes.data?.data);
+      
+      setCategories(mainCategoryRes.data?.data || []);
+    } catch (err) {
+      setError('Failed to load categories');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSearchResults = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      console.log("here comes ....",query);
+      
+      const searchRes = await axios.get(`https://pashuahar.com/search?search=${query}`);
+      console.log("searchRes.data?.resultssearchRes.data?.results",searchRes.data?.data?.results);
+      
+      setSearchResults(searchRes.data?.data?.results || []);
+    } catch (err) {
+      setError('Failed to fetch search results');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    fetchSearchResults(text);
+  };
+
+  const handleItemPress = (item: any) => {
+    console.log("here comes ....",item);
     
-    const handleItemPress = (id: string) => {
-        navigation.navigate('SearchDetail', { id });
-    };
 
+    if (item.first_name) {
+      // User result - navigate to UserProfile
+      navigation.navigate('UserProfile' as any, { userId: item.id.toString() });
+    } else {
+      // Category or other result - navigate to SubCateGoryDisplay
+      navigation.navigate('SubCateGoryDisplay' as any, { item });
+    }
+  };
+
+  const renderCategory = ({ item }: any) => {
     return (
-        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-            {/* Header */}
-            <View style={styles.header}>
-                <Icon name="search" size={20} color="#000" style={styles.searchIcon} />
-                <TextInput placeholder="Search for ideas" style={styles.searchInput} />
-            </View>
-
-            {/* Banner Text */}
-            
-
-            {/* Suggestions Section */}
-            <Text style={styles.suggestionTitle}>Ideas you might like</Text>
-            <FlatList
-                data={suggestions}
-                numColumns={3}
-                key={3}
-                scrollEnabled={false} // Important: disable scroll here
-                keyExtractor={(item, index) => index.toString()}
-                contentContainerStyle={styles.suggestionList}
-                columnWrapperStyle={styles.columnWrapperStyle}
-                renderItem={({ item }) => (
-                    <TouchableOpacity style={styles.suggestionCard} >
-                        <Image source={item.image} style={styles.cardImage} resizeMode="cover" />
-                        <Text style={styles.cardTitle} numberOfLines={1}>
-                            {item.title}
-                        </Text>
-                        <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
-                    </TouchableOpacity>
-                )}
-            />
-
-            {/* Image Grid Section */}
-            <FlatList
-                data={reelsAndPosts}
-                numColumns={2}
-                key={2}
-                scrollEnabled={false}
-                keyExtractor={(item) => item.id.toString()}
-                columnWrapperStyle={styles.column}
-                contentContainerStyle={styles.gridContainer}
-                renderItem={({ item }) => (
-                    <TouchableOpacity
-                        style={[styles.card, { height: 230 }]}
-                        onPress={() => handleItemPress(item.id)}
-                    >
-                        {item.type === 'image' ? (
-                            <Image source={{ uri: item.src }} style={styles.image} />
-                        ) : (
-                            <Video
-                                source={{ uri: item.src }}
-                                style={styles.image}
-                                muted
-                                repeat
-                                resizeMode="cover"
-                                paused={true}
-                            />
-                        )}
-                        <View style={styles.menuIconContainer}>
-                            <Icon name="ellipsis-vertical" size={18} color="#fff" />
-                        </View>
-                    </TouchableOpacity>
-                )}
-            />
-        </ScrollView>
+      <TouchableOpacity
+        style={styles.categoryCard}
+        onPress={() => handleItemPress(item)}
+        activeOpacity={0.8}
+      >
+        <View style={styles.imageWrapper}>
+          <Image source={imageSource} style={styles.image} />
+        </View>
+        <Text numberOfLines={2} style={styles.categoryTitle}>
+          {item.category_name}
+        </Text>
+      </TouchableOpacity>
     );
-}
+  };
+  
+  // const renderCategory = ({ item }: any) => {
+  //   const getImageSource = () => {
+  //     return categoryImages[item.category_name] || categoryImages['default'];
+  //   };
+  
+  //   return (
+  //     <TouchableOpacity
+  //       style={styles.categoryCard}
+  //       onPress={() => handleItemPress(item)}
+  //     >
+  //       <View style={styles.imageContainer}>
+  //         <Image 
+  //           source={getImageSource()} 
+  //           style={styles.categoryImage}
+  //           resizeMode="cover"
+  //         />
+  //       </View>
+  //       <Text style={styles.categoryTitle} numberOfLines={2}>
+  //         {item.category_name}
+  //       </Text>
+  //     </TouchableOpacity>
+  //   );
+  // };
+  const renderSearchResult = ({ item }: any) => {
+    // Handle different types of search results
+    let displayName = '';
+    let displayType = '';
+    
+    if (item.first_name) {
+      // User result
+      displayName = `${item.first_name} ${item.last_name || ''}`;
+      displayType = 'User';
+    } else if (item.caption) {
+      // Post result
+      displayName = item.caption;
+      displayType = 'Post';
+    }
+    
+    return (
+      <TouchableOpacity
+        style={styles.searchResultCard}
+        onPress={() => handleItemPress(item)}
+      >
+        <Text style={styles.searchResultText}>{displayName}</Text>
+        <Text style={styles.searchResultType}>{displayType}</Text>
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.header}>
+        <Icon name="search" size={20} color="#000" style={styles.searchIcon} />
+        <TextInput
+          placeholder="Search for ideas"
+          placeholderTextColor="black"
+          style={styles.searchInput}
+          value={searchQuery}
+          onChangeText={handleSearchChange}
+        />
+      </View>
+
+
+      {loading ? (
+        <ActivityIndicator size="large" color="#000" style={{ marginTop: 20 }} />
+      ) : error ? (
+        <Text style={{ color: 'red', textAlign: 'center' }}>{error}</Text>
+      ) : (
+        <>
+          {searchQuery.trim().length > 0 && searchResults.length > 0 && (
+            <View style={styles.searchResultBlock}>
+              <Text style={styles.categoryTitle}>Search Results</Text>
+              <FlatList
+                data={searchResults}
+                scrollEnabled={false}
+                keyExtractor={(item) => item?.id?.toString() || Math.random().toString()}
+                renderItem={renderSearchResult}
+              />
+            </View>
+          )}
+          <FlatList
+            data={categories}
+            keyExtractor={(item) => item.categories?.toString() || Math.random().toString()}
+            renderItem={renderCategory}
+            numColumns={2}
+        //     columnWrapperStyle={{
+        //       justifyContent: 'space-between',
+        //       marginBottom: ITEM_MARGIN,
+        //     }}
+        // contentContainerStyle={{padding: ITEM_MARGIN,
+        //   paddingBottom: 20,}}
+            scrollEnabled={false}
+            contentContainerStyle={{ paddingBottom: 20 }}
+          />
+        </>
+      )}
+    </ScrollView>
+  );
+};
+
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#fff' },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#eee',
-        borderRadius: 10,
-        margin: 10,
+  
+ 
+  searchResultBlock: {
+        marginVertical: 10,
         paddingHorizontal: 10,
-    },
-    searchIcon: { marginRight: 8 },
-    searchInput: { flex: 1, height: 40 },
-    bannerTextContainer: { paddingHorizontal: 16, marginTop: 10 },
-    bannerSubheading: { fontSize: 14, color: '#888' },
-    bannerHeading: { fontSize: 22, fontWeight: 'bold' },
-    suggestionTitle: { fontSize: 18, fontWeight: '600', margin: 10 },
-    suggestionList: { paddingHorizontal: 10 },
-    columnWrapperStyle: { justifyContent: 'space-between', marginBottom: 15 },
-    suggestionCard: {
-        width: screenWidth / 3 - 15,
-        marginHorizontal: 5,
-        backgroundColor: '#D3D3D3',
-        padding: 10,
-        borderRadius: 10,
-    },
-    cardImage: { width: '95%', height: 70, borderRadius: 40 },
-    cardTitle: { fontSize: 14, fontWeight: 'bold', marginTop: 5, color: 'black' },
-    cardSubtitle: { fontSize: 12, color: 'black' },
-    gridContainer: { paddingHorizontal: 8, paddingBottom: 20 },
-    column: { justifyContent: 'space-between', marginBottom: 12 },
-    card: {
-        width: screenWidth / 2 - 12,
-        borderRadius: 12,
-        overflow: 'hidden',
-        backgroundColor: '#eee',
-    },
-    image: { width: '100%', height: '100%', },
-    menuIconContainer: {
-        position: 'absolute',
-        bottom: 8,
-        right: 10,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-        borderRadius: 12,
-        padding: 4,
-    },
-});
+      },  
+  // categoryTitle: {
+  //       fontSize: 16,
+  //       fontWeight: 'bold',
+  //       color: 'black',
+  //     },
+  // image: { width: '100%', height: '100%', },
+  
+
+  container: { flex: 1, backgroundColor: '#fff' },
+  header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#eee',
+      borderRadius: 10,
+      margin: 10,
+      paddingHorizontal: 10,
+  },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, height: 40 },
+  bannerTextContainer: { paddingHorizontal: 16, marginTop: 10 },
+  bannerSubheading: { fontSize: 14, color: '#888' },
+  bannerHeading: { fontSize: 22, fontWeight: 'bold' },
+  suggestionTitle: { fontSize: 18, fontWeight: '600', margin: 10 },
+  suggestionList: { paddingHorizontal: 10 },
+  columnWrapperStyle: { justifyContent: 'space-between', marginBottom: 15 },
+  suggestionCard: {
+      width: screenWidth / 3 - 15,
+      marginHorizontal: 5,
+      backgroundColor: '#D3D3D3',
+      padding: 10,
+      borderRadius: 10,
+  },
+  cardImage: { width: '95%', height: 70, borderRadius: 40 },
+  cardTitle: { fontSize: 14, fontWeight: 'bold', marginTop: 5, color: 'black' },
+  cardSubtitle: { fontSize: 12, color: 'black' },
+  gridContainer: { paddingHorizontal: 8, paddingBottom: 20 },
+  column: { justifyContent: 'space-between', marginBottom: 12 },
+  card: {
+      width: screenWidth / 2 - 12,
+      borderRadius: 12,
+      overflow: 'hidden',
+      backgroundColor: '#eee',
+  },
+  // image: { width: '100%', height: '100%', },
+  menuIconContainer: {
+      position: 'absolute',
+      bottom: 8,
+      right: 10,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      borderRadius: 12,
+      padding: 4,
+  },
+  searchResultCard: {
+    backgroundColor: '#EFEFEF',
+    padding: 10,
+    marginBottom: 8,
+    borderRadius: 8,
+  },
+  searchResultText: {
+    color: '#000',
+    fontSize: 16,
+  },
+  // categoryCard: {
+  //   backgroundColor: '#D3D3D3',
+  //   padding: 15,
+  //   marginHorizontal: 10,
+  //   marginBottom: 10,
+  //   borderRadius: 8,
+  //   alignItems: 'center',
+  // },
+  categoryImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginBottom: 6,
+  },
+  // categoryTitle: {
+  //   fontSize: 16,
+  //   fontWeight: 'bold',
+  //   color: 'black',
+  // },
+  categoryCard: {
+    width: 130 + 30,
+    margin: 8,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 15,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+  },
+  imageWrapper: {
+    width: 120,
+    height: 120,
+    borderRadius: 120 / 2,
+    overflow: 'hidden',
+    backgroundColor: '#f5f5f5',
+    marginBottom: 8,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  categoryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#222',
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 4,
+  },
+})
+
+export default SearchScreen

@@ -2,10 +2,12 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MainTabParamList, SearchStackParamList } from './types';
-import Icon from 'react-native-vector-icons/Ionicons';
+// @ts-ignore
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import HomeScreen from '../Screens/Home/HomeScreen';
 import SearchScreen from '../Screens/Search/SearchScreen';
 import SearchDetailScreen from '../Screens/Search/SearchDetailScreen';
+import SubCateGoryDisplay from '../Screens/Search/SubCateGoryDisplay';
 import CreatePostScreen from '../Screens/Post/CreatePostScreen';
 import ProfileScreen from '../Screens/Profile/ProfileScreen';
 
@@ -17,6 +19,7 @@ const SearchNavigator = () => {
     <SearchStack.Navigator screenOptions={{ headerShown: false }}>
       <SearchStack.Screen name="Search" component={SearchScreen} />
       <SearchStack.Screen name="SearchDetail" component={SearchDetailScreen} />
+      {/* <SearchStack.Screen name="SubCateGoryDisplay" component={SubCateGoryDisplay} /> */}
     </SearchStack.Navigator>
   );
 };
@@ -48,11 +51,12 @@ const MainNavigator = () => {
               iconName = 'help-outline';
           }
 
-          return <Icon name={iconName} size={size} color={color} />;
+          // @ts-ignore
+          return <Ionicons name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#0095f6',
         tabBarInactiveTintColor: '#8e8e8e',
-        tabBarShowLabel: true,
+        tabBarShowLabel: false,
         tabBarStyle: {
           height: 60,
           paddingBottom: 10,
@@ -100,4 +104,4 @@ const MainNavigator = () => {
   );
 };
 
-export default MainNavigator; 
+export default MainNavigator;

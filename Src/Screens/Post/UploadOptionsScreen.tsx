@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   Image,
   FlatList,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -85,7 +86,11 @@ const UploadOptionsScreen = () => {
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.option}
-              onPress={() => handleMediaSelect(item.title.toLowerCase())}
+              
+              onPress={() => {
+               Alert.alert("Coming Soon");
+                // handleMediaSelect(item.title.toLowerCase())
+              }}
             >
               <View style={styles.optionContent}>
                 <View style={styles.iconContainer}>

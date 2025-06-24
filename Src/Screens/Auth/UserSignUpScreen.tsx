@@ -1,22 +1,56 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, FC } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  SafeAreaView, ScrollView, Alert, Image, ActivityIndicator, Modal, FlatList
+  SafeAreaView, ScrollView, Alert, Image, ActivityIndicator, Modal, FlatList, GestureResponderEvent
 } from 'react-native';
-import { Formik, FormikErrors, FormikTouched } from 'formik';
+import { Formik, FormikHelpers } from 'formik';
 import * as Yup from 'yup';
-import { Picker } from '@react-native-picker/picker';
 import MultiSelect from 'react-native-multiple-select';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../Navigation/types';
-import { launchImageLibrary } from 'react-native-image-picker';
-import { fetchCountries, fetchStates, fetchCities, registerUser } from '../../Api/Api';
+import { launchImageLibrary, ImagePickerResponse } from 'react-native-image-picker';
+import api, { fetchCountries, registerUser } from '../../Api/Api';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-const MAIN_CATEGORIES = ["Yog", "Meditation", "Spiritual", "Holistic"];
-const SUBCATEGORIES = ["Centre", "Guru", "Yogi", "Yogini", "Teacher", "Education", "Online", "Wellness centre"];
-const ITEMS_PER_PAGE = 10;
+// Type Definitions
+interface Country {
+  id: number;
+  country_name: string;
+  name: string;
+  calling_code: string;
+  all_state: State[];
+}
+
+interface State {
+  id: number;
+  name: string;
+}
+
+interface City {
+  id: number;
+  name: string;
+}
+
+interface SubCategory {
+  id: number;
+  name: string;
+}
+
+interface MainCategory {
+  categories: number;
+  category_name: string;
+  sub_categories: SubCategory[];
+}
+
+type AuthStackParamList = {
+  SignUp: { role: 'user' | 'vendor' };
+  Login: undefined;
+};
+
+type SignUpScreenProps = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
+
+// const MAIN_CATEGORIES = ["Yog", "Meditation", "Spiritual", "Holistic"];
+// const SUBCATEGORIES = ["Centre", "Guru", "Yogi", "Yogini", "Teacher", "Education", "Online", "Wellness centre"];
+const ITEMS_PER_PAGE = 50;
 
 const UserSchema = Yup.object().shape({
   first_name: Yup.string().required('Required'),
@@ -36,194 +70,176 @@ const VendorSchema = Yup.object().shape({
   business_name: Yup.string().required('Required'),
   main_categories: Yup.array().min(1, 'Select at least one'),
   subcategories: Yup.array().min(1, 'Select at least one'),
-  status: Yup.string().oneOf(['published', 'locked']).required('Required'),
 });
 
-interface Location {
-  id: number;
-  name: string;
-  country_name?: string;
-}
-
-interface SignUpFormValues {
-  profileImage: any;
-  first_name: string;
-  last_name: string;
-  username: string;
-  email: string;
-  phone_no: string;
-  password: string;
-  confirm_password: string;
-  country: string;
-  state: string;
-  city: string;
-  business_name?: string;
-  main_categories?: string[];
-  subcategories?: string[];
-  status?: 'published' | 'locked';
-  bio?: string;
-}
-
-interface SignUpScreenProps {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'SignUp'>;
-  route: {
-    params: {
-      role: string;
-    };
-  };
-}
-
-const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
+const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
   const { role: initialRole } = route.params;
   const [role, setRole] = useState(initialRole);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Location data states
-  const [allCountries, setAllCountries] = useState<Location[]>([]);
-  const [filteredStates, setFilteredStates] = useState<Location[]>([]);
-  const [filteredCities, setFilteredCities] = useState<Location[]>([]);
+  // Location states
+  const [allCountries, setAllCountries] = useState<Country[]>([]);
+  const [filteredStates, setFilteredStates] = useState<State[]>([]);
+  const [filteredCities, setFilteredCities] = useState<City[]>([]);
+  const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
+  const [selectedState, setSelectedState] = useState<State | null>(null);
+  const [selectedCity, setSelectedCity] = useState<City | null>(null);
 
-  // Pagination states
-  const [countryPage, setCountryPage] = useState(1);
-  const [statePage, setStatePage] = useState(1);
-  const [cityPage, setCityPage] = useState(1);
-
-  // Loading states
-  const [isLoadingCountries, setIsLoadingCountries] = useState(false);
-  const [isLoadingStates, setIsLoadingStates] = useState(false);
-  const [isLoadingCities, setIsLoadingCities] = useState(false);
-
-  // Has more data states
-  const [hasMoreCountries, setHasMoreCountries] = useState(true);
-  const [hasMoreStates, setHasMoreStates] = useState(true);
-  const [hasMoreCities, setHasMoreCities] = useState(true);
-
-  // New location picker states
+  // UI controls
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [showStatePicker, setShowStatePicker] = useState(false);
   const [showCityPicker, setShowCityPicker] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
   const [stateSearch, setStateSearch] = useState('');
   const [citySearch, setCitySearch] = useState('');
-  const [selectedCountry, setSelectedCountry] = useState<Location | null>(null);
-  const [selectedState, setSelectedState] = useState<Location | null>(null);
-  const [selectedCity, setSelectedCity] = useState<Location | null>(null);
+  const [isLoadingCountries, setIsLoadingCountries] = useState(false);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
 
-  // Load initial countries
+  const [mainCategories, setMainCategories] = useState<MainCategory[]>([]);
+  const [mainCategoryIds, setMainCategoryIds] = useState<number[]>([]);
+  const [subCategoryList, setSubCategoryList] = useState<SubCategory[]>([]);
+  const [subCategoryIds, setSubCategoryIds] = useState<number[]>([]);
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => {
-    loadCountries();
+    const fetchCategories = async () => {
+      setLoading(true);
+      try {
+        // Replace with your actual API endpoint if baseURL is not set globally
+        const res = await api.get('main_with_sub_categories/');
+        setMainCategories(res.data.data || []);
+        console.log(res.data.data, "maincategories");
+
+      } catch (err) {
+        Alert.alert('Error', 'Failed to load categories');
+        setMainCategories([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCategories();
   }, []);
 
-  const loadCountries = async () => {
-    if (isLoadingCountries || !hasMoreCountries) return;
-    try {
-      setIsLoadingCountries(true);
-      const response = await fetchCountries(countryPage, ITEMS_PER_PAGE);
-
-      // The countries array is at response.data.data
-      let countries;
-      if (response.data && Array.isArray(response.data.data)) {
-        countries = response.data.data;
-      } else {
-        console.log('Unexpected country response:', response);
-        throw new Error('Invalid data format received from server');
-      }
-
-      if (countries.length === 0) {
-        setHasMoreCountries(false);
-        if (countryPage === 1) {
-          Alert.alert('No Countries', 'No countries found. Please try again later.');
+  useEffect(() => {
+    let merged: SubCategory[] = [];
+    mainCategories
+      .filter(cat => mainCategoryIds.includes(cat.categories))
+      .forEach(cat => {
+        if (Array.isArray(cat.sub_categories)) {
+          // Flatten the array of arrays
+          merged = merged.concat(cat.sub_categories);
         }
-      } else {
-        setAllCountries(prev => [...prev, ...countries]);
-        setCountryPage(prev => prev + 1);
-        setHasMoreCountries(true);
+      });
+    // Remove duplicates by subcategory id
+    const seen = new Set();
+    const deduped = merged.filter(sub => {
+      if (!sub || !sub.id) return false; // defensive in case of null/undefined
+      if (seen.has(sub.id)) return false;
+      seen.add(sub.id);
+      return true;
+    });
+    setSubCategoryList(deduped);
+    // Remove any selected subcategory IDs not present in current deduped list
+    setSubCategoryIds(ids => ids.filter(id => deduped.some(sub => sub.id === id)));
+  }, [mainCategoryIds, mainCategories]);
+
+
+  // 1. Fetch all countries (with their states) on mount
+  useEffect(() => {
+    const fetchAllCountries = async () => {
+      setIsLoadingCountries(true);
+      let page = 1, all: Country[] = [];
+      while (true) {
+        const res = await fetchCountries(page, ITEMS_PER_PAGE);
+        if (!res?.data?.data) break;
+        all = [...all, ...res.data.data];
+        if (res.data.data.length < ITEMS_PER_PAGE) break;
+        page++;
       }
-    } catch (error) {
-      setHasMoreCountries(false);
-      Alert.alert('Error Loading Countries', error.message || 'Failed to load countries.');
-    } finally {
+      setAllCountries(all); // Contains all countries, each with .all_state
       setIsLoadingCountries(false);
+    };
+    fetchAllCountries();
+  }, []);
+
+  // 2. When country is selected
+  const handleCountrySelect = (item: Country, setFieldValue: (field: string, value: any) => void) => {
+    setSelectedCountry(item);
+    setFieldValue('country', item.id.toString());
+    setShowCountryPicker(false);
+
+    // Reset state & city
+    setSelectedState(null);
+    setSelectedCity(null);
+    setFilteredStates(item.all_state || []);
+    setFilteredCities([]);
+  };
+
+  // 3. When state is selected (fetch state-wise cities)
+  // API call
+  const fetchCities = async (stateId: number) => {
+    try {
+      const response = await api.get(`/helper_app/cities/${stateId}/`);
+      return {
+        data: response.data,
+        status: response.status,
+        message: 'Cities fetched successfully'
+      };
+    } catch (error) {
+      throw error;
     }
   };
 
-  const loadStates = async (countryId) => {
-    if (isLoadingStates || !hasMoreStates) return;
+
+  // State handler
+  const handleStateSelect = async (item: State, setFieldValue: (field: string, value: any) => void) => {
+    setSelectedState(item);
+    setFieldValue('state', item.id.toString());
+    setShowStatePicker(false);
+
+    setSelectedCity(null);
+    setFilteredCities([]);
+    setCitySearch('');
+
+    if (!item?.id) return;
+
+    setIsLoadingCities(true);
     try {
-      setIsLoadingStates(true);
-      const response = await fetchStates(countryId, statePage, ITEMS_PER_PAGE);
+      const res = await fetchCities(item.id);
+      // res.data.data is your array
 
-      // The states array is at response.data.data
-      let states;
-      if (response.data && Array.isArray(response.data.data)) {
-        states = response.data.data;
-      } else {
-        states = [];
-        console.log('Invalid states response:', response);
-      }
+      const cityArray = res?.data || [];
+      setFilteredCities(cityArray?.data);
 
-      if (states.length === 0) {
-        setHasMoreStates(false);
-      } else {
-        setFilteredStates(prev => [...prev, ...states]);
-        setStatePage(prev => prev + 1);
-        setHasMoreStates(true);
-      }
-    } catch (error) {
-      setHasMoreStates(false);
-      Alert.alert('Error', error.message || 'Failed to load states.');
-    } finally {
-      setIsLoadingStates(false);
-    }
-  };
-
-  const loadCities = async (stateId) => {
-    if (isLoadingCities || !hasMoreCities) return;
-    try {
-      setIsLoadingCities(true);
-      const response = await fetchCities(stateId, cityPage, ITEMS_PER_PAGE);
-
-      // The cities array is at response.data.data
-      let cities;
-      if (response.data && Array.isArray(response.data.data)) {
-        cities = response.data.data;
-      } else {
-        cities = [];
-        console.log('Invalid cities response:', response);
-      }
-
-      if (cities.length === 0) {
-        setHasMoreCities(false);
-      } else {
-        setFilteredCities(prev => [...prev, ...cities]);
-        setCityPage(prev => prev + 1);
-        setHasMoreCities(true);
-      }
-    } catch (error) {
-      setHasMoreCities(false);
-      Alert.alert('Error', error.message || 'Failed to load cities.');
+    } catch (err) {
+      setFilteredCities([]);
     } finally {
       setIsLoadingCities(false);
     }
   };
 
+
+  // 4. When city is selected
+  const handleCitySelect = (item: City, setFieldValue: (field: string, value: any) => void) => {
+    setSelectedCity(item);
+    setFieldValue('city', item.id.toString());
+    setShowCityPicker(false);
+  };
+
+  // Image picker
   const handleImagePick = () => {
-    launchImageLibrary({ mediaType: 'photo', quality: 0.8 }, response => {
+    launchImageLibrary({ mediaType: 'photo', quality: 0.8 }, (response: ImagePickerResponse) => {
       if (response.assets && response.assets.length > 0 && response.assets[0].uri) {
         setProfileImage(response.assets[0].uri);
       }
     });
   };
 
-  const renderCountryPicker = (setFieldValue) => (
-    <Modal
-      visible={showCountryPicker}
-      transparent
-      animationType="slide"
-      onRequestClose={() => setShowCountryPicker(false)}
-    >
+  // Pickers
+  const renderCountryPicker = (setFieldValue: (field: string, value: any) => void) => (
+    <Modal visible={showCountryPicker} transparent animationType="slide" onRequestClose={() => setShowCountryPicker(false)}>
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
@@ -239,67 +255,25 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
             onChangeText={setCountrySearch}
           />
           <FlatList
-            data={allCountries.filter(country => {
-              const countryName = country?.country_name || country?.name || '';
-              return countryName.toLowerCase().includes(countrySearch.toLowerCase());
-            })}
-            keyExtractor={(item) => item.id.toString()}
+            data={allCountries.filter(c => (c?.country_name || c?.name || '').toLowerCase().includes(countrySearch.toLowerCase()))}
+            keyExtractor={item => item.id.toString()}
             renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.locationItem}
-                onPress={() => {
-                  setSelectedCountry(item);
-                  setFieldValue('country', item.id.toString());
-                  setShowCountryPicker(false);
-
-                  // Reset state and city
-                  setSelectedState(null);
-                  setSelectedCity(null);
-                  setFilteredStates([]);
-                  setFilteredCities([]);
-                  setStatePage(1);
-                  setCityPage(1);
-                  setHasMoreStates(true);
-                  setHasMoreCities(true);
-
-                  // Fetch states for the selected country
-                  loadStates(item.id);
-                }}
-              >
-                <Text style={styles.locationItemText}>{item.country_name || item.name}</Text>
+              <TouchableOpacity style={styles.locationItem} onPress={() => handleCountrySelect(item, setFieldValue)}>
+                <View style={styles.countryItemContainer}>
+                  <Text style={styles.countryName}>{item.country_name || item.name}</Text>
+                  <Text style={styles.countryCodeText}>+{item.calling_code}</Text>
+                </View>
               </TouchableOpacity>
             )}
-            onEndReached={() => {
-              if (!isLoadingCountries && hasMoreCountries) {
-                loadCountries();
-              }
-            }}
-            onEndReachedThreshold={0.5}
-            ListFooterComponent={() =>
-              isLoadingCountries ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color="#0000ff" />
-                </View>
-              ) : null
-            }
-            ListEmptyComponent={() => (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No countries found</Text>
-              </View>
-            )}
+            ListEmptyComponent={() => <View style={styles.emptyContainer}><Text style={styles.emptyText}>No countries found</Text></View>}
           />
         </View>
       </View>
     </Modal>
   );
 
-  const renderStatePicker = (setFieldValue) => (
-    <Modal
-      visible={showStatePicker}
-      transparent
-      animationType="slide"
-      onRequestClose={() => setShowStatePicker(false)}
-    >
+  const renderStatePicker = (setFieldValue: (field: string, value: any) => void) => (
+    <Modal visible={showStatePicker} transparent animationType="slide" onRequestClose={() => setShowStatePicker(false)}>
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
@@ -315,53 +289,22 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
             onChangeText={setStateSearch}
           />
           <FlatList
-            data={filteredStates.filter(state =>
-              state.name.toLowerCase().includes(stateSearch.toLowerCase())
-            )}
-            keyExtractor={(item) => item.id.toString()}
+            data={filteredStates.filter(s => (s.name || '').toLowerCase().includes(stateSearch.toLowerCase()))}
+            keyExtractor={item => item.id.toString()}
             renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.locationItem}
-                onPress={() => {
-                  setSelectedState(item);
-                  setFieldValue('state', item.id.toString());
-                  setShowStatePicker(false);
-                  setSelectedCity(null);
-                  setFilteredCities([]);
-                  setCityPage(1);
-                  setHasMoreCities(true);
-                  loadCities(item.id);
-                }}
-              >
+              <TouchableOpacity style={styles.locationItem} onPress={() => handleStateSelect(item, setFieldValue)}>
                 <Text style={styles.locationItemText}>{item.name}</Text>
               </TouchableOpacity>
             )}
-            onEndReached={() => {
-              if (!isLoadingStates && hasMoreStates && selectedCountry) {
-                loadStates(selectedCountry.id);
-              }
-            }}
-            onEndReachedThreshold={0.5}
-            ListFooterComponent={() =>
-              isLoadingStates ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color="#0000ff" />
-                </View>
-              ) : null
-            }
+            ListEmptyComponent={() => <View style={styles.emptyContainer}><Text style={styles.emptyText}>No states found</Text></View>}
           />
         </View>
       </View>
     </Modal>
   );
 
-  const renderCityPicker = (setFieldValue) => (
-    <Modal
-      visible={showCityPicker}
-      transparent
-      animationType="slide"
-      onRequestClose={() => setShowCityPicker(false)}
-    >
+  const renderCityPicker = (setFieldValue: (field: string, value: any) => void) => (
+    <Modal visible={showCityPicker} transparent animationType="slide" onRequestClose={() => setShowCityPicker(false)}>
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
@@ -377,105 +320,22 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
             onChangeText={setCitySearch}
           />
           <FlatList
-            data={filteredCities.filter(city =>
-              city.name.toLowerCase().includes(citySearch.toLowerCase())
-            )}
-            keyExtractor={(item) => item.id.toString()}
+            data={filteredCities.filter(c => (c.name || '').toLowerCase().includes(citySearch.toLowerCase()))}
+            keyExtractor={item => item.id.toString()}
             renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.locationItem}
-                onPress={() => {
-                  setSelectedCity(item);
-                  setFieldValue('city', item.id.toString());
-                  setShowCityPicker(false);
-                }}
-              >
+              <TouchableOpacity style={styles.locationItem} onPress={() => handleCitySelect(item, setFieldValue)}>
                 <Text style={styles.locationItemText}>{item.name}</Text>
               </TouchableOpacity>
             )}
-            onEndReached={() => {
-              if (!isLoadingCities && hasMoreCities && selectedState) {
-                loadCities(selectedState.id);
-              }
-            }}
-            onEndReachedThreshold={0.5}
-            ListFooterComponent={() =>
-              isLoadingCities ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color="#0000ff" />
-                </View>
-              ) : null
-            }
+            ListEmptyComponent={() => <View style={styles.emptyContainer}><Text style={styles.emptyText}>No cities found</Text></View>}
+            ListFooterComponent={() => isLoadingCities ? (<View style={styles.loadingContainer}><ActivityIndicator size="small" color="#0000ff" /></View>) : null}
           />
         </View>
       </View>
     </Modal>
   );
 
-  const handleSubmit = async (values: SignUpFormValues, { setSubmitting }: any) => {
-    let formData = new FormData();
-
-    // User data
-    const user = {
-      first_name: values.first_name || "",
-      last_name: values.last_name || "",
-      email: values.email || "",
-      phone_no: values.phone_no || "",
-      username: values.username || "",
-      password: values.password || "",
-      country: selectedCountry ? selectedCountry.id.toString() : "",
-      state: selectedState ? selectedState.id.toString() : "",
-      city: selectedCity ? selectedCity.id.toString() : "",
-      role: role,
-    };
-    formData.append("user", JSON.stringify(user));
-
-    // Profile data
-    const profile = {
-      bio: values.bio || "",
-    };
-    formData.append("profile", JSON.stringify(profile));
-
-    // Vendor data (only if role is vendor)
-    if (role === "vendor") {
-      const vendor = {
-        business_name: values.business_name || "",
-        main_categories: values.main_categories || [],
-        subcategories: values.subcategories || [],
-      };
-      formData.append("vendor", JSON.stringify(vendor));
-    }
-
-    // Profile image (if present)
-    if (profileImage) {
-      formData.append('profile_image', {
-        uri: profileImage,
-        type: 'image/jpeg',
-        name: 'profile.jpg',
-      });
-    }
-
-    console.log("formdata", formData);
-
-    try {
-      const response = await registerUser(formData);
-      if (response.status === 200) {
-        Alert.alert('Success', 'Registration successful!');
-        console.log(" registration response",response);
-        
-        navigation.navigate('Login');
-      } else {
-        Alert.alert('Error', response.data.message || 'Registration failed. Please try again.');
-      }
-    } catch (error) {
-      console.error("Registration error:", error);
-      Alert.alert('Error', error.message || 'An error occurred during registration.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const initialValues: SignUpFormValues = {
+  const initialValues = {
     first_name: '',
     last_name: '',
     username: '',
@@ -486,18 +346,75 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
     country: '',
     state: '',
     city: '',
+    bio: '',
     ...(role === 'vendor' && {
       business_name: '',
-      main_categories: [],
-      subcategories: [],
-      status: 'published'
+      main_categories: [] as number[],
+      subcategories: [] as number[],
     }),
+  };
+
+  // Form Submission
+  const handleSubmit = async (values: typeof initialValues, { setSubmitting }: FormikHelpers<typeof initialValues>) => {
+    try {
+      setSubmitting(true);
+      console.log('Form submission started');
+      console.log('Form values:', values);
+
+      const formData = new FormData();
+      
+      // Append all fields one by one, which is the format the server expects
+      formData.append('first_name', values.first_name || '');
+      formData.append('last_name', values.last_name || '');
+      formData.append('email', values.email || '');
+      formData.append('phone_no', `+${selectedCountry?.calling_code || '91'}${values.phone_no || ''}`);
+      formData.append('username', values.username || '');
+      formData.append('password', values.password || '');
+      formData.append('country', selectedCountry ? selectedCountry.id.toString() : '');
+      formData.append('state', selectedState ? selectedState.id.toString() : '');
+      formData.append('city', selectedCity ? selectedCity.id.toString() : '');
+      formData.append('role', route.params.role);
+      formData.append('bio', values.bio || '');
+
+      if (role === 'vendor') {
+        formData.append('business_name', values.business_name || '');
+        // The server might expect the arrays as a JSON string
+        formData.append('main_categories', JSON.stringify(mainCategoryIds || []));
+        formData.append('subcategories', JSON.stringify(subCategoryIds || []));
+      }
+      
+      if (profileImage) {
+        formData.append('profile_image', {
+          uri: profileImage,
+          type: 'image/jpeg',
+          name: 'profile.jpg',
+        });
+      }
+
+      console.log('Sending FormData:', formData);
+      const response = await registerUser(formData);
+      
+      if (response.status) {
+        Alert.alert('Success', response.message || 'Registration successful!');
+        navigation.navigate('Login');
+      } else {
+        Alert.alert('Error', response.message || 'Registration failed. Please try again.');
+      }
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      const serverMessage = error?.response?.data?.message || error.message;
+      Alert.alert('Error', serverMessage || 'An error occurred during registration.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.header}>Sign Up as {role === 'user' ? 'User' : 'Vendor'}</Text>
+        {role !== 'user' ? <Text style={{ textAlign: 'center', color: '#bea063', marginTop: 10 }}>Everyone is Yogi</Text> : null}
+        {role !== 'user' ? <Text style={{ textAlign: 'center', marginVertical: 5, color: '#bea063' }}>by his/her Karma and Dharma.</Text> : null}
+        <Text style={styles.header}>Sign Up as {role === 'user' ? 'Seeker' : 'Yogic'}</Text>
         <Formik
           initialValues={initialValues}
           validationSchema={role === 'user' ? UserSchema : VendorSchema}
@@ -519,7 +436,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
 
               {/* Personal Information */}
               <Text style={styles.sectionTitle}>Personal Information</Text>
-              {(['first_name', 'last_name', 'username', 'email', 'phone_no'] as const).map(field => (
+              {(['first_name', 'last_name', 'username', 'email'] as const).map(field => (
                 <View key={field}>
                   <Text style={styles.label}>{field.replace('_', ' ').toUpperCase()}</Text>
                   <TextInput
@@ -533,7 +450,6 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
                   )}
                 </View>
               ))}
-
 
               {/* Security Information */}
               <Text style={styles.sectionTitle}>Security Information</Text>
@@ -565,43 +481,64 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
               </View>
               {touched.confirm_password && errors.confirm_password && <Text style={styles.error}>{errors.confirm_password}</Text>}
 
-              {/* Vendor-specific fields */}
+              {/* Location Information */}
+              <Text style={styles.sectionTitle}>Location Information</Text>
+              <View style={styles.locationContainer}>
+                <TouchableOpacity style={styles.locationField} onPress={() => setShowCountryPicker(true)}>
+                  <Text style={styles.locationLabel}>Country</Text>
+                  <Text style={styles.locationValue}>
+                    {selectedCountry ? (selectedCountry.name || selectedCountry.country_name) : 'Select Country'}
+                  </Text>
+                </TouchableOpacity>
+                <View key="phone_no">
+                  <Text style={styles.label}>PHONE NUMBER</Text>
+                  <View style={styles.phoneContainer}>
+                    <TouchableOpacity
+                      style={styles.countryCodeContainer}
+                      onPress={() => setShowCountryPicker(true)}
+                    >
+                      <Text style={styles.countryCode}>{selectedCountry ? `+${selectedCountry.calling_code}` : '+91'}</Text>
+                    </TouchableOpacity>
+                    <TextInput
+                      style={[styles.phoneInput, touched.phone_no && errors.phone_no && styles.inputError]}
+                      onChangeText={handleChange('phone_no')}
+                      onBlur={handleBlur('phone_no')}
+                      value={values.phone_no}
+                      keyboardType="phone-pad"
+                    />
+                  </View>
+                  {touched.phone_no && errors.phone_no && (
+                    <Text style={styles.errorText}>{errors.phone_no}</Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={[styles.locationField, !selectedCountry && styles.locationFieldDisabled]}
+                  onPress={() => selectedCountry && setShowStatePicker(true)}
+                  disabled={!selectedCountry}
+                >
+                  <Text style={styles.locationLabel}>State</Text>
+                  <Text style={[styles.locationValue, !selectedCountry && styles.locationValueDisabled]}>
+                    {selectedState ? selectedState.name : 'Select State'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.locationField, !selectedState && styles.locationFieldDisabled]}
+                  onPress={() => selectedState && setShowCityPicker(true)}
+                  disabled={!selectedState}
+                >
+                  <Text style={styles.locationLabel}>City</Text>
+                  <Text style={[styles.locationValue, !selectedState && styles.locationValueDisabled]}>
+                    {selectedCity ? selectedCity.name : 'Select City'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {renderCountryPicker(setFieldValue)}
+              {renderStatePicker(setFieldValue)}
+              {renderCityPicker(setFieldValue)}
+
+              {/* Vendor fields */}
               {role === 'vendor' && (
                 <>
-                  {/* Location Information */}
-                  <Text style={styles.sectionTitle}>Location Information</Text>
-                  <View style={styles.locationContainer}>
-                    <TouchableOpacity style={styles.locationField} onPress={() => setShowCountryPicker(true)}>
-                      <Text style={styles.locationLabel}>Country</Text>
-                      <Text style={styles.locationValue}>
-                        {selectedCountry ? (selectedCountry.name || selectedCountry.country_name) : 'Select Country'}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.locationField, !selectedCountry && styles.locationFieldDisabled]}
-                      onPress={() => selectedCountry && setShowStatePicker(true)}
-                      disabled={!selectedCountry}
-                    >
-                      <Text style={styles.locationLabel}>State</Text>
-                      <Text style={[styles.locationValue, !selectedCountry && styles.locationValueDisabled]}>
-                        {selectedState ? selectedState.name : 'Select State'}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.locationField, !selectedState && styles.locationFieldDisabled]}
-                      onPress={() => selectedState && setShowCityPicker(true)}
-                      disabled={!selectedState}
-                    >
-                      <Text style={styles.locationLabel}>City</Text>
-                      <Text style={[styles.locationValue, !selectedState && styles.locationValueDisabled]}>
-                        {selectedCity ? selectedCity.name : 'Select City'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                  {renderCountryPicker(setFieldValue)}
-                  {renderStatePicker(setFieldValue)}
-                  {renderCityPicker(setFieldValue)}
-
                   <Text style={styles.sectionTitle}>Business Information</Text>
                   <Text style={styles.label}>Business Name</Text>
                   <TextInput
@@ -616,20 +553,28 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
 
                   <Text style={styles.sectionTitle}>Categories</Text>
                   <MultiSelect
-                    items={MAIN_CATEGORIES.map(c => ({ id: c, name: c }))}
-                    uniqueKey="id"
-                    onSelectedItemsChange={items => setFieldValue('main_categories', items)}
+                    items={mainCategories}
+                    uniqueKey="categories"
+                    onSelectedItemsChange={items => {
+                      setFieldValue('main_categories', items);
+                      setMainCategoryIds(items); // <-- keep local state in sync!
+                    }}
                     selectedItems={values.main_categories || []}
                     selectText="Select Main Categories"
-                    displayKey="name"
+                    displayKey="category_name"
                     submitButtonText="Done"
                   />
+
+
                   {touched.main_categories && errors.main_categories && <Text style={styles.error}>{errors.main_categories}</Text>}
 
                   <MultiSelect
-                    items={SUBCATEGORIES.map(c => ({ id: c, name: c }))}
+                    items={subCategoryList}
                     uniqueKey="id"
-                    onSelectedItemsChange={items => setFieldValue('subcategories', items)}
+                    onSelectedItemsChange={items => {
+                      setFieldValue('subcategories', items);
+                      setSubCategoryIds(items);
+                    }}
                     selectedItems={values.subcategories || []}
                     selectText="Select Subcategories"
                     displayKey="name"
@@ -639,8 +584,11 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
                 </>
               )}
 
-              <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={isSubmitting}>
-                <Text style={styles.buttonText}>{isSubmitting ? 'Signing Up...' : 'Sign Up'}</Text>
+              <TouchableOpacity style={styles.button} onPress={handleSubmit as (e?: GestureResponderEvent) => void} disabled={isSubmitting}>
+                {isSubmitting 
+                  ? <ActivityIndicator color="#FFFFFF" /> 
+                  : <Text style={styles.buttonText}>Sign Up</Text>
+                }
               </TouchableOpacity>
             </View>
           )}
@@ -683,6 +631,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 24,
     marginBottom: 40,
+  },
+  phoneContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fafafa',
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  countryCodeContainer: {
+    width: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#dbdbdb',
+    marginRight: 10,
+  },
+  countryCode: {
+    fontSize: 16,
+    color: '#666',
+  },
+  countryItemContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  countryName: {
+    fontSize: 16,
+    flex: 1,
+  },
+  countryCodeText: {
+    fontSize: 16,
+    color: '#666',
+    minWidth: 50,
+  },
+  phoneInput: {
+    flex: 1,
+    padding: 12,
+    fontSize: 16,
   },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   inputWrapper: { marginBottom: 10 },
@@ -810,6 +797,7 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     // Add appropriate styles for the form container
+    marginTop: 10
   },
   submitButton: {
     backgroundColor: '#bea063', padding: 15, borderRadius: 5,

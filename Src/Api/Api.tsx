@@ -36,7 +36,7 @@ interface LoginCredentials {
 }
 
 // API Configuration
-export const BASE_URL = 'http://192.168.1.160:9001';  // Your local API endpoint
+export const BASE_URL = 'https://pashuahar.com/';  // Your local API endpoint
 
 export const API_INTERNET_CONNECTION_CAPTION_EN =
   'Sorry, No Internet connectivity detected. Please reconnect and try again';
@@ -107,9 +107,20 @@ api.interceptors.response.use(
   }
 );
 
+
 export const registerUser  = async (formData: FormData): Promise<ApiResponse> => {
-  return api.post('/vendor_register/', formData);
-};
+  try {
+    const response = await api.post('/vendor_register/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Registration API Error:", error.response?.data || error.message);
+    throw error;
+  }
+}
 export const loginUser = async (credentials: { username: string; password: string }): Promise<ApiResponse> => {
   try {
     const response = await api.post('/login/', credentials);
@@ -137,7 +148,7 @@ export const logoutUser = async () => {
   }
 };
 export const getProfile = async (): Promise<ApiResponse> => {
-  console.log("get ");
+  // console.log("get ");
   
   const response = await api.get(`/profile/`); // ✅ adjust if endpoint differs
   return {
@@ -146,11 +157,20 @@ export const getProfile = async (): Promise<ApiResponse> => {
     message: 'Profile fetched successfully',
   };
 };
-
+export const getPost = async (): Promise<ApiResponse> => {
+  // console.log("get ");
+  
+  const response = await api.get(`/posts/`); // ✅ adjust if endpoint differs
+  return {
+    data: response.data,
+    status: response.status,
+    message: 'Profile fetched successfully',
+  };
+};
 export const fetchCountries = async (page = 1, limit = 10): Promise<ApiResponse> => {
   try {
     const response = await api.get('/helper_app/countries/', { params: { page, limit } });
-    console.log("response",response);
+    // console.log("response",response);
     
     return {
       data: response.data,
@@ -175,14 +195,53 @@ export const fetchStates = async (countryId: number, page = 1, limit = 10): Prom
   }
 };
 
-export const fetchCities = async (stateId: number, page = 1, limit = 10): Promise<ApiResponse> => {
-  try {
-    const response = await api.get('/helper_app/cities/', { params: { stateId, page, limit } });
+
+
+export const vendorList  = async (): Promise<ApiResponse> => {
+  
+    try {
+    const response = await api.get('/vendor_list/');
 
     return {
       data: response.data,
       status: response.status,
       message: 'Cities fetched successfully'
+    };
+  } catch (error) {
+    throw error;
+  }
+}
+
+export const vendorDetail = async (id: string): Promise<ApiResponse> => {
+  try {
+    const response = await api.get(`/user_profile/${id}/`);
+    return {
+      data: response.data,
+      status: response.status,
+      message: 'Vendor details fetched successfully'
+    };
+  } catch (error: any) {
+    return { 
+      data: null, 
+      status: error.response?.status || 500, 
+      message: error.message 
+    };
+  }
+};
+// stories
+export const postStories  = async ({formData}:any): Promise<ApiResponse> => {
+  try {
+   const response = await api.post('/stories/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return {
+      data: response.data,
+      status: response.status,
+      message: 'Story Send successful',
+      user: response.data.user,
+      token: response.data.token
     };
   } catch (error) {
     throw error;
@@ -217,6 +276,7 @@ export const onAddDevicesAPICall = (params) => {
   return _REQUEST2SERVER_Authorization_Post_FCM(`/fcm-token/`, params);
 };
 
+
 const registerFCMToken = async (token) => {
   try {
     const authToken = await AsyncStorage.getItem('authToken'); // Get your auth token
@@ -225,7 +285,7 @@ const registerFCMToken = async (token) => {
       return;
     }
 
-    const response = await axios.post('http://192.168.1.160:9001/fcm-token/', 
+    const response = await axios.post('https://pashuahar.com/fcm-token/', 
       { token },
       {
         headers: {
@@ -238,6 +298,36 @@ const registerFCMToken = async (token) => {
   } catch (error) {
     console.error('Error registering FCM token:', error);
   }
+};
+export const getUserPosts = async (): Promise<ApiResponse> => {
+  const response = await api.get('/posts/');
+  return {
+    data: response.data,
+    status: response.status,
+    message: 'Posts fetched successfully',
+  };
+};
+
+// Fetch following count for the logged-in user
+export const getFollowingCount = async (): Promise<ApiResponse> => {
+  const response = await api.get('/follower/following');
+  return {
+    data: response.data,
+    status: response.status,
+    message: 'Following count fetched successfully',
+  };
+};
+
+// Fetch followers count for the logged-in user
+export const getFollowersCount = async (): Promise<ApiResponse> => {
+  const response = await api.get('/follower/followers');
+  // console.log("here ....",response?.data?.data);
+  
+  return {
+    data: response.data,
+    status: response.status,
+    message: 'Followers count fetched successfully',
+  };
 };
 
 export default api;

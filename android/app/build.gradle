@@ -82,7 +82,7 @@ android {
         applicationId "com.yogiverse"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
+        versionCode 4
         versionName "3.0"
         missingDimensionStrategy 'react-native-camera', 'general'
     }

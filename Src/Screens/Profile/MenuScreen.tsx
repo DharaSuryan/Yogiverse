@@ -3,10 +3,11 @@ import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal, Image, Swi
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useDispatch } from 'react-redux';
 import { logoutUser } from '../../Api/Api';
-import { logout } from 'Src/Store/actions/authActions';
+// import { logout } from 'Src/Store/actions/authActions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'; // Added NativeStackNavigationProp
 import { RootStackParamList } from '../../Navigation/types';
+import { CommonActions } from '@react-navigation/native';
 const MENU_SECTIONS = [
   {
     title: 'Account Center',
@@ -28,10 +29,10 @@ const MENU_SECTIONS = [
   {
     title: 'From Yogi-verse',
     data: [
-      { icon: 'leaf-outline', label: 'Gaushala', action: 'Gaushala' },
-      { icon: 'school-outline', label: 'Gurukul', action: 'Gurukul' },
-      { icon: 'restaurant-outline', label: 'SOSE', action: 'SOSE' },
-      { icon: 'flask-outline', label: 'Gir Gauveda', action: 'GirGauveda' },
+      { icon: 'leaf-outline', label: 'Ei', action: 'Ei' },
+      // { icon: 'school-outline', label: 'Gurukul', action: 'Gurukul' },
+      // { icon: 'restaurant-outline', label: 'SOSE', action: 'SOSE' },
+      // { icon: 'flask-outline', label: 'Gir Gauveda', action: 'GirGauveda' },
     ],
   },
   {
@@ -89,43 +90,46 @@ export default function MenuScreen({ navigation }: MenuScreenProps) {
     // switch(action) { ... }
   };
  const handleLogout = async () => {
-    try {
-      // Show confirmation dialog
-      Alert.alert(
-        'Logout',
-        'Are you sure you want to logout?',
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel'
-          },
-          {
-            text: 'Logout',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                // Clear AsyncStorage first
-                logoutUser()
-              
-
-                // Navigate to Login screen
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'Auth' }]
-                });
-              } catch (error) {
-                console.error('Logout error:', error);
-                Alert.alert('Error', 'Failed to logout. Please try again.');
-              }
+  try {
+    // Show confirmation dialog
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Clear AsyncStorage and perform logout
+              await AsyncStorage.clear();
+              await logoutUser();
+              // Reset to Login screen
+              navigation.reset({
+                index: 0,
+                routes: [{
+                  name: 'Auth'
+                }]
+              });
+              // Navigate to Login screen within Auth stack
+              navigation.navigate('Auth', { screen: 'Login' });
+            } catch (error) {
+              console.error('Logout error:', error);
+              Alert.alert('Error', 'Failed to logout. Please try again.');
             }
           }
-        ]
-      );
-    } catch (error) {
-      console.error('Logout error:', error);
-      Alert.alert('Error', 'Failed to logout. Please try again.');
-    }
-  };
+        }
+      ]
+    );
+  } catch (error) {
+    console.error('Logout error:', error);
+    Alert.alert('Error', 'Failed to logout. Please try again.');
+  }
+};
 
   // ... rest of your component code ...
 
@@ -134,8 +138,12 @@ export default function MenuScreen({ navigation }: MenuScreenProps) {
       style={styles.optionRow} 
       onPress={onPress ? onPress : () => handleMenuAction(action)}
     >
-      <Ionicons name={icon} size={22} color="#222" style={{ width: 28 }} />
-      <Text style={styles.optionText}>{label}</Text>
+      <View style={{ width: 28, alignItems: 'center' }}>
+        <Ionicons name={icon} size={22} color="#222" />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.optionText}>{label}</Text>
+      </View>
       <Ionicons name="chevron-forward-outline" size={18} color="#bbb" style={{ marginLeft: 'auto' }} />
     </TouchableOpacity>
   );

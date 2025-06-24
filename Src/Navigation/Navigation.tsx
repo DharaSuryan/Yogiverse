@@ -45,7 +45,11 @@ import VendorDetailScreen from '../Screens/Vender/VenderDetail';
 import PostPreviewScreen from '../Screens/Post/PostPreviewScreen';
 import ReelEditorScreen from '../Screens/Post/ReelEditorScreennew';
 import ProfilePostDetailScreen from '../Screens/Profile/ProfilePostDetailScreen';
+import { Image } from 'react-native';
 // import VendorStackScreen from '../Screens/Vendor/VendorStack';
+import UserProfileScreen from '../Screens/Profile/UserProfileScreen';
+import CommentScreen from "../Screens/Comment/CommentScreen";
+import SubCateGoryDisplay from '../Screens/Search/SubCateGoryDisplay';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -147,13 +151,13 @@ function CreatePostStackScreen() {
         animation: 'slide_from_bottom',
       }}
     >
-      <CreatePostStack.Screen 
+      {/* <CreatePostStack.Screen 
         name="CreatePostHome" 
         component={CreatePostScreen}
         options={{
           gestureEnabled: false
         }}
-      />
+      /> */}
       <CreatePostStack.Screen 
         name="UploadOptions" 
         component={UploadOptionsScreen}
@@ -251,6 +255,7 @@ function MainTabScreen() {
     <MainTabs.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
+        tabBarShowLabel: false,
         tabBarIcon: ({ focused, color, size }) => {
           let iconName = 'help-outline';
 
@@ -261,7 +266,7 @@ function MainTabScreen() {
           } else if (route.name === 'CreatePostTab') {
             iconName = focused ? 'add-circle' : 'add-circle-outline';
           } else if (route.name === 'VendorTab') {
-            iconName = focused ? 'business' : 'business-outline';
+            iconName = focused ? "yoga" : "yoga"
           } else if (route.name === 'ProfileTab') {
             iconName = focused ? 'person' : 'person-outline';
           }
@@ -270,7 +275,7 @@ function MainTabScreen() {
         },
         tabBarActiveTintColor: '#bea063',
         tabBarInactiveTintColor: '#8e8e8e',
-        tabBarShowLabel: true,
+        // tabBarShowLabel: true,
         tabBarStyle: {
           height: 60,
           paddingBottom: 10,
@@ -296,7 +301,7 @@ function MainTabScreen() {
         name="SearchTab" 
         component={SearchStackScreen}
         options={{
-          tabBarLabel: 'Search',
+          // tabBarLabel: 'Search',
         }}
       />
       <MainTabs.Screen 
@@ -310,14 +315,15 @@ function MainTabScreen() {
         name="VendorTab" 
         component={VendorStackScreen}
         options={{
-          tabBarLabel: 'Vendor',
+          tabBarLabel: 'Yogic',
         }}
       />
       <MainTabs.Screen 
         name="ProfileTab" 
         component={ProfileStackScreen}
         options={{
-          tabBarLabel: 'Profile',
+           tabBarLabel: 'Profile',
+          
         }}
       />
     </MainTabs.Navigator>
@@ -366,6 +372,10 @@ const Navigation = () => {
         <Stack.Screen name="MainTab" component={MainTabScreen} />
         <Stack.Screen name="Auth" component={AuthStackScreen} />
         <Stack.Screen name="StoryCreation" component={StoryCreation} />
+        <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+        <Stack.Screen name="CommentScreen" component={CommentScreen} />
+        <Stack.Screen name="SubCateGoryDisplay" component={SubCateGoryDisplay} />
+
       </Stack.Navigator>
     </NavigationContainer>
   

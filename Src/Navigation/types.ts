@@ -7,9 +7,11 @@ export type RootStackParamList = {
   MainTab: NavigatorScreenParams<MainTabParamList>;
   RoleSelection: undefined;
   Profile: undefined;
+  UserProfile: { userId: string };
   HighlightViewer: { highlightId: string };
   PostDetails: { postId: string };
   StoryCreation: undefined;
+  CreatePost: undefined;
 };
 
 export type AuthStackParamList = {
@@ -29,13 +31,17 @@ export type MainTabParamList = {
 
 export type HomeStackParamList = {
   Home: undefined;
-  PostDetails: { postId: string };
+  PostDetails: { 
+    postId: string;
+    media?: Array<{ uri: string; type: 'image' | 'video' }>;
+  };
   Notifications: undefined;
 };
 
 export type SearchStackParamList = {
   Search: undefined;
   SearchDetail: { id: string };
+  SubCateGoryDisplay: { item: any };
 };
 
 export type CreatePostStackParamList = {
@@ -46,10 +52,7 @@ export type CreatePostStackParamList = {
     maxSelection?: number;
   };
   MediaFilter: { 
-    media: {
-      uri: string;
-      type: string;
-    }[];
+    media: Array<{ uri: string; type: 'image' | 'video' }>;
   };
   StoryCamera: undefined;
   StoryPreview: { 
@@ -72,8 +75,12 @@ export type CreatePostStackParamList = {
     images: string[];
     caption?: string;
   };
+  Post: { 
+    media: Array<{ uri: string; type: 'image' | 'video' }>;
+  };
   PostDetails: { 
     postId: string;
+    media?: Array<{ uri: string; type: 'image' | 'video' }>;
   };
 };
 

@@ -42,9 +42,9 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
         
         // Store tokens and user data using Promise.all for better performance
         await Promise.all([
-          AsyncStorage.setItem('accessToken', response.data.access_token),
-          AsyncStorage.setItem('refreshToken', response.data.refresh_token),
-          AsyncStorage.setItem('userData', JSON.stringify(response.data.user))
+          AsyncStorage.setItem('accessToken', response?.data?.access_token),
+          AsyncStorage.setItem('refreshToken', response?.data?.refresh_token),
+          AsyncStorage.setItem('userData', JSON.stringify(response?.data?.user))
         ]);
         
         // Update Redux state
@@ -75,7 +75,7 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
         <View style={styles.logoContainer}>
-          <Image source={require('../../Assets/yoga.jpg')} style={styles.logo} resizeMode="contain" />
+          <Image source={require('../../Assets/LogoLogin.png')} style={styles.logo} resizeMode="contain" />
         </View>
         <Formik
           initialValues={{ username: '', password: '' }}
@@ -87,6 +87,7 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
               <TextInput
                 style={styles.input}
                 placeholder="Username"
+                placeholderTextColor="#999"
                 onChangeText={handleChange('username')}
                 onBlur={handleBlur('username')}
                 value={values.username}
@@ -98,6 +99,7 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
                 <TextInput
                   style={[styles.input, styles.passwordInput]}
                   placeholder="Password"
+                  placeholderTextColor="#999" // Update placeholder color to gray
                   onChangeText={handleChange('password')}
                   onBlur={handleBlur('password')}
                   value={values.password}

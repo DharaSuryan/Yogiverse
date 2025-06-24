@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
@@ -8,7 +8,7 @@ export default function RoleSelectionScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Choose Your Role</Text>
+      <Text style={styles.title}>Walk Your Path With Yogiverse</Text>
       <View style={styles.roleContainer}>
         <TouchableOpacity
           style={[styles.roleCard, { backgroundColor: '#f4f8fb' }]}
@@ -16,8 +16,8 @@ export default function RoleSelectionScreen() {
           activeOpacity={0.85}
         >
           <Ionicons name="person-outline" size={42} color="#1E90FF" style={styles.icon} />
-          <Text style={styles.roleName}>User</Text>
-          <Text style={styles.roleDesc}>Browse, buy, and connect as a user.</Text>
+          <Text style={styles.roleName}>Seeker</Text>
+          <Text style={styles.roleDesc}>Explore, connect, and grow on your path of wellness and inner balance.</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -25,9 +25,10 @@ export default function RoleSelectionScreen() {
           onPress={() => navigation.navigate('SignUp', { role: 'vendor' })}
           activeOpacity={0.85}
         >
-          <Ionicons name="storefront-outline" size={42} color="#ef934b" style={styles.icon} />
-          <Text style={styles.roleName}>Vendor</Text>
-          <Text style={styles.roleDesc}>Grow your business and manage your store.</Text>
+          <Image source={require('../../Assets/Role.png')} style={{ width: 200,
+    height: 100,}} resizeMode="contain" />
+          <Text style={styles.roleName}>Yogic</Text>
+          <Text style={styles.roleDesc}>Share your offerings, guide others, and grow with our conscious community.</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -36,7 +37,7 @@ export default function RoleSelectionScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f7fa', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 26, fontWeight: 'bold', color: '#222', marginBottom: 42 },
+  title: { fontSize: 22, fontWeight: 'bold', color: '#bea063', marginBottom: 42 ,textAlign:'center',},
   roleContainer: { width: '90%', alignItems: 'center' },
   roleCard: {
     width: '100%',

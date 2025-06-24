@@ -22,9 +22,6 @@ const ProfilePostDetailScreen = () => {
   const handleLike = () => setLiked(l => !l);
   const handleSave = () => setSaved(s => !s);
 
-
-
-
   const handleAddComment = () => {
     if (comment.trim()) {
       setComments(prev => [
@@ -103,7 +100,7 @@ const ProfilePostDetailScreen = () => {
       />
 
       {/* Add Comment */}
-      <KeyboardAvoidingView
+      {/* <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={80}
       >
@@ -120,7 +117,7 @@ const ProfilePostDetailScreen = () => {
             <Icon name="send" size={24} color="#bea063" />
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingView> */}
     </SafeAreaView>
   );
 };
