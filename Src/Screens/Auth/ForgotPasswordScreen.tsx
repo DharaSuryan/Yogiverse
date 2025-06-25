@@ -140,14 +140,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   resetButton: {
-    backgroundColor: '#0095f6',
+    backgroundColor: '#bea063',
     padding: 12,
     borderRadius: 5,
     alignItems: 'center',
     marginTop: 10,
   },
   disabledButton: {
-    backgroundColor: '#b2dffc',
+    backgroundColor: '#bea063',
   },
   resetButtonText: {
     color: '#fff',
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backButtonText: {
-    color: '#0095f6',
+    color: '#bea063',
     fontSize: 14,
   },
 });

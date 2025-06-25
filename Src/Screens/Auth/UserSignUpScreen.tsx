@@ -99,7 +99,6 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
 
   const [mainCategories, setMainCategories] = useState<MainCategory[]>([]);
   const [mainCategoryIds, setMainCategoryIds] = useState<number[]>([]);
-  const [subCategoryList, setSubCategoryList] = useState<SubCategory[]>([]);
   const [subCategoryIds, setSubCategoryIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -121,30 +120,6 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
     };
     fetchCategories();
   }, []);
-
-  useEffect(() => {
-    let merged: SubCategory[] = [];
-    mainCategories
-      .filter(cat => mainCategoryIds.includes(cat.categories))
-      .forEach(cat => {
-        if (Array.isArray(cat.sub_categories)) {
-          // Flatten the array of arrays
-          merged = merged.concat(cat.sub_categories);
-        }
-      });
-    // Remove duplicates by subcategory id
-    const seen = new Set();
-    const deduped = merged.filter(sub => {
-      if (!sub || !sub.id) return false; // defensive in case of null/undefined
-      if (seen.has(sub.id)) return false;
-      seen.add(sub.id);
-      return true;
-    });
-    setSubCategoryList(deduped);
-    // Remove any selected subcategory IDs not present in current deduped list
-    setSubCategoryIds(ids => ids.filter(id => deduped.some(sub => sub.id === id)));
-  }, [mainCategoryIds, mainCategories]);
-
 
   // 1. Fetch all countries (with their states) on mount
   useEffect(() => {
@@ -412,9 +387,9 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        {role !== 'user' ? <Text style={{ textAlign: 'center', color: '#bea063', marginTop: 10 }}>Everyone is Yogi</Text> : null}
-        {role !== 'user' ? <Text style={{ textAlign: 'center', marginVertical: 5, color: '#bea063' }}>by his/her Karma and Dharma.</Text> : null}
-        <Text style={styles.header}>Sign Up as {role === 'user' ? 'Seeker' : 'Yogic'}</Text>
+        {/* {role !== 'user' ? <Text style={{ textAlign: 'center', color: '#bea063', marginTop: 10 }}>Everyone is Yogi</Text> : null}
+        {role !== 'user' ? <Text style={{ textAlign: 'center', marginVertical: 5, color: '#bea063' }}>by his/her Karma and Dharma.</Text> : null} */}
+        <Text style={{fontSize: 22, fontWeight: 'bold', marginVertical: 16, alignSelf: 'center', color: 'gray'}}>Sign Up as <Text style={styles.header}>{role === 'user' ? 'Seekers' : "Yogi's"}</Text></Text>
         <Formik
           initialValues={initialValues}
           validationSchema={role === 'user' ? UserSchema : VendorSchema}
@@ -564,22 +539,40 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
                     displayKey="category_name"
                     submitButtonText="Done"
                   />
-
-
                   {touched.main_categories && errors.main_categories && <Text style={styles.error}>{errors.main_categories}</Text>}
 
-                  <MultiSelect
-                    items={subCategoryList}
-                    uniqueKey="id"
-                    onSelectedItemsChange={items => {
-                      setFieldValue('subcategories', items);
-                      setSubCategoryIds(items);
-                    }}
-                    selectedItems={values.subcategories || []}
-                    selectText="Select Subcategories"
-                    displayKey="name"
-                    submitButtonText="Done"
-                  />
+                  {mainCategories
+                    .filter(mc => mainCategoryIds.includes(mc.categories))
+                    .map(mainCategory => {
+                      if (!mainCategory?.sub_categories) return null;
+
+                      const subcatsForThisMain = mainCategory.sub_categories;
+                      const selectedSubcatIdsForThisMain = (values.subcategories || []).filter(subId => 
+                          subcatsForThisMain.some(s => s.id === subId)
+                      );
+
+                      return (
+                          <View key={mainCategory.categories} style={{marginTop: 16}}>
+                              <Text style={styles.subCategoryHeader}>{mainCategory.category_name}</Text>
+                              <MultiSelect
+                                  items={subcatsForThisMain}
+                                  uniqueKey="id"
+                                  onSelectedItemsChange={(newlySelectedIds) => {
+                                      const otherSubcatIds = (values.subcategories || []).filter(subId =>
+                                          !subcatsForThisMain.some(s => s.id === subId)
+                                      );
+                                      const allSelectedIds = [...otherSubcatIds, ...newlySelectedIds];
+                                      setSubCategoryIds(allSelectedIds);
+                                      setFieldValue('subcategories', allSelectedIds);
+                                  }}
+                                  selectedItems={selectedSubcatIdsForThisMain}
+                                  selectText="Select subcategories..."
+                                  displayKey="name"
+                                  submitButtonText="Done"
+                              />
+                          </View>
+                      );
+                  })}
                   {touched.subcategories && errors.subcategories && <Text style={styles.error}>{errors.subcategories}</Text>}
                 </>
               )}
@@ -610,6 +603,13 @@ const styles = StyleSheet.create({
     color: '#bea063',
     marginTop: 20,
     marginBottom: 10
+  },
+  subCategoryHeader: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 8,
+    marginTop: 16,
   },
   input: { backgroundColor: '#fafafa', borderRadius: 5, padding: 15, fontSize: 16, marginBottom: 10 },
   picker: { backgroundColor: '#fafafa', borderColor: '#ccc', borderWidth: 1, marginBottom: 10 },

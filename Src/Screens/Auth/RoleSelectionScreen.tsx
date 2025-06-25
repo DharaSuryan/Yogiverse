@@ -9,14 +9,16 @@ export default function RoleSelectionScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Walk Your Path With Yogiverse</Text>
+         <Text style={{ textAlign: 'center', color: '#bea063', marginVertical:0,fontSize:18,}}>Everyone is Yogi</Text> 
+              <Text style={{ textAlign: 'center', marginVertical: 5, color: '#bea063',fontSize:18 }}>by his/her Karma and Dharma.</Text> 
       <View style={styles.roleContainer}>
         <TouchableOpacity
           style={[styles.roleCard, { backgroundColor: '#f4f8fb' }]}
           onPress={() => navigation.navigate('SignUp', { role: 'user' })}
           activeOpacity={0.85}
         >
-          <Ionicons name="person-outline" size={42} color="#1E90FF" style={styles.icon} />
-          <Text style={styles.roleName}>Seeker</Text>
+          <Ionicons name="person-outline" size={42} color="#bea063" style={styles.icon} />
+          <Text style={styles.roleName}>Seeker (Users)</Text>
           <Text style={styles.roleDesc}>Explore, connect, and grow on your path of wellness and inner balance.</Text>
         </TouchableOpacity>
 
@@ -27,7 +29,7 @@ export default function RoleSelectionScreen() {
         >
           <Image source={require('../../Assets/Role.png')} style={{ width: 200,
     height: 100,}} resizeMode="contain" />
-          <Text style={styles.roleName}>Yogic</Text>
+          <Text style={styles.roleName}>Yogi's</Text>
           <Text style={styles.roleDesc}>Share your offerings, guide others, and grow with our conscious community.</Text>
         </TouchableOpacity>
       </View>
@@ -37,8 +39,8 @@ export default function RoleSelectionScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f7fa', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 22, fontWeight: 'bold', color: '#bea063', marginBottom: 42 ,textAlign:'center',},
-  roleContainer: { width: '90%', alignItems: 'center' },
+  title: { fontSize: 18,  color: '#bea063', marginBottom: 15 ,textAlign:'center',borderBottomWidth:1,borderBottomColor:'#bea063'},
+  roleContainer: { width: '90%', alignItems: 'center',marginTop:15 },
   roleCard: {
     width: '100%',
     borderRadius: 18,
