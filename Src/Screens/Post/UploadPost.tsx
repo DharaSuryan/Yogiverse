@@ -57,12 +57,17 @@ const UploadPost = ({ navigation, route }) => {
           // User cancelled
         } else if (response.errorCode) {
           Alert.alert('Error', response.errorMessage);
-        } else if (response.assets && response.assets[0]) {
-          const asset = response.assets[0];
-          setSelectedMedia(asset.uri ?? null);
-          setMediaMeta({
-            type: asset.type || 'image/jpeg',
-            name: asset.fileName || (asset.type?.startsWith('video') ? 'story.mp4' : 'story.jpg'),
+        } else if (response.assets && response.assets.length > 0) {
+          navigation.navigate('PreViewForPost', {
+            media: response.assets,
+            onPreviewDone: ({ filteredMedia, caption }: { filteredMedia: any; caption: string }) => {
+              setSelectedMedia(filteredMedia.uri ?? null);
+              setMediaMeta({
+                type: filteredMedia.type || 'image/jpeg',
+                name: filteredMedia.fileName || (filteredMedia.type?.startsWith('video') ? 'story.mp4' : 'story.jpg'),
+              });
+              setCaption(caption);
+            },
           });
         }
       }

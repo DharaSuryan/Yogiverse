@@ -51,6 +51,8 @@ import UserProfileScreen from '../Screens/Profile/UserProfileScreen';
 import CommentScreen from "../Screens/Comment/CommentScreen";
 import SubCateGoryDisplay from '../Screens/Search/SubCateGoryDisplay';
 import UploadPost from '../Screens/Post/UploadPost';
+import PreViewForPost from '../Screens/Post/PreViewForPost';
+
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -127,6 +129,7 @@ function SearchStackScreen() {
     <SearchStack.Navigator screenOptions={{ headerShown: false }}>
       <SearchStack.Screen name="Search" component={SearchScreen} />
       <SearchStack.Screen name="SearchDetail" component={SearchDetailScreen}/>
+      
     </SearchStack.Navigator>
   );
 }
@@ -377,6 +380,7 @@ const Navigation = () => {
         <Stack.Screen name="CommentScreen" component={CommentScreen} />
         <Stack.Screen name="SubCateGoryDisplay" component={SubCateGoryDisplay} />
         <Stack.Screen name="UploadPost" component={UploadPost} />
+        <Stack.Screen name="PreViewForPost" component={PreViewForPost}/>
         <Stack.Screen name="StoryViewerScreen" component={StoryViewerScreen} />
       </Stack.Navigator>
     </NavigationContainer>
