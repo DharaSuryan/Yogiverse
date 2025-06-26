@@ -26,6 +26,8 @@ import StoryViewerScreen from '../Screens/Story/StoryViewerScreen';
 import MediaPickerScreen from '../Screens/Post/Mediapicker';
 import RoleSelectionScreen from '../Screens/Auth/RoleSelectionScreen';
 import SignUpScreen from '../Screens/Auth/UserSignUpScreen';
+import MainCategoryScreen from '../Screens/Auth/MainCategory';
+import SubCategoryScreen from '../Screens/Auth/SubCategory';
 import { SearchBar } from 'react-native-screens';
 import SearchDetailScreen from '../Screens/Search/SearchDetailScreen';
 import MenuScreen from '../Screens/Profile/MenuScreen';
@@ -63,11 +65,13 @@ const VenderStack = createNativeStackNavigator<VendorStackParamList>();
 
 function AuthStackScreen() {
   return (
-    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+    <AuthStack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Login">
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="SignUp" component={SignUpScreen} />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <AuthStack.Screen name="RoleSelection" component={RoleSelectionScreen}/>
+      <AuthStack.Screen name="MainCategory" component={MainCategoryScreen} />
+      <AuthStack.Screen name="SubCategory" component={SubCategoryScreen} />
     </AuthStack.Navigator>
   );
 }

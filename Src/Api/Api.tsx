@@ -109,8 +109,12 @@ api.interceptors.response.use(
 
 
 export const registerUser  = async (formData: FormData): Promise<ApiResponse> => {
+  console.log("api",api);
+  
   try {
-    const response = await api.post('/vendor_register/', formData, {
+    const url = '/vendor_register/';
+    console.log(`Registering user at URL: ${api.defaults.baseURL}${url}`);
+    const response = await api.post(url, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -137,16 +141,18 @@ export const loginUser = async (credentials: { username: string; password: strin
 };
 export const logoutUser = async () => {
   try {
-    await Promise.all([
-      AsyncStorage.removeItem('accessToken'),
-      AsyncStorage.removeItem('refreshToken'),
-      AsyncStorage.removeItem('userData'),
-    ]);
+    const refreshToken = await AsyncStorage.getItem('refreshToken');
+    const response = await api.post('/logout/', );
+    return {
+      data: response.data,
+      status: response.status,
+      message: 'Logout successful',
+    };
   } catch (error) {
-    console.error('Logout Error:', error);
+    console.error('Logout Error:', error.response?.data || error.message);
     throw error;
   }
-};
+}
 export const getProfile = async (): Promise<ApiResponse> => {
   // console.log("get ");
   
@@ -243,7 +249,8 @@ export const postStories  = async ({formData}:any): Promise<ApiResponse> => {
       user: response.data.user,
       token: response.data.token
     };
-  } catch (error) {
+  } catch
+   (error) {
     throw error;
   }
 };

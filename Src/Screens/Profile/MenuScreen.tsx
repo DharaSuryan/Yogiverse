@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal, Image, Switch, Alert } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal, Image, Switch, Alert, ActivityIndicator } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useDispatch } from 'react-redux';
 import { logoutUser } from '../../Api/Api';
-// import { logout } from 'Src/Store/actions/authActions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack'; // Added NativeStackNavigationProp
-import { RootStackParamList } from '../../Navigation/types';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList, AuthStackParamList } from '../../Navigation/types';
 import { CommonActions } from '@react-navigation/native';
 const MENU_SECTIONS = [
   {
@@ -82,60 +81,75 @@ type MenuScreenProps = {
 export default function MenuScreen({ navigation }: MenuScreenProps) {
   const [accountCenterModal, setAccountCenterModal] = useState(false);
   const [twoFA, setTwoFA] = useState(ACCOUNT_CENTER_DATA.security.twoFactorEnabled);
- const dispatch = useDispatch();
+  const [loading, setLoading] = useState(false);
+  const dispatch = useDispatch();
 
   // If you want other items to navigate, you can handle here
   const handleMenuAction = (action) => {
     // Example: navigation logic for other menu options
     // switch(action) { ... }
   };
- const handleLogout = async () => {
-  try {
-    // Show confirmation dialog
+  const handleLogout = async () => {
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Logout',
           style: 'destructive',
           onPress: async () => {
+            setLoading(true);
             try {
-              // Clear AsyncStorage and perform logout
-              await AsyncStorage.clear();
-              await logoutUser();
-              // Reset to Login screen
-              navigation.reset({
-                index: 0,
-                routes: [{
-                  name: 'Auth'
-                }]
-              });
-              // Navigate to Login screen within Auth stack
-              navigation.navigate('Auth', { screen: 'Login' });
+              // 1. Call logout API
+              const res = await logoutUser();
+              console.log("logout ", res);
+
+              if (res.status === 200) {
+                // 2. Clear AsyncStorage
+                await AsyncStorage.clear();
+
+                // 3. Reset Redux store (dispatch logout action)
+                dispatch({ type: 'AUTH_LOGOUT' }); // Adjust this according to your Redux action type
+
+                // 4. Reset to Auth stack
+                navigation.dispatch(
+                  CommonActions.reset({
+                    index: 0,
+                    routes: [{
+                      name: 'Auth',
+                      params: {
+                        screen: 'Login'
+                      }
+                    }]
+                  })
+                );
+                // Ensure navigation is complete
+                setTimeout(() => {
+                  navigation.navigate('Auth', {
+                    screen: 'Login'
+                  });
+                }, 100);
+              } else {
+                throw new Error('Logout failed');
+              }
+
+              setLoading(false);
             } catch (error) {
-              console.error('Logout error:', error);
+              setLoading(false);
               Alert.alert('Error', 'Failed to logout. Please try again.');
             }
           }
         }
       ]
     );
-  } catch (error) {
-    console.error('Logout error:', error);
-    Alert.alert('Error', 'Failed to logout. Please try again.');
-  }
-};
+  };
 
   // ... rest of your component code ...
 
   const MenuOption = ({ icon, label, action, onPress }) => (
-    <TouchableOpacity 
-      style={styles.optionRow} 
+    <TouchableOpacity
+      style={styles.optionRow}
       onPress={onPress ? onPress : () => handleMenuAction(action)}
     >
       <View style={{ width: 28, alignItems: 'center' }}>
@@ -154,7 +168,7 @@ export default function MenuScreen({ navigation }: MenuScreenProps) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backIconWrapper}>
           <Ionicons name="arrow-back" size={26} color="#222" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Setting</Text>
+        <Text style={styles.headerTitle}>Settings</Text>
         <View style={{ width: 32 }} /> {/* for symmetrical spacing */}
       </View>
       <ScrollView>
@@ -169,14 +183,15 @@ export default function MenuScreen({ navigation }: MenuScreenProps) {
                   label={item.label}
                   action={item.action}
                   onPress={() => setAccountCenterModal(true)}
-                    
+
                 />
               ) : (
                 <MenuOption
-                    key={item.label}
-                    icon={item.icon}
-                    label={item.label}
-                    onPress={item.action === 'Logout' ? handleLogout : () => handleMenuAction(item.action)} action={undefined}/>
+                  key={item.label}
+                  icon={item.icon}
+                  label={item.label}
+                  onPress={item.action === 'Logout' ? handleLogout : () => handleMenuAction(item.action)}
+                  action={item.action === 'Logout' ? undefined : item.action} />
               )
             )}
           </View>
@@ -231,36 +246,49 @@ export default function MenuScreen({ navigation }: MenuScreenProps) {
           </View>
         </View>
       </Modal>
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#dab76e" />
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.16)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 99,
+  },
   header: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  paddingHorizontal: 12,
-  paddingTop: 16,
-  paddingBottom: 12,
-  backgroundColor: '#fff',
-  borderBottomWidth: 1,
-  borderBottomColor: '#f0f0f0',
-},
-backIconWrapper: {
-  width: 32,
-  height: 32,
-  alignItems: 'center',
-  justifyContent: 'center',
-},
-headerTitle: {
-  flex: 1,
-  textAlign: 'center',
-  fontSize: 18,
-  fontWeight: 'bold',
-  color: '#222',
-},
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingTop: 16,
+    paddingBottom: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  backIconWrapper: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#222',
+  },
   sectionTitle: {
     fontSize: 13,
     color: '#888',

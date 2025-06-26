@@ -16,9 +16,12 @@ export type RootStackParamList = {
 
 export type AuthStackParamList = {
   Login: undefined;
-  SignUp: undefined;
+  SignUp: { role: 'user' | 'vendor' };
   ForgotPassword: undefined;
   RoleSelection: undefined;
+  MainCategory: { userData: any; profileImageUri: string | null; role: 'user' | 'vendor' };
+  SubCategory: { userData: any; profileImageUri: string | null; mainCategories: number[]; role: 'user' | 'vendor' };
+  UserSignUpScreen: { userData: any; profileImageUri: string | null; role: 'user' | 'vendor' };
 };
 
 export type MainTabParamList = {
@@ -88,6 +91,7 @@ export type ProfileStackParamList = {
   Profile: undefined;
   Menu: undefined;
   HighlightViewer: { highlightId: string };
+  ProfilePostDetailScreen: { post: any };
 };
 
 export type CreatePostPreviewStackParamList = {
