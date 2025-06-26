@@ -26,13 +26,13 @@ const UploadOptionsScreen = () => {
       title: 'Post',
       description: 'Share a photo or video to your feed',
       icon: 'images-outline',
-      onPress: () => navigation.navigate('MediaPicker', { type: 'post' }),
+      onPress: () => navigation.navigate('UploadPost', {}),
     },
     {
       title: 'Story',
       description: 'Share a photo or video to your story',
       icon: 'add-circle-outline',
-      onPress: () => navigation.navigate('MediaPicker', { type: 'story' }),
+      onPress: () => navigation.navigate('UploadPost', { isFromStory: true }),
     },
     {
       title: 'Reel',
@@ -54,14 +54,19 @@ const UploadOptionsScreen = () => {
       if (result.assets && result.assets.length > 0) {
         const selected = result.assets[0];
         if (type === 'story') {
-          navigation.navigate('StoryPreview', {
-            uri: selected.uri,
-            type: selected.type?.startsWith('video') ? 'video' : 'image',
-          });
+          if (selected.uri) {
+            navigation.navigate('StoryPreview', {
+              uri: selected.uri,
+              type: selected.type?.startsWith('video') ? 'video' : 'image',
+            });
+          }
         } else if (type === 'reel') {
-          navigation.navigate('ReelPreview', { uri: selected.uri });
+          if (selected.uri) {
+            navigation.navigate('ReelPreview', { uri: selected.uri });
+          }
         } else {
-          navigation.navigate('PostPreview', { images: result.assets.map(a => a.uri) });
+          const uris = result.assets.map(a => a.uri).filter((uri): uri is string => !!uri);
+          navigation.navigate('PostPreview', { images: uris });
         }
       }
     } finally {
@@ -82,15 +87,11 @@ const UploadOptionsScreen = () => {
       <View style={styles.optionsContainer}>
         <FlatList
           data={options}
-          keyExtractor={item => item.uri || item.id}
+          keyExtractor={item => item.title}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.option}
-              
-              onPress={() => {
-               Alert.alert("Coming Soon");
-                // handleMediaSelect(item.title.toLowerCase())
-              }}
+              onPress={item.onPress}
             >
               <View style={styles.optionContent}>
                 <View style={styles.iconContainer}>

@@ -12,6 +12,7 @@ export type RootStackParamList = {
   PostDetails: { postId: string };
   StoryCreation: undefined;
   CreatePost: undefined;
+  StoryViewerScreen: { story: Story };
 };
 
 export type AuthStackParamList = {
@@ -82,6 +83,7 @@ export type CreatePostStackParamList = {
     postId: string;
     media?: Array<{ uri: string; type: 'image' | 'video' }>;
   };
+  UploadPost: { isFromStory?: boolean };
 };
 
 export type ProfileStackParamList = {

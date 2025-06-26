@@ -5,27 +5,33 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import axios from 'axios';
 import Post from '../../Component/Post';
 import ShareModal from '../../Components/ShareModal';
-import { Post as PostType } from 'Src/Types';
+import { Post as PostType, Story } from 'Src/Types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getStories } from '../../Api/Api';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../Navigation/types';
 
-
-const dummyStories = [
+// Add dummyStories fallback at the top
+const dummyStories: (Partial<Story> | any)[] = [
   { id: 'add', type: 'add' },
-  { id: '1', user: 'Your Story', avatar: require('../../Assets/yoga.jpg'), isYours: true },
-  { id: '2', user: 'Jane Doe', avatar: require('../../Assets/yoga.jpg') },
-  { id: '3', user: 'John Smith', avatar: require('../../Assets/yoga.jpg') },
-  { id: '4', user: 'Alice', avatar: require('../../Assets/yoga.jpg') },
-  { id: '5', user: 'Bob', avatar: require('../../Assets/yoga.jpg') },
+  { id: '1', username: 'Your Story', userProfilePicture: '' },
+  { id: '2', username: 'Jane Doe', userProfilePicture: '' },
+  { id: '3', username: 'John Smith', userProfilePicture: '' },
+  { id: '4', username: 'Alice', userProfilePicture: '' },
+  { id: '5', username: 'Bob', userProfilePicture: '' },
 ];
 
 export default function HomeScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [selectedPost, setSelectedPost] = useState<PostType | null>(null);
   const [posts, setPosts] = useState<PostType[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stories, setStories] = useState<Story[]>([]);
+  const [storiesLoading, setStoriesLoading] = useState(true);
+  const [storiesError, setStoriesError] = useState<string | null>(null);
 
   const fetchPosts = async () => {
     setLoading(true);
@@ -49,9 +55,29 @@ export default function HomeScreen() {
     }
   };
 
+  const fetchStories = async () => {
+    setStoriesLoading(true);
+    setStoriesError(null);
+    try {
+      const res = await getStories();
+      const apiStories = res.data?.data || [];
+      if (Array.isArray(apiStories) && apiStories.length > 0) {
+        setStories(apiStories);
+      } else {
+        setStories(dummyStories.slice(1) as Story[]); // skip 'add' for API fallback
+      }
+    } catch (err) {
+      setStories(dummyStories.slice(1) as Story[]); // skip 'add' for error fallback
+      setStoriesError('Failed to load stories');
+    } finally {
+      setStoriesLoading(false);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       fetchPosts();
+      fetchStories();
     }, [])
   );
 
@@ -116,27 +142,41 @@ export default function HomeScreen() {
       </View>
 
       {/* Stories Section */}
-      {/* <FlatList
-        data={dummyStories}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.storyList}
-        renderItem={({ item }) => (
-          item.type === 'add' ? (
-            <TouchableOpacity style={styles.addStoryButton} onPress={() => {}}>
-              // @ts-ignore
-              <Icon name="add" size={30} color="#fff" />
-              <Text style={styles.addStoryText}>Add Story</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.storyItem} onPress={() => {}}>
-              <Image source={item.avatar} style={styles.storyAvatar} />
-              <Text style={styles.storyUsername} numberOfLines={1}>{item.user}</Text>
-            </TouchableOpacity>
-          )
-        )}
-      /> */}
+      {storiesLoading ? (
+        <ActivityIndicator size="small" style={{ marginVertical: 20 }} />
+      ) : storiesError ? (
+        <Text style={{ color: 'red', textAlign: 'center', marginVertical: 20 }}>{storiesError}</Text>
+      ) : (
+        <FlatList
+          data={[{ id: 'add', type: 'add' }, ...stories]}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.storyList}
+          renderItem={({ item }) => {
+            console.log("here comes item .....",item);
+            if ('type' in item && item.type === 'add') {
+              return (
+                <TouchableOpacity style={styles.addStoryButton} onPress={() => navigation.navigate('StoryCreation')}>
+                  {/* @ts-ignore */}
+                  <Icon name="add" size={30} color="#fff" />
+                  <Text style={styles.addStoryText}>Add Story</Text>
+                </TouchableOpacity>
+              );
+            } else {
+              const story = item as Story;
+              // fallback for dummy data avatar
+              const avatar = story.userProfilePicture || require('../../Assets/yoga.jpg');
+              return (
+                <TouchableOpacity style={styles.storyItem} onPress={() => navigation.navigate('StoryViewerScreen', { story })}>
+                  <Image source={typeof avatar === 'string' ? { uri: avatar } : avatar} style={styles.storyAvatar} />
+                  <Text style={styles.storyUsername} numberOfLines={1}>{story.username}</Text>
+                </TouchableOpacity>
+              );
+            }
+          }}
+        />
+      )}
 
       {/* Posts Section */}
       {loading ? (

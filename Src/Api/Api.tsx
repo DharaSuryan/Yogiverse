@@ -248,7 +248,26 @@ export const postStories  = async ({formData}:any): Promise<ApiResponse> => {
   }
 };
 
-const _REQUEST2SERVER_Authorization_Post_FCM = async (url, params = null) => {
+export const postPosts  = async ({formData}:any): Promise<ApiResponse> => {
+  try {
+   const response = await api.post('/posts/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return {
+      data: response.data,
+      status: response.status,
+      message: 'Story Send successful',
+      user: response.data.user,
+      token: response.data.token
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
+const _REQUEST2SERVER_Authorization_Post_FCM = async (url: string, params: any = null) => {
   const token = await AsyncStorage.getItem('emp_token');
   var config = {
     method: 'post',
@@ -272,12 +291,12 @@ const _REQUEST2SERVER_Authorization_Post_FCM = async (url, params = null) => {
       });
   });
 };
-export const onAddDevicesAPICall = (params) => {
+export const onAddDevicesAPICall = (params: any) => {
   return _REQUEST2SERVER_Authorization_Post_FCM(`/fcm-token/`, params);
 };
 
 
-const registerFCMToken = async (token) => {
+const registerFCMToken = async (token: string) => {
   try {
     const authToken = await AsyncStorage.getItem('authToken'); // Get your auth token
     if (!authToken) {
@@ -328,6 +347,24 @@ export const getFollowersCount = async (): Promise<ApiResponse> => {
     status: response.status,
     message: 'Followers count fetched successfully',
   };
+};
+
+// Fetch stories (GET)
+export const getStories = async (): Promise<ApiResponse> => {
+  try {
+    const response = await api.get('/stories');
+    console.log("here comes response",response?.data?.data);
+    
+    return {
+      data: response.data,
+      status: response.status,
+      message: 'Stories fetched successfully',
+    };
+  } catch (error) {
+    console.log("here comes error",error);
+    
+    throw error;
+  }
 };
 
 export default api;

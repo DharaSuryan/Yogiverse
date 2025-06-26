@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ScrollView,
   FlatList,
   Platform,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -17,6 +18,8 @@ import { PostApi } from '../../Api/PostApi';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../Navigation/types';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import * as ImagePicker from 'react-native-image-picker';
 
 // Workaround for Ionicons TypeScript issue
 const Icon = require('react-native-vector-icons/Ionicons').default;
@@ -47,34 +50,63 @@ interface StoryFormData extends PostFormData {
 
 const CreatePostScreen: React.FC = () => {
   const navigation = useNavigation<CreatePostScreenNavigationProp>();
+  const [selectedMedia, setSelectedMedia] = useState<string | null>(null);
+  const [mediaMeta, setMediaMeta] = useState({ type: '', name: '' });
   const [caption, setCaption] = useState('');
-  const [mediaFiles, setMediaFiles] = useState<MediaItem[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [selectedType, setSelectedType] = useState<'post' | 'reel' | 'story'>('post');
   const [navigated, setNavigated] = useState(false);
   const [allowComments, setAllowComments] = useState(true);
   const [hideLikeCount, setHideLikeCount] = useState(false);
   const [duration, setDuration] = useState<number>(30);
 
-  const handleMediaSelect = async () => {
-    if (navigated) return;
-    setNavigated(true);
-    try {
-      const result = await launchImageLibrary({
-        mediaType: 'mixed',
-        selectionLimit: selectedType === 'reel' ? 1 : 10,
-        quality: 1,
-      });
-      if (result.assets && result.assets.length > 0) {
-        const selectedFiles = result.assets.map((asset, index) => ({
-          uri: asset.uri || '',
+  useEffect(() => {
+    handleImagePicker();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleImagePicker = () => {
+    ImagePicker.launchImageLibrary({
+      mediaType: 'mixed',
+      includeBase64: false,
+      maxHeight: 2000,
+      maxWidth: 2000,
+    }, (response) => {
+      if (response.didCancel) {
+        console.log('User cancelled image picker');
+      } else if (response.errorCode) {
+        Alert.alert('Error', response.errorMessage);
+      } else if (response.assets && response.assets[0]) {
+        const asset = response.assets[0];
+        setSelectedMedia(asset.uri ?? null);
+        setMediaMeta({
           type: asset.type || 'image/jpeg',
-          name: `media_${index}.${asset.type?.split('/')[1] || 'jpg'}`,
-        }));
-        setMediaFiles([...mediaFiles, ...selectedFiles]);
+          name: asset.fileName || 'post.jpg',
+        });
       }
-    } finally {
-      setNavigated(false);
-    }
+    });
+  };
+
+  const handleCamera = () => {
+    ImagePicker.launchCamera({
+      mediaType: 'photo',
+      includeBase64: false,
+      maxHeight: 2000,
+      maxWidth: 2000,
+    }, (response) => {
+      if (response.didCancel) {
+        console.log('User cancelled camera');
+      } else if (response.errorCode) {
+        Alert.alert('Error', response.errorMessage);
+      } else if (response.assets && response.assets[0]) {
+        const asset = response.assets[0];
+        setSelectedMedia(asset.uri ?? null);
+        setMediaMeta({
+          type: asset.type || 'image/jpeg',
+          name: asset.fileName || 'post.jpg',
+        });
+      }
+    });
   };
 
   const handleDurationChange = (value: string) => {
@@ -93,6 +125,8 @@ const CreatePostScreen: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    if (!selectedMedia || !caption.trim()) return;
+    setUploading(true);
     try {
       const token = await AsyncStorage.getItem('accessToken');
       if (!token) {
@@ -106,23 +140,20 @@ const CreatePostScreen: React.FC = () => {
       formData.append('hide_like_count', hideLikeCount.toString());
 
       // Add media files
-      if (mediaFiles.length > 0) {
-        const file = mediaFiles[0];
+      if (selectedMedia) {
         formData.append('media_file', {
-          uri: file.uri,
-          type: file.type,
-          name: file.name,
+          uri: selectedMedia,
+          type: mediaMeta.type,
+          name: mediaMeta.name,
         });
       }
 
       // Add specific fields based on post type
       switch (selectedType) {
         case 'post':
-          mediaFiles.forEach((_, index) => {
-            formData.append(`media_metadata[${index}]`, JSON.stringify({
-              is_video: mediaFiles[index].type?.includes('video') || false,
-            }));
-          });
+          formData.append('media_metadata[0]', JSON.stringify({
+            is_video: mediaMeta.type?.includes('video') || false,
+          }));
           break;
         case 'reel':
           formData.append('is_draft', 'false');
@@ -150,7 +181,9 @@ const CreatePostScreen: React.FC = () => {
       navigation.goBack();
     } catch (error) {
       console.error('Post submission error:', error);
-      // Handle error (show alert to user)
+      Alert.alert('Error', 'Failed to upload post.');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -164,54 +197,47 @@ const CreatePostScreen: React.FC = () => {
           {selectedType === 'post' ? 'Create Post' : 
            selectedType === 'reel' ? 'Create Reel' : 'Create Story'}
         </Text>
-        <View style={{ width: 24 }} />
+        <TouchableOpacity
+          onPress={handleSubmit}
+          disabled={!selectedMedia || !caption.trim() || uploading}
+          style={[
+            styles.shareButton,
+            (!selectedMedia || !caption.trim() || uploading) && styles.shareButtonDisabled,
+          ]}>
+          <Text
+            style={[
+              styles.shareButtonText,
+              (!selectedMedia || !caption.trim() || uploading) && styles.shareButtonTextDisabled,
+            ]}>
+            {uploading ? 'Uploading...' : 'Share'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content}>
-        <View style={styles.postTypeContainer}>
-          <TouchableOpacity
-            style={[styles.postTypeButton, selectedType === 'post' && styles.postTypeSelected]}
-            onPress={() => setSelectedType('post')}
-          >
-            <Text style={[styles.postTypeText, selectedType === 'post' && styles.postTypeSelectedText]}>Post</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.postTypeButton, selectedType === 'reel' && styles.postTypeSelected]}
-            onPress={() => setSelectedType('reel')}
-          >
-            <Text style={[styles.postTypeText, selectedType === 'reel' && styles.postTypeSelectedText]}>Reel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.postTypeButton, selectedType === 'story' && styles.postTypeSelected]}
-            onPress={() => setSelectedType('story')}
-          >
-            <Text style={[styles.postTypeText, selectedType === 'story' && styles.postTypeSelectedText]}>Story</Text>
-          </TouchableOpacity>
-        </View>
-
-        {mediaFiles.length > 0 && (
-          <FlatList
-            data={mediaFiles}
-            renderItem={({ item }) => (
-              <Image
-                source={{ uri: item.uri }}
-                style={styles.mediaPreview}
-              />
-            )}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-          />
+        {selectedMedia ? (
+          <Image source={{ uri: selectedMedia }} style={styles.previewImage} />
+        ) : (
+          <View style={styles.placeholderContainer}>
+            <Text style={styles.placeholderText}>Select an image or video to create your post</Text>
+          </View>
         )}
 
-        <TouchableOpacity 
-          style={styles.uploadButton}
-          onPress={handleMediaSelect}
-        >
-          <Icon name="add-circle-outline" size={50} color="#0095f6" />
-          <Text style={styles.uploadText}>
-            {selectedType === 'reel' ? 'Add Video' : 'Add Media'}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.optionsContainer}>
+          <TouchableOpacity
+            style={styles.optionButton}
+            onPress={handleImagePicker}>
+            <Ionicons name="images" size={24} color="#000" />
+            <Text style={styles.optionText}>Gallery</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.optionButton}
+            onPress={handleCamera}>
+            <Ionicons name="camera" size={24} color="#000" />
+            <Text style={styles.optionText}>Camera</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.captionContainer}>
           <TextInput
@@ -220,6 +246,7 @@ const CreatePostScreen: React.FC = () => {
             value={caption}
             onChangeText={setCaption}
             multiline
+            editable={!uploading}
           />
         </View>
 
@@ -270,15 +297,6 @@ const CreatePostScreen: React.FC = () => {
             </View>
           )}
         </View>
-
-        <TouchableOpacity
-          style={styles.submitButton}
-          onPress={handleSubmit}
-        >
-          <Text style={styles.submitButtonText}>
-            {selectedType === 'post' ? 'Create Post' : selectedType === 'reel' ? 'Create Reel' : 'Create Story'}
-          </Text>
-        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -291,66 +309,68 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    alignItems: 'center',
+    padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
+  },
+  shareButton: {
+    paddingHorizontal: 15,
+  },
+  shareButtonDisabled: {
+    opacity: 0.5,
+  },
+  shareButtonText: {
+    color: '#0095f6',
+    fontWeight: '600',
+  },
+  shareButtonTextDisabled: {
+    color: '#999',
   },
   content: {
     flex: 1,
-    padding: 16,
   },
-  postTypeContainer: {
+  previewImage: {
+    width: '100%',
+    height: 400,
+    resizeMode: 'cover',
+  },
+  placeholderContainer: {
+    height: 400,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+  },
+  placeholderText: {
+    color: '#666',
+    fontSize: 16,
+  },
+  optionsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 20,
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
-  postTypeButton: {
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
+  optionButton: {
+    alignItems: 'center',
   },
-  postTypeSelected: {
-    backgroundColor: '#0095f6',
-    borderColor: '#0095f6',
-  },
-  postTypeText: {
-    fontSize: 16,
+  optionText: {
+    marginTop: 5,
     color: '#000',
   },
-  postTypeSelectedText: {
-    color: '#fff',
-  },
-  mediaPreview: {
-    width: 100,
-    height: 100,
-    marginRight: 8,
-    borderRadius: 8,
-  },
-  uploadButton: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  uploadText: {
-    marginTop: 8,
-    color: '#0095f6',
-    fontSize: 16,
-  },
   captionContainer: {
-    marginBottom: 20,
+    padding: 15,
   },
   captionInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
+    fontSize: 16,
     minHeight: 100,
+    textAlignVertical: 'top',
   },
   settingsContainer: {
     marginBottom: 20,
@@ -384,17 +404,6 @@ const styles = StyleSheet.create({
     padding: 12,
     width: 100,
     textAlign: 'center',
-  },
-  submitButton: {
-    backgroundColor: '#0095f6',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
 

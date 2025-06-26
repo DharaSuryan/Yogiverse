@@ -7,34 +7,32 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import { useDispatch } from 'react-redux';
-import {Ionicons} from 'react-native-vector-icons';
+import Video from 'react-native-video';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Story } from '../../Types';
-import { markStoryAsViewed } from '../../Store/slices/storySlice';
 
 const { width, height } = Dimensions.get('window');
-const STORY_DURATION = 5000; // 5 seconds per story
+const STORY_DURATION = 5000; // 5 seconds per media
+
+interface StoryWithMedia extends Story {
+  media?: { uri: string; type: string }[];
+}
 
 interface StoryViewerScreenProps {
   route: {
     params: {
-      stories: Story[];
-      initialIndex: number;
+      story: StoryWithMedia;
     };
   };
   navigation: any;
 }
 
 const StoryViewerScreen: React.FC<StoryViewerScreenProps> = ({ route, navigation }) => {
-  const { stories, initialIndex } = route.params;
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const { story } = route.params as { story: StoryWithMedia };
+  const media = story.media ?? (story.mediaUrl ? [{ uri: story.mediaUrl, type: story.type }] : []);
+  const [mediaIndex, setMediaIndex] = useState(0);
   const [progress, setProgress] = useState(0);
-  const dispatch = useDispatch();
   const progressInterval = useRef<NodeJS.Timeout>();
-  const touchStartTime = useRef<number>(0);
-  const touchStartX = useRef<number>(0);
-
-  const currentStory = stories[currentIndex];
 
   useEffect(() => {
     startProgress();
@@ -43,108 +41,107 @@ const StoryViewerScreen: React.FC<StoryViewerScreenProps> = ({ route, navigation
         clearInterval(progressInterval.current);
       }
     };
-  }, [currentIndex]);
+  }, [mediaIndex]);
 
   const startProgress = () => {
     setProgress(0);
     if (progressInterval.current) {
       clearInterval(progressInterval.current);
     }
-
     progressInterval.current = setInterval(() => {
-      setProgress((prevProgress) => {
-        if (prevProgress >= 1) {
+      setProgress((prev) => {
+        if (prev >= 1) {
           clearInterval(progressInterval.current);
-          handleNext();
+          handleNextMedia();
           return 0;
         }
-        return prevProgress + 0.01;
+        return prev + 0.01;
       });
     }, STORY_DURATION / 100);
   };
 
-  const handleNext = () => {
-    if (currentIndex < stories.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      dispatch(markStoryAsViewed(currentStory.id));
+  const handleNextMedia = () => {
+    if (mediaIndex < media.length - 1) {
+      setMediaIndex(mediaIndex + 1);
     } else {
       navigation.goBack();
     }
   };
 
-  const handlePrevious = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
+  const handlePrevMedia = () => {
+    if (mediaIndex > 0) {
+      setMediaIndex(mediaIndex - 1);
     }
   };
 
-  const handleTouchStart = (event: any) => {
-    touchStartTime.current = Date.now();
-    touchStartX.current = event.nativeEvent.locationX;
-  };
-
-  const handleTouchEnd = (event: any) => {
-    const touchEndTime = Date.now();
-    const touchEndX = event.nativeEvent.locationX;
-    const touchDuration = touchEndTime - touchStartTime.current;
-    const touchDistance = touchEndX - touchStartX.current;
-
-    if (touchDuration < 200) {
-      if (touchDistance > 50) {
-        handlePrevious();
-      } else if (touchDistance < -50) {
-        handleNext();
-      }
+  const renderMedia = () => {
+    const item = media[mediaIndex];
+    if (!item) return null;
+    if (item.type && item.type.startsWith('video')) {
+      return (
+        <Video
+          source={{ uri: item.uri }}
+          style={{ width, height }}
+          resizeMode="cover"
+          controls
+          paused={false}
+          onEnd={handleNextMedia}
+        />
+      );
     }
+    return (
+      <Image
+        source={{ uri: item.uri }}
+        style={{ width, height }}
+        resizeMode="cover"
+      />
+    );
   };
 
   return (
     <View style={styles.container}>
-      
       {/* Progress Bars */}
       <View style={styles.progressContainer}>
-        {stories.map((_, index) => (
-          <View key={index} style={styles.progressBarContainer}>
+        {media.map((_: any, idx: number) => (
+          <View key={idx} style={styles.progressBarContainer}>
             <View
               style={[
                 styles.progressBar,
                 {
-                  width: `${index === currentIndex ? progress * 100 : index < currentIndex ? 100 : 0}%`,
-                  backgroundColor: index === currentIndex ? '#fff' : '#fff',
+                  width: `${idx < mediaIndex ? 100 : idx === mediaIndex ? progress * 100 : 0}%`,
+                  backgroundColor: '#fff',
                 },
               ]}
             />
           </View>
         ))}
       </View>
-
-      {/* Story Content */}
+      {/* Media */}
       <TouchableOpacity
-        activeOpacity={1}
-        onPressIn={handleTouchStart}
-        onPressOut={handleTouchEnd}
         style={styles.storyContainer}
+        activeOpacity={1}
+        onPress={handleNextMedia}
+        onLongPress={handlePrevMedia}
       >
-        <Image source={{ uri: currentStory.imageUrl }} style={styles.storyImage} />
-        
+        {renderMedia()}
         {/* User Info */}
         <View style={styles.userInfo}>
-          <Image source={{ uri: currentStory.user.profilePicture }} style={styles.profilePicture} />
-          <Text style={styles.username}>{currentStory.user.username}</Text>
-          <Text style={styles.timestamp}>
-            {new Date(currentStory.createdAt).toLocaleTimeString()}
-          </Text>
+          <Image source={{ uri: story.userProfilePicture }} style={styles.profilePicture} />
+          <Text style={styles.username}>{story.username}</Text>
+          {story.createdAt && (
+            <Text style={styles.timestamp}>
+              {new Date(story.createdAt).toLocaleTimeString()}
+            </Text>
+          )}
         </View>
-
         {/* Location */}
-        {currentStory.location && (
+        {story.location && (
           <View style={styles.locationContainer}>
             <Ionicons name="location-outline" size={16} color="#fff" />
-            <Text style={styles.locationText}>{currentStory.location}</Text>
+            <Text style={styles.locationText}>{story.location}</Text>
           </View>
         )}
       </TouchableOpacity>
-
       {/* Close Button */}
       <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
         <Ionicons name="close" size={24} color="#fff" />
@@ -181,11 +178,6 @@ const styles = StyleSheet.create({
   storyContainer: {
     flex: 1,
   },
-  storyImage: {
-    width,
-    height,
-    resizeMode: 'cover',
-  },
   userInfo: {
     position: 'absolute',
     top: 50,
@@ -201,35 +193,31 @@ const styles = StyleSheet.create({
   username: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 16,
     marginLeft: 10,
+    fontSize: 16,
   },
   timestamp: {
-    color: '#ccc',
-    fontSize: 14,
+    color: '#fff',
     marginLeft: 10,
+    fontSize: 12,
   },
   locationContainer: {
     position: 'absolute',
-    bottom: 50,
+    bottom: 30,
     left: 15,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 20,
   },
   locationText: {
     color: '#fff',
-    fontSize: 14,
     marginLeft: 5,
+    fontSize: 14,
   },
   closeButton: {
     position: 'absolute',
-    top: 50,
-    right: 15,
-    zIndex: 1,
+    top: 40,
+    right: 20,
+    zIndex: 10,
   },
 });
 

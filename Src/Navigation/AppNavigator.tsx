@@ -18,6 +18,7 @@ import SplashScreen from '../Screens/Splash/SplashScreen';
 import SearchDetailScreen from '../Screens/Search/SearchDetailScreen';
 import CommentScreen from '../Screens/Comment/CommentScreen';
 import SubCateGoryDisplay from 'Src/Screens/Search/SubCateGoryDisplay';
+import UploadPost from 'Src/Screens/Post/UploadPost';
 
 
 
@@ -76,6 +77,7 @@ const AppNavigator = () => {
         <Stack.Screen name="UserProfile" component={UserProfileScreen} />
         <Stack.Screen name="CommentScreen" component={CommentScreen} />
         <Stack.Screen name="SubCateGoryDisplay" component={SubCateGoryDisplay} />
+        <Stack.Screen name="UploadPost" component={UploadPost} />
 
 
         {/* <Stack.Screen name="SearchDetail" component={SearchDetailScreen}/> */}

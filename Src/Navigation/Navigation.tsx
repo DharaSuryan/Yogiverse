@@ -50,6 +50,7 @@ import { Image } from 'react-native';
 import UserProfileScreen from '../Screens/Profile/UserProfileScreen';
 import CommentScreen from "../Screens/Comment/CommentScreen";
 import SubCateGoryDisplay from '../Screens/Search/SubCateGoryDisplay';
+import UploadPost from '../Screens/Post/UploadPost';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -375,7 +376,8 @@ const Navigation = () => {
         <Stack.Screen name="UserProfile" component={UserProfileScreen} />
         <Stack.Screen name="CommentScreen" component={CommentScreen} />
         <Stack.Screen name="SubCateGoryDisplay" component={SubCateGoryDisplay} />
-
+        <Stack.Screen name="UploadPost" component={UploadPost} />
+        <Stack.Screen name="StoryViewerScreen" component={StoryViewerScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   
