@@ -13,16 +13,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Slider from '@react-native-community/slider';
 import { Image as RNImage } from 'react-native';
-import {
-  Brightness,
-  Contrast,
-  Grayscale,
-  Sepia,
-  Saturate,
-  HueRotate,
-  Invert,
-  Blur,
-} from 'react-native-image-filter-kit';
+import { Canvas, Image as SkiaImage, useImage, Paint, BlurMask, ColorMatrix } from '@shopify/react-native-skia';
 
 const FILTERS = [
   { key: 'none', label: 'None' },
@@ -34,39 +25,126 @@ const FILTERS = [
   { key: 'blur', label: 'Blur', slider: true, min: 0, max: 10, step: 0.1, default: 0 },
 ];
 
-const applyFilterComponent = (filter, filterValues, brightness, contrast, asset) => {
-  let image = (
-    <RNImage
-      source={{ uri: asset.uri }}
-      style={styles.media}
-      resizeMode="cover"
-    />
-  );
-  switch (filter) {
-    case 'grayscale':
-      image = <Grayscale image={image} />;
-      break;
-    case 'sepia':
-      image = <Sepia image={image} />;
-      break;
-    case 'saturate':
-      image = <Saturate amount={filterValues.saturate} image={image} />;
-      break;
-    case 'hue':
-      image = <HueRotate amount={filterValues.hue} image={image} />;
-      break;
-    case 'invert':
-      image = <Invert image={image} />;
-      break;
-    case 'blur':
-      image = <Blur radius={filterValues.blur} image={image} />;
-      break;
-    default:
-      break;
-  }
+// Helper functions for color matrices
+const grayscaleMatrix = () => [
+  0.33, 0.34, 0.33, 0, 0,
+  0.33, 0.34, 0.33, 0, 0,
+  0.33, 0.34, 0.33, 0, 0,
+  0, 0, 0, 1, 0
+];
+const sepiaMatrix = () => [
+  0.393, 0.769, 0.189, 0, 0,
+  0.349, 0.686, 0.168, 0, 0,
+  0.272, 0.534, 0.131, 0, 0,
+  0, 0, 0, 1, 0
+];
+const invertMatrix = () => [
+  -1, 0, 0, 0, 255,
+  0, -1, 0, 0, 255,
+  0, 0, -1, 0, 255,
+  0, 0, 0, 1, 0
+];
+const saturateMatrix = (s: number) => [
+  0.213 + 0.787 * s, 0.715 - 0.715 * s, 0.072 - 0.072 * s, 0, 0,
+  0.213 - 0.213 * s, 0.715 + 0.285 * s, 0.072 - 0.072 * s, 0, 0,
+  0.213 - 0.213 * s, 0.715 - 0.715 * s, 0.072 + 0.928 * s, 0, 0,
+  0, 0, 0, 1, 0
+];
+const hueMatrix = (angle: number) => {
+  const cosA = Math.cos(angle);
+  const sinA = Math.sin(angle);
+  const lumR = 0.213;
+  const lumG = 0.715;
+  const lumB = 0.072;
+  return [
+    lumR + cosA * (1 - lumR) + sinA * (-lumR),
+    lumG + cosA * (-lumG) + sinA * (-lumG),
+    lumB + cosA * (-lumB) + sinA * (1 - lumB),
+    0, 0,
+    lumR + cosA * (-lumR) + sinA * 0.143,
+    lumG + cosA * (1 - lumG) + sinA * 0.14,
+    lumB + cosA * (-lumB) + sinA * -0.283,
+    0, 0,
+    lumR + cosA * (-lumR) + sinA * (-(1 - lumR)),
+    lumG + cosA * (-lumG) + sinA * lumG,
+    lumB + cosA * (1 - lumB) + sinA * lumB,
+    0, 0,
+    0, 0, 0, 1, 0
+  ];
+};
+const brightnessMatrix = (b: number) => [
+  b, 0, 0, 0, 0,
+  0, b, 0, 0, 0,
+  0, 0, b, 0, 0,
+  0, 0, 0, 1, 0
+];
+const contrastMatrix = (c: number) => {
+  const t = 128 * (1 - c);
+  return [
+    c, 0, 0, 0, t,
+    0, c, 0, 0, t,
+    0, 0, c, 0, t,
+    0, 0, 0, 1, 0
+  ];
+};
+
+const applyFilterComponent = (
+  filter: string,
+  filterValues: { saturate: number; hue: number; blur: number },
+  brightness: number,
+  contrast: number,
+  asset: any
+) => {
+  const image = useImage(asset?.uri || '');
+  if (!image) return <View style={styles.media} />;
+
+  // Compose color matrix
+  let colorMatrix: number[] | undefined = undefined;
+  if (filter === 'grayscale') colorMatrix = grayscaleMatrix();
+  else if (filter === 'sepia') colorMatrix = sepiaMatrix();
+  else if (filter === 'invert') colorMatrix = invertMatrix();
+  else if (filter === 'saturate') colorMatrix = saturateMatrix(filterValues.saturate);
+  else if (filter === 'hue') colorMatrix = hueMatrix(filterValues.hue);
+
   // Always apply brightness and contrast last
-  image = <Brightness amount={brightness} image={<Contrast amount={contrast} image={image} />} />;
-  return image;
+  let composedMatrix = brightnessMatrix(brightness);
+  const contrastMat = contrastMatrix(contrast);
+  // Multiply color matrices if needed
+  if (colorMatrix) {
+    // Skia does not support matrix multiplication directly, so we apply them in sequence
+    // We'll nest ColorMatrix nodes
+    return (
+      <Canvas style={styles.media}>
+        <ColorMatrix matrix={composedMatrix}>
+          <ColorMatrix matrix={contrastMat}>
+            <ColorMatrix matrix={colorMatrix}>
+              {filter === 'blur' && filterValues.blur > 0 ? (
+                <Paint>
+                  <BlurMask blur={filterValues.blur} style="normal" />
+                </Paint>
+              ) : null}
+              <SkiaImage image={image} fit="cover" width={400} height={400} />
+            </ColorMatrix>
+          </ColorMatrix>
+        </ColorMatrix>
+      </Canvas>
+    );
+  }
+  // If only blur, brightness, contrast
+  return (
+    <Canvas style={styles.media}>
+      <ColorMatrix matrix={composedMatrix}>
+        <ColorMatrix matrix={contrastMat}>
+          {filter === 'blur' && filterValues.blur > 0 ? (
+            <Paint>
+              <BlurMask blur={filterValues.blur} style="normal" />
+            </Paint>
+          ) : null}
+          <SkiaImage image={image} fit="cover" width={400} height={400} />
+        </ColorMatrix>
+      </ColorMatrix>
+    </Canvas>
+  );
 };
 
 type PreViewForPostRouteParams = {
@@ -116,7 +194,7 @@ const PreViewForPost = () => {
   const renderFilterSlider = () => {
     const filterObj = FILTERS.find(f => f.key === selectedFilter);
     if (!filterObj || !filterObj.slider) return null;
-    let value = 1, setValue = () => {}, label = '', min = 0, max = 2, step = 0.01, displayValue = '';
+    let value = 1, setValue = (v: number) => {}, label = '', min = 0, max = 2, step = 0.01, displayValue = '';
     if (selectedFilter === 'saturate') {
       value = saturate; setValue = setSaturate; label = 'Saturation'; min = 0; max = 3; step = 0.01; displayValue = saturate.toFixed(2);
     } else if (selectedFilter === 'hue') {

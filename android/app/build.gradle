@@ -71,6 +71,9 @@ def enableProguardInReleaseBuilds = false
  * this variant is about 6MiB larger per architecture than default.
  */
 def jscFlavor = 'org.webkit:android-jsc:+'
+project.ext.react = [
+    enableHermes: true,  // Hermes must be true or false as per your choice
+]
 
 android {
     ndkVersion rootProject.ext.ndkVersion
