@@ -9,21 +9,19 @@ import {
   Platform,
   Linking,
 } from 'react-native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Camera, useCameraDevices } from 'react-native-vision-camera';
+import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { check, PERMISSIONS, request, RESULTS } from 'react-native-permissions';
 import * as ImagePicker from 'react-native-image-picker';
-import { Camera, useCameraDevices, CameraDevice } from 'react-native-vision-camera';
 
 const ReelCameraScreen = () => {
   const navigation = useNavigation();
-  const cameraRef = useRef<Camera>(null);
+  const cameraRef = useRef(null);
   const [isRecording, setIsRecording] = useState(false);
   const [hasPermission, setHasPermission] = useState(false);
   const devices = useCameraDevices();
-  const device = devices.find((d: CameraDevice) => d.position === 'back');
-  const [recordingTime, setRecordingTime] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const device = devices.back;
 
   const requestPermissions = useCallback(async () => {
     try {
@@ -126,32 +124,16 @@ const ReelCameraScreen = () => {
     if (cameraRef.current) {
       try {
         setIsRecording(true);
-        setRecordingTime(0);
-        timerRef.current = setInterval(() => {
-          setRecordingTime(prev => {
-            if (prev >= 14) { // 0-based, so stop at 15
-              stopRecording();
-              return 15;
-            }
-            return prev + 1;
-          });
-        }, 1000);
         await cameraRef.current.startRecording({
-          onRecordingFinished: (video: { path: string }) => {
-            if (timerRef.current) clearInterval(timerRef.current);
-            setRecordingTime(0);
+          onRecordingFinished: (video) => {
             navigation.navigate('ReelPreview', { uri: `file://${video.path}` });
           },
-          onRecordingError: (error: any) => {
-            if (timerRef.current) clearInterval(timerRef.current);
-            setRecordingTime(0);
+          onRecordingError: (error) => {
             console.error('Error recording:', error);
             Alert.alert('Error', 'Failed to record video');
           },
         });
       } catch (error) {
-        if (timerRef.current) clearInterval(timerRef.current);
-        setRecordingTime(0);
         console.error('Error starting recording:', error);
         Alert.alert('Error', 'Failed to start recording');
       }
@@ -163,11 +145,7 @@ const ReelCameraScreen = () => {
       try {
         await cameraRef.current.stopRecording();
         setIsRecording(false);
-        if (timerRef.current) clearInterval(timerRef.current);
-        setRecordingTime(0);
       } catch (error) {
-        if (timerRef.current) clearInterval(timerRef.current);
-        setRecordingTime(0);
         console.error('Error stopping recording:', error);
         Alert.alert('Error', 'Failed to stop recording');
       }
@@ -202,7 +180,7 @@ const ReelCameraScreen = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.permissionContainer}>
-          {React.createElement(Ionicons as any, { name: 'camera', size: 50, color: '#bea063' })}
+          <Icon name="camera" size={50} color="#bea063" />
           <Text style={styles.permissionText}>
             Camera and microphone access is required to create reels
           </Text>
@@ -247,7 +225,7 @@ const ReelCameraScreen = () => {
           style={styles.closeButton}
           onPress={() => navigation.goBack()}
         >
-          {React.createElement(Ionicons as any, { name: 'close', size: 24, color: '#fff' })}
+          <Icon name="close" size={24} color="#fff" />
         </TouchableOpacity>
 
         <View style={styles.recordingControls}>
@@ -261,16 +239,13 @@ const ReelCameraScreen = () => {
               <View style={styles.recordIcon} />
             )}
           </TouchableOpacity>
-          {isRecording && (
-            <Text style={styles.timerText}>{recordingTime}s / 15s</Text>
-          )}
         </View>
 
         <TouchableOpacity
           style={styles.galleryButton}
           onPress={handleGalleryPress}
         >
-          {React.createElement(Ionicons as any, { name: 'images', size: 24, color: '#fff' })}
+          <Icon name="images" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -366,12 +341,6 @@ const styles = StyleSheet.create({
   loadingText: {
     color: '#fff',
     fontSize: 16,
-  },
-  timerText: {
-    color: '#fff',
-    fontSize: 16,
-    marginTop: 8,
-    textAlign: 'center',
   },
 });
 

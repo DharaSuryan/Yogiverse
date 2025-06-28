@@ -11,7 +11,6 @@ import ReelPreviewScreen from '../Screens/Post/ReelPreviewScreen';
 import ReelEditorScreen from '../Screens/Post/ReelEditorScreen';
 import PostPreviewScreen from '../Screens/Post/PostPreviewScreen';
 import PostDetails from '../Screens/Post/PostDetails';
-import UploadPost from '../Screens/Post/UploadPost';
 import { CreatePostStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<CreatePostStackParamList>();
@@ -104,13 +103,6 @@ const CreatePostNavigator = () => {
       <Stack.Screen 
         name="PostDetails" 
         component={PostDetails}
-        options={{
-          animation: 'slide_from_right',
-        }}
-      />
-      <Stack.Screen 
-        name="UploadPost" 
-        component={UploadPost}
         options={{
           animation: 'slide_from_right',
         }}

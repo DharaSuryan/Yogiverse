@@ -1,61 +1,64 @@
-import React from 'react';
-import {View, FlatList, StyleSheet, RefreshControl} from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, FlatList, StyleSheet, RefreshControl, ActivityIndicator, Text } from 'react-native';
 import Post from '../Component/Post';
-
-interface PostItem {
-  id: string;
-  username: string;
-  imageUrl: string;
-  caption: string;
-  likes: number;
-  userAvatar: string;
-}
-
-// Temporary mock data
-const MOCK_POSTS: PostItem[] = [
-  {
-    id: '1',
-    username: 'yogiuser1',
-    imageUrl: 'https://picsum.photos/500/500',
-    caption: 'Practicing my morning yoga routine 🧘‍♀️ #yogalife',
-    likes: 42,
-    userAvatar: 'https://picsum.photos/100/100',
-  },
-  {
-    id: '2',
-    username: 'mindfulyogi',
-    imageUrl: 'https://picsum.photos/501/501',
-    caption: 'Finding peace in warrior pose ✨ #yogapractice',
-    likes: 89,
-    userAvatar: 'https://picsum.photos/101/101',
-  },
-];
+import axios from 'axios';
+import { Post as PostType } from 'Src/Types';
+import { useNavigation } from '@react-navigation/native';
 
 const FeedScreen = () => {
-  const [refreshing, setRefreshing] = React.useState(false);
+  const [posts, setPosts] = useState<PostType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const navigation = useNavigation();
 
-  const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
-    // Here you would typically fetch new posts
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 2000);
+  const fetchPosts = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await axios.get('http://192.168.1.160:9001/posts/');
+      setPosts(res.data?.data || []);
+    } catch (err) {
+      setError('Failed to load posts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPosts();
   }, []);
 
-  const renderPost = ({item}: {item: PostItem}) => (
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchPosts().finally(() => setRefreshing(false));
+  }, []);
+
+  const renderPost = ({ item }: { item: PostType }) => (
     <Post
+      id={item.id}
       username={item.username}
       imageUrl={item.imageUrl}
       caption={item.caption}
       likes={item.likes}
-      userAvatar={item.userAvatar}
+      userAvatar={item.userProfilePicture}
+      isLiked={item.isLiked}
+      contentType={"post"}
+      navigation={navigation}
     />
   );
+
+  if (loading) {
+    return <ActivityIndicator size="large" style={{ flex: 1, marginTop: 40 }} />;
+  }
+  if (error) {
+    return <Text style={{ color: 'red', textAlign: 'center', marginTop: 40 }}>{error}</Text>;
+  }
 
   return (
     <View style={styles.container}>
       <FlatList
-        data={MOCK_POSTS}
+        data={posts}
         renderItem={renderPost}
         keyExtractor={item => item.id}
         refreshControl={

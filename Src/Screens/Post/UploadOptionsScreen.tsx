@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   Image,
   FlatList,
-  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -26,13 +25,13 @@ const UploadOptionsScreen = () => {
       title: 'Post',
       description: 'Share a photo or video to your feed',
       icon: 'images-outline',
-      onPress: () => navigation.navigate('UploadPost', {}),
+      onPress: () => navigation.navigate('MediaPicker', { type: 'post' }),
     },
     {
       title: 'Story',
       description: 'Share a photo or video to your story',
       icon: 'add-circle-outline',
-      onPress: () => navigation.navigate('UploadPost', { isFromStory: true }),
+      onPress: () => navigation.navigate('MediaPicker', { type: 'story' }),
     },
     {
       title: 'Reel',
@@ -54,19 +53,14 @@ const UploadOptionsScreen = () => {
       if (result.assets && result.assets.length > 0) {
         const selected = result.assets[0];
         if (type === 'story') {
-          if (selected.uri) {
-            navigation.navigate('StoryPreview', {
-              uri: selected.uri,
-              type: selected.type?.startsWith('video') ? 'video' : 'image',
-            });
-          }
+          navigation.navigate('StoryPreview', {
+            uri: selected.uri,
+            type: selected.type?.startsWith('video') ? 'video' : 'image',
+          });
         } else if (type === 'reel') {
-          if (selected.uri) {
-            navigation.navigate('ReelPreview', { uri: selected.uri });
-          }
+          navigation.navigate('ReelPreview', { uri: selected.uri });
         } else {
-          const uris = result.assets.map(a => a.uri).filter((uri): uri is string => !!uri);
-          navigation.navigate('PostPreview', { images: uris });
+          navigation.navigate('PostPreview', { images: result.assets.map(a => a.uri) });
         }
       }
     } finally {
@@ -87,11 +81,11 @@ const UploadOptionsScreen = () => {
       <View style={styles.optionsContainer}>
         <FlatList
           data={options}
-          keyExtractor={item => item.title}
+          keyExtractor={item => item.uri || item.id}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.option}
-              onPress={item.onPress}
+              onPress={() => handleMediaSelect(item.title.toLowerCase())}
             >
               <View style={styles.optionContent}>
                 <View style={styles.iconContainer}>

@@ -31,25 +31,25 @@ export const UserProfileScreen = () => {
   const [expandedCaptions, setExpandedCaptions] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
+  
 
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    if (userId) {
-      fetchUserProfileData();
+    console.log("userId",userId);
+    
+    if(userId){
+    fetchUserProfileData();
     }
   }, [userId]);
 
   const fetchUserProfileData = async () => {
     try {
       setLoading(true);
-      console.log("here comes ....", userId);
-
       const response = await axios.get(`https://pashuahar.com/user_profile/${userId}`);
       const data = response.data?.data;
-      console.log("data.....", data);
-
+      console.log("data.....",data);
+      
       setProfile(data);
       setPosts(data?.posts || []);
       setReels(data?.reels || []);
@@ -161,21 +161,21 @@ export const UserProfileScreen = () => {
 
           {/* Fixed Actions Row */}
           <View style={styles.actionsRow}>
-
-            <Icon name="heart-outline" size={30} color="#fff" />
+            
+              <Icon name="heart-outline" size={30} color="#fff" />
 
             <TouchableOpacity
               onPress={() => {
                 console.log("yes pres ......");
-
+                
                 const content_type = isReel ? 'reel' : 'post';
                 const object_id = item.id;
-                console.log("here comes ...", content_type, object_id);
-
+                console.log("here comes ...",content_type,object_id);
+                
                 navigation.navigate('CommentScreen', { content_type, object_id });
               }}
             >
-              <Icon name="chatbubble-outline" size={27} color="#fff" style={{ marginLeft: 16 }} />
+                          <Icon name="chatbubble-outline" size={27} color="#fff" style={{ marginLeft: 16 }} />
 
             </TouchableOpacity>
 
@@ -211,12 +211,12 @@ export const UserProfileScreen = () => {
           <View style={styles.header}>
             <TouchableOpacity onPress={() => {
 
-              navigation.navigate('MainTab', {
-                screen: 'SearchTab',
-                params: {
-                  screen: 'Search',
-                },
-              });
+navigation.navigate('MainTab', {
+  screen: 'SearchTab',
+  params: {
+    screen: 'Search',
+  },
+});
             }}>
               <Icon name="arrow-back" size={24} color="#000" />
             </TouchableOpacity>
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   readMoreText: {
     color: '#888',
     fontSize: 13,
-    marginBottom: 10,
+    marginBottom:  10,
   },
 
   closeButton: {

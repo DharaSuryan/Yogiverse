@@ -11,18 +11,25 @@ export type RootStackParamList = {
   HighlightViewer: { highlightId: string };
   PostDetails: { postId: string };
   StoryCreation: undefined;
-  CreatePost: undefined;
-  StoryViewerScreen: { story: Story };
+  ProfilePostDetailScreen: any;
+  CreatePostHome: any;
+  Post: any;
+  PostPreview: any;
+  ReelEditor: any;
+  ReelPreview: any;
+  ReelCamera: any;
+  ProfileStack: any;
+  Login: any;
+  SignUp: any;
+  ForgotPassword: any;
+  FollowersFollowingScreen: { type: 'followers' | 'following'; userId: string; username: string };
 };
 
 export type AuthStackParamList = {
   Login: undefined;
-  SignUp: { role: 'user' | 'vendor' };
+  SignUp: undefined;
   ForgotPassword: undefined;
   RoleSelection: undefined;
-  MainCategory: { signupData: any; role?: 'user' | 'vendor' };
-  SubCategory: { signupData: any; role?: 'user' | 'vendor' };
-  UserSignUpScreen: { userData: any; profileImageUri: string | null; role: 'user' | 'vendor' };
 };
 
 export type MainTabParamList = {
@@ -35,10 +42,7 @@ export type MainTabParamList = {
 
 export type HomeStackParamList = {
   Home: undefined;
-  PostDetails: { 
-    postId: string;
-    media?: Array<{ uri: string; type: 'image' | 'video' }>;
-  };
+  PostDetails: { postId: string };
   Notifications: undefined;
 };
 
@@ -46,6 +50,7 @@ export type SearchStackParamList = {
   Search: undefined;
   SearchDetail: { id: string };
   SubCateGoryDisplay: { item: any };
+  TrendingDetailScreen: { post: any };
 };
 
 export type CreatePostStackParamList = {
@@ -56,7 +61,10 @@ export type CreatePostStackParamList = {
     maxSelection?: number;
   };
   MediaFilter: { 
-    media: Array<{ uri: string; type: 'image' | 'video' }>;
+    media: {
+      uri: string;
+      type: string;
+    }[];
   };
   StoryCamera: undefined;
   StoryPreview: { 
@@ -79,21 +87,15 @@ export type CreatePostStackParamList = {
     images: string[];
     caption?: string;
   };
-  Post: { 
-    media: Array<{ uri: string; type: 'image' | 'video' }>;
-  };
   PostDetails: { 
     postId: string;
-    media?: Array<{ uri: string; type: 'image' | 'video' }>;
   };
-  UploadPost: { isFromStory?: boolean };
 };
 
 export type ProfileStackParamList = {
   Profile: undefined;
   Menu: undefined;
   HighlightViewer: { highlightId: string };
-  ProfilePostDetailScreen: { post: any };
 };
 
 export type CreatePostPreviewStackParamList = {

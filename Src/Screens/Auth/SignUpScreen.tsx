@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   SafeAreaView, ScrollView, Alert, Image, ActivityIndicator, Modal, FlatList
 } from 'react-native';
-import { Formik, FormikErrors, FormikTouched } from 'formik';
+import { Formik, FormikErrors, FormikTouched, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { Picker } from '@react-native-picker/picker';
 import MultiSelect from 'react-native-multiple-select';
@@ -46,7 +46,7 @@ interface Location {
 }
 
 interface SignUpFormValues {
-  profileImage: any;
+  profileImage?: any; // Made optional as it might be null initially
   first_name: string;
   last_name: string;
   username: string;
@@ -121,13 +121,14 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
     try {
       setIsLoadingCountries(true);
       const response = await fetchCountries(countryPage, ITEMS_PER_PAGE);
+      if (!response || !response.data) throw new Error('No response received from server');
 
-      // The countries array is at response.data.data
       let countries;
-      if (response.data && Array.isArray(response.data.data)) {
-        countries = response.data.data;
+      if (Array.isArray(response.data)) {
+        countries = response.data;
+      } else if (response.data.results && Array.isArray(response.data.results)) {
+        countries = response.data.results;
       } else {
-        console.log('Unexpected country response:', response);
         throw new Error('Invalid data format received from server');
       }
 
@@ -141,7 +142,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
         setCountryPage(prev => prev + 1);
         setHasMoreCountries(true);
       }
-    } catch (error) {
+    } catch (error: any) {
       setHasMoreCountries(false);
       Alert.alert('Error Loading Countries', error.message || 'Failed to load countries.');
     } finally {
@@ -149,29 +150,20 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
     }
   };
 
-  const loadStates = async (countryId) => {
+  const loadStates = async (countryId: number) => {
     if (isLoadingStates || !hasMoreStates) return;
     try {
       setIsLoadingStates(true);
       const response = await fetchStates(countryId, statePage, ITEMS_PER_PAGE);
-
-      // The states array is at response.data.data
-      let states;
-      if (response.data && Array.isArray(response.data.data)) {
-        states = response.data.data;
-      } else {
-        states = [];
-        console.log('Invalid states response:', response);
-      }
-
-      if (states.length === 0) {
+      if (!response || !response.data) throw new Error('No data received from server');
+      const newStates = response.data;
+      if (newStates.length === 0) {
         setHasMoreStates(false);
       } else {
-        setFilteredStates(prev => [...prev, ...states]);
+        setFilteredStates(prev => [...prev, ...newStates]);
         setStatePage(prev => prev + 1);
-        setHasMoreStates(true);
       }
-    } catch (error) {
+    } catch (error: any) {
       setHasMoreStates(false);
       Alert.alert('Error', error.message || 'Failed to load states.');
     } finally {
@@ -179,29 +171,20 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
     }
   };
 
-  const loadCities = async (stateId) => {
+  const loadCities = async (stateId: number) => {
     if (isLoadingCities || !hasMoreCities) return;
     try {
       setIsLoadingCities(true);
       const response = await fetchCities(stateId, cityPage, ITEMS_PER_PAGE);
-
-      // The cities array is at response.data.data
-      let cities;
-      if (response.data && Array.isArray(response.data.data)) {
-        cities = response.data.data;
-      } else {
-        cities = [];
-        console.log('Invalid cities response:', response);
-      }
-
-      if (cities.length === 0) {
+      if (!response || !response.data) throw new Error('No data received from server');
+      const newCities = response.data;
+      if (newCities.length === 0) {
         setHasMoreCities(false);
       } else {
-        setFilteredCities(prev => [...prev, ...cities]);
+        setFilteredCities(prev => [...prev, ...newCities]);
         setCityPage(prev => prev + 1);
-        setHasMoreCities(true);
       }
-    } catch (error) {
+    } catch (error: any) {
       setHasMoreCities(false);
       Alert.alert('Error', error.message || 'Failed to load cities.');
     } finally {
@@ -217,7 +200,90 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
     });
   };
 
-  const renderCountryPicker = (setFieldValue) => (
+  const handleSubmit = async (values: SignUpFormValues, { setSubmitting }: { setSubmitting: (isSubmitting: boolean) => void }) => {
+    let formData = new FormData();
+
+    // User data
+    const user = {
+      first_name: values.first_name || "",
+      last_name: values.last_name || "",
+      email: values.email || "",
+      phone_no: values.phone_no || "",
+      username: values.username || "",
+      password: values.password || "",
+      country: selectedCountry ? selectedCountry.id.toString() : "",
+      state: selectedState ? selectedState.id.toString() : "",
+      city: selectedCity ? selectedCity.id.toString() : "",
+      role: role,
+    };
+    formData.append("user", JSON.stringify(user));
+
+    // Profile data
+    const profile = {
+      bio: values.bio || "",
+    };
+    formData.append("profile", JSON.stringify(profile));
+
+    // Vendor data (only if role is vendor)
+    if (role === "vendor") {
+      const vendor = {
+        business_name: values.business_name || "",
+        main_categories: values.main_categories || [],
+        subcategories: values.subcategories || [],
+      };
+      formData.append("vendor", JSON.stringify(vendor));
+    }
+
+    // Profile image (if present)
+    if (profileImage) {
+      formData.append('profile_image', {
+        uri: profileImage,
+        type: 'image/jpeg',
+        name: 'profile.jpg',
+      });
+    }
+
+    console.log("formdata", formData);
+
+    try {
+      const response = await registerUser(formData);
+      if (response.status === 200) {
+        Alert.alert('Success', 'Registration successful!');
+        console.log(" registration response",response);
+        
+        navigation.navigate('Login');
+      } else {
+        Alert.alert('Error', response.data.message || 'Registration failed. Please try again.');
+      }
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      Alert.alert('Error', error.message || 'An error occurred during registration.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const initialValues: SignUpFormValues = {
+    profileImage: null,
+    first_name: '',
+    last_name: '',
+    username: '',
+    email: '',
+    phone_no: '',
+    password: '',
+    confirm_password: '',
+    country: '',
+    state: '',
+    city: '',
+    ...(role === 'vendor' && {
+      business_name: '',
+      main_categories: [],
+      subcategories: [],
+      status: 'published'
+    }),
+  };
+
+  const renderCountryPicker = (setFieldValue: (field: string, value: any, shouldValidate?: boolean) => void) => (
     <Modal
       visible={showCountryPicker}
       transparent
@@ -240,7 +306,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
           />
           <FlatList
             data={allCountries.filter(country => {
-              const countryName = country?.country_name || country?.name || '';
+              const countryName = country?.name || country?.country_name || '';
               return countryName.toLowerCase().includes(countrySearch.toLowerCase());
             })}
             keyExtractor={(item) => item.id.toString()}
@@ -251,8 +317,6 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
                   setSelectedCountry(item);
                   setFieldValue('country', item.id.toString());
                   setShowCountryPicker(false);
-
-                  // Reset state and city
                   setSelectedState(null);
                   setSelectedCity(null);
                   setFilteredStates([]);
@@ -261,12 +325,9 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
                   setCityPage(1);
                   setHasMoreStates(true);
                   setHasMoreCities(true);
-
-                  // Fetch states for the selected country
-                  loadStates(item.id);
                 }}
               >
-                <Text style={styles.locationItemText}>{item.country_name || item.name}</Text>
+                <Text style={styles.locationItemText}>{item.name || item.country_name}</Text>
               </TouchableOpacity>
             )}
             onEndReached={() => {
@@ -293,7 +354,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
     </Modal>
   );
 
-  const renderStatePicker = (setFieldValue) => (
+  const renderStatePicker = (setFieldValue: (field: string, value: any, shouldValidate?: boolean) => void) => (
     <Modal
       visible={showStatePicker}
       transparent
@@ -355,7 +416,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
     </Modal>
   );
 
-  const renderCityPicker = (setFieldValue) => (
+  const renderCityPicker = (setFieldValue: (field: string, value: any, shouldValidate?: boolean) => void) => (
     <Modal
       visible={showCityPicker}
       transparent
@@ -412,88 +473,6 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
     </Modal>
   );
 
-  const handleSubmit = async (values: SignUpFormValues, { setSubmitting }: any) => {
-    let formData = new FormData();
-
-    // User data
-    const user = {
-      first_name: values.first_name || "",
-      last_name: values.last_name || "",
-      email: values.email || "",
-      phone_no: values.phone_no || "",
-      username: values.username || "",
-      password: values.password || "",
-      country: selectedCountry ? selectedCountry.id.toString() : "",
-      state: selectedState ? selectedState.id.toString() : "",
-      city: selectedCity ? selectedCity.id.toString() : "",
-      role: role,
-    };
-    formData.append("user", JSON.stringify(user));
-
-    // Profile data
-    const profile = {
-      bio: values.bio || "",
-    };
-    formData.append("profile", JSON.stringify(profile));
-
-    // Vendor data (only if role is vendor)
-    if (role === "vendor") {
-      const vendor = {
-        business_name: values.business_name || "",
-        main_categories: values.main_categories || [],
-        subcategories: values.subcategories || [],
-      };
-      formData.append("vendor", JSON.stringify(vendor));
-    }
-
-    // Profile image (if present)
-    if (profileImage) {
-      formData.append('profile_image', {
-        uri: profileImage,
-        type: 'image/jpeg',
-        name: 'profile.jpg',
-      });
-    }
-
-    console.log("formdata", formData);
-
-    try {
-      const response = await registerUser(formData);
-      if (response.status === 200) {
-        Alert.alert('Success', 'Registration successful!');
-        console.log(" registration response",response);
-        
-        navigation.navigate('Login');
-      } else {
-        Alert.alert('Error', response.data.message || 'Registration failed. Please try again.');
-      }
-    } catch (error) {
-      console.error("Registration error:", error);
-      Alert.alert('Error', error.message || 'An error occurred during registration.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const initialValues: SignUpFormValues = {
-    first_name: '',
-    last_name: '',
-    username: '',
-    email: '',
-    phone_no: '',
-    password: '',
-    confirm_password: '',
-    country: '',
-    state: '',
-    city: '',
-    ...(role === 'vendor' && {
-      business_name: '',
-      main_categories: [],
-      subcategories: [],
-      status: 'published'
-    }),
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -503,7 +482,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
           validationSchema={role === 'user' ? UserSchema : VendorSchema}
           onSubmit={handleSubmit}
         >
-          {({ handleChange, handleBlur, handleSubmit, setFieldValue, values, errors, touched, isSubmitting }) => (
+          {({ handleChange, handleBlur, handleSubmit, setFieldValue, values, errors, touched, isSubmitting }: FormikProps<SignUpFormValues>) => (
             <View style={styles.formContainer}>
               {/* Profile Image */}
               <View style={styles.profileImageContainer}>
@@ -639,7 +618,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation, route }) => {
                 </>
               )}
 
-              <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={isSubmitting}>
+              <TouchableOpacity style={styles.button} onPress={() => handleSubmit()} disabled={isSubmitting}>
                 <Text style={styles.buttonText}>{isSubmitting ? 'Signing Up...' : 'Sign Up'}</Text>
               </TouchableOpacity>
             </View>
@@ -841,6 +820,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SignUpScreen;
-
-
+export default SignUpScreen; 

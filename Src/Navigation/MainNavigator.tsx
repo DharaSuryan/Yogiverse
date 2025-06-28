@@ -7,10 +7,10 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import HomeScreen from '../Screens/Home/HomeScreen';
 import SearchScreen from '../Screens/Search/SearchScreen';
 import SearchDetailScreen from '../Screens/Search/SearchDetailScreen';
+import TrendingDetailScreen from '../Screens/TrendingDetailScreen';
 import SubCateGoryDisplay from '../Screens/Search/SubCateGoryDisplay';
 import CreatePostScreen from '../Screens/Post/CreatePostScreen';
 import ProfileScreen from '../Screens/Profile/ProfileScreen';
-import PreViewForPost from '../Screens/Post/PreViewForPost';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const SearchStack = createNativeStackNavigator<SearchStackParamList>();
@@ -20,7 +20,7 @@ const SearchNavigator = () => {
     <SearchStack.Navigator screenOptions={{ headerShown: false }}>
       <SearchStack.Screen name="Search" component={SearchScreen} />
       <SearchStack.Screen name="SearchDetail" component={SearchDetailScreen} />
-      <SearchStack.Screen name="PreViewForPost" component={PreViewForPost} />
+      <SearchStack.Screen name="TrendingDetailScreen" component={TrendingDetailScreen} />
       {/* <SearchStack.Screen name="SubCateGoryDisplay" component={SubCateGoryDisplay} /> */}
     </SearchStack.Navigator>
   );
@@ -106,4 +106,4 @@ const MainNavigator = () => {
   );
 };
 
-export default MainNavigator;
+export default MainNavigator; 

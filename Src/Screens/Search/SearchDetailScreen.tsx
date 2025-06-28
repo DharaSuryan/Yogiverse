@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Video from 'react-native-video';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { BackHandler } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SearchStackParamList } from '../../Navigation/types';
@@ -39,6 +39,10 @@ const exploreMoreData = [
 type SearchDetailScreenNavigationProp = NativeStackNavigationProp<SearchStackParamList, 'SearchDetail'>;
 
 const SearchDetailScreen = () => {
+  // console.log("........",  
+    const route = useRoute();
+  const { item } = route.params as { item: any };
+  console.log("item.....",item);
     const navigation = useNavigation<SearchDetailScreenNavigationProp>();
     const [liked, setLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(2100);

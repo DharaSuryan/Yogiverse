@@ -1,11 +1,10 @@
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Dimensions, SafeAreaView, Platform } from 'react-native'
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { VendorStackParamList } from '../../Navigation/types';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { vendorList } from '../../Api/Api';
+
 const screenWidth = Dimensions.get('window').width;
 
 const { width } = Dimensions.get('window');
@@ -23,103 +22,87 @@ interface VendorItem {
   location?: string;
 }
 
-export default function VenderList() {
-  const navigation = useNavigation<VendorListNavigationProp>();
-  const [vendor, setVendor] = useState([])
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
- 
+export default function VenderList (){
+ const navigation = useNavigation<VendorListNavigationProp>();
+    
+    const suggestions: VendorItem[] = [
+        { id: '1', title: 'Lemon recipes', subtitle: 'Food', image: require('../../Assets/yoga.jpg') },
+        { id: '2', title: 'Heritage Desserts', subtitle: 'Food', image: require('../../Assets/yoga.jpg') },
+        { id: '3', title: 'Yoga Lifestyle', subtitle: 'Health', image: require('../../Assets/yoga.jpg') },
+        { id: '4', title: 'Healing Foods', subtitle: 'Ayurveda', image: require('../../Assets/yoga.jpg') },
+        { id: '5', title: 'Daily Detox', subtitle: 'Health', image: require('../../Assets/yoga.jpg') },
+        { id: '6', title: 'Organic Choices', subtitle: 'Market', image: require('../../Assets/yoga.jpg') },
+    ];
 
-  console.log("vendor data",vendor);
-  
-  useEffect(() => {
-
-    fetchVendor();
-  }, []);
-  const fetchVendor = async () => {
-    try {
-
-      const response = await vendorList();
-      console.log("vendor list", response.data);
-
-      setVendor(response.data.vendors);
-    } catch (error: any) {
-      setError('Something went wrong while loading profile.');
-    } finally {
-      setLoading(false);
-    }
-  };
-  const renderVendorCard = ({ item }: { item: VendorItem }) => (
-    <TouchableOpacity
-      style={styles.vendorCard}
-      onPress={() => navigation.navigate('VenderDetail', { vendorId: item.profile?.user })
-     }
-    >
-      <View style={styles.imageContainer}>
-        <Image
-          source={{uri:item?.profile?.profile_picture}}
-          style={styles.vendorImage}
-          resizeMode="cover"
-        />
-        {item.isVerified && (
-          <View style={styles.verifiedBadge}>
-            <Icon name="checkmark-circle" size={16} color="#fff" />
+   const renderVendorCard = ({ item }: { item: VendorItem }) => (
+      <TouchableOpacity 
+        style={styles.vendorCard}
+        onPress={() => navigation.navigate('VenderDetail', { vendorId: item.id })}
+      >
+        <View style={styles.imageContainer}>
+          <Image
+            source={item.image }
+            style={styles.vendorImage}
+            resizeMode="cover"
+          />
+          {item.isVerified && (
+            <View style={styles.verifiedBadge}>
+              <Icon name="checkmark-circle" size={16} color="#fff" />
+            </View>
+          )}
+        </View>
+        
+        <View style={styles.vendorInfo}>
+          <Text style={styles.vendorName} numberOfLines={1}>
+            {item.title}
+          </Text>
+          
+          <View style={styles.ratingContainer}>
+            {/* <Icon name="star" size={14} color="#FFD700" /> */}
+            <Text style={styles.ratingText}>
+              {item.subtitle} 
+            </Text>
           </View>
-        )}
-      </View>
-
-      <View style={styles.vendorInfo}>
-        <Text style={styles.vendorName} numberOfLines={1}>
-          {item?.profile?.first_name }
-        </Text>
-
-        <View style={styles.ratingContainer}>
-          {/* <Icon name="star" size={14} color="#FFD700" /> */}
-          <Text style={styles.ratingText}>
-            {item?.followers_count+" "+ "Followers"}
-          </Text>
+          
+          <View style={styles.locationContainer}>
+            <Icon name="location-outline" size={14} color="#666" />
+            <Text style={styles.locationText} numberOfLines={1}>
+              {item.location}
+            </Text>
+          </View>
         </View>
-
-        <View style={styles.locationContainer}>
-          <Icon name="location-outline" size={14} color="#666" />
-          <Text style={styles.locationText} numberOfLines={1}>
-            {item?.profile?.country}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Everyone is Yogi</Text>
-        {/* <TouchableOpacity style={styles.filterButton}>
+      </TouchableOpacity>
+    );
+  
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Vendors</Text>
+          {/* <TouchableOpacity style={styles.filterButton}>
             <Icon name="filter" size={24} color="#333" />
           </TouchableOpacity> */}
-      </View>
-
-      <FlatList
-        data={vendor}
-        renderItem={renderVendorCard}
-        keyExtractor={(item) => item.id}
-        numColumns={numColumns}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Icon name="business-outline" size={48} color="#ccc" />
-            <Text style={styles.emptyText}>No vendors found</Text>
-          </View>
-        }
-      />
-    </SafeAreaView>
-  );
+        </View>
+  
+        <FlatList
+          data={suggestions}
+          renderItem={renderVendorCard}
+          keyExtractor={(item) => item.id}
+          numColumns={numColumns}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Icon name="business-outline" size={48} color="#ccc" />
+              <Text style={styles.emptyText}>No vendors found</Text>
+            </View>
+          }
+        />
+      </SafeAreaView>
+    );
 }
 
 
-const styles = StyleSheet.create({
-  container: {
+const styles =  StyleSheet.create({container: {
     flex: 1,
     backgroundColor: '#fff',
   },
@@ -226,4 +209,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
-})
+  })

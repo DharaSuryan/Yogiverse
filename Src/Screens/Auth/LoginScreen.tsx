@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Platform,
-  Keyboard, StatusBar, TouchableWithoutFeedback, Alert, ActivityIndicator
+  Keyboard, StatusBar, TouchableWithoutFeedback, Alert
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../../Store/actions/authActions';
-import { NativeStackNavigationProp, CommonActions } from '@react-navigation/native';
-import { RootStackParamList, MainTabParamList, HomeStackParamList, AuthStackParamList } from '../../Navigation/types';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList, AuthStackParamList } from '../../Navigation/types';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { loginUser } from '../../Api/Api';
@@ -14,11 +14,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useBackHandler } from '../../Utils/BackHandler';
+import { navigate, reset } from '../../Component/Route';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 0;
 
 type LoginScreenProps = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'Auth'>;
+  navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 };
 
 const LoginSchema = Yup.object().shape({
@@ -28,28 +29,23 @@ const LoginSchema = Yup.object().shape({
 
 const LoginScreen: React.FC<LoginScreenProps> = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { navigate } = navigation;
   const dispatch = useDispatch();
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   // Add back handler
   useBackHandler();
 
   const handleLogin = async (values: { username: string; password: string }) => {
-    setLoading(true);
     try {
       const response = await loginUser(values);
-      console.log("response",response);
-      
       if (response.status === 200 && response.data) {
         console.log("Login response", response);
         
         // Store tokens and user data using Promise.all for better performance
         await Promise.all([
-          AsyncStorage.setItem('accessToken', response?.data?.access_token),
-          AsyncStorage.setItem('refreshToken', response?.data?.refresh_token),
-          AsyncStorage.setItem('userData', JSON.stringify(response?.data?.user))
+          AsyncStorage.setItem('accessToken', response.data.access_token),
+          AsyncStorage.setItem('refreshToken', response.data.refresh_token),
+          AsyncStorage.setItem('userData', JSON.stringify(response.data.user))
         ]);
         
         // Update Redux state
@@ -57,33 +53,23 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
           loginSuccess({
             user: response.data.user,
             token: response.data.access_token,
-            refreshToken: response.data.refresh_token
+            refreshToken: response.data.refresh_token,
           })
         );
-
-        // Reset navigation to MainTab with HomeTab
-        navigation.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [{
-              name: 'MainTab',
-              params: {
-                screen: 'HomeTab'
-              }
-            }]
-          })
-        );
+        
+        // Navigate to main tab using reset
+        reset('MainTab')
+  //       navigation.reset({
+  //   index: 0,
+  //   routes: [{ name: 'MainTab' }], 
+  // });
+  
       } else {
         Alert.alert('Login Failed', 'Invalid username or password');
-        console.log("response .... message ",response.message);
-        
       }
     } catch (error: any) {
       console.error('Login error:', error);
-      Alert.alert('Login Failed', error.response?.data?.message);
-         console.log("response .... message ",error);
-    } finally {
-      setLoading(false);
+      Alert.alert('Login Failed', error.response?.data?.message || 'Invalid username or password');
     }
   };
 
@@ -92,7 +78,7 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
         <View style={styles.logoContainer}>
-          <Image source={require('../../Assets/LogoLogin.png')} style={styles.logo} resizeMode="contain" />
+          <Image source={require('../../Assets/yoga.jpg')} style={styles.logo} resizeMode="contain" />
         </View>
         <Formik
           initialValues={{ username: '', password: '' }}
@@ -104,7 +90,6 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
               <TextInput
                 style={styles.input}
                 placeholder="Username"
-                placeholderTextColor="#999"
                 onChangeText={handleChange('username')}
                 onBlur={handleBlur('username')}
                 value={values.username}
@@ -116,7 +101,6 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
                 <TextInput
                   style={[styles.input, styles.passwordInput]}
                   placeholder="Password"
-                  placeholderTextColor="#999" // Update placeholder color to gray
                   onChangeText={handleChange('password')}
                   onBlur={handleBlur('password')}
                   value={values.password}
@@ -134,7 +118,11 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
                 </TouchableOpacity>
               </View>
               {touched.password && errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-              <TouchableOpacity style={styles.forgotPassword} onPress={() => navigation.navigate('Auth', { screen: 'ForgotPassword' })}>
+              <TouchableOpacity style={styles.forgotPassword} onPress={() => 
+               navigate('ForgotPassword')
+
+
+                }>
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.loginButton} onPress={() => handleSubmit()}>
@@ -145,7 +133,11 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
                 <Text style={styles.dividerText}>OR</Text>
                 <View style={styles.dividerLine} />
               </View>
-              <TouchableOpacity style={styles.signupButton} onPress={() => navigation.navigate('Auth', { screen: 'RoleSelection' })}>
+              <TouchableOpacity style={styles.signupButton} onPress={() => 
+                navigate('RoleSelection')
+
+
+                }>
                 <Text style={styles.signupButtonText}>
                   Don't have an account? Sign up
                 </Text>
@@ -153,11 +145,6 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
             </View>
           )}
         </Formik>
-        {loading && (
-          <View style={styles.loaderOverlay}>
-            <ActivityIndicator size="large" color="#fff" />
-          </View>
-        )}
       </View>
     </TouchableWithoutFeedback>
   );
@@ -250,13 +237,6 @@ const styles = StyleSheet.create({
     top: '50%',
     transform: [{ translateY: -12 }],
     padding: 5,
-  },
-  loaderOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
   },
 });
 

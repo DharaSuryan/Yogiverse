@@ -8,31 +8,21 @@ import {
   TextInput,
   ScrollView,
   Platform,
-  Alert,
-  ActivityIndicator,
-  PermissionsAndroid,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'react-native-image-picker';
-import { postStories } from '../../Api/Api';
-import { Asset, ImageLibraryOptions } from 'react-native-image-picker';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../Navigation/types';
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
-const StoryCreation = ({ navigation }: { navigation: NavigationProp }) => {
-  const [media, setMedia] = useState<Asset | null>(null);
+const StoryCreation = ({ navigation }) => {
+  const [media, setMedia] = useState(null);
   const [caption, setCaption] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [isHighlighted] = useState(false);
-  const [location] = useState('India');
 
   const handleSelectMedia = () => {
-    const options: ImageLibraryOptions = {
-      mediaType: 'mixed' as const,
+    const options = {
+      mediaType: 'mixed',
       quality: 1,
       includeBase64: false,
     };
+
     ImagePicker.launchImageLibrary(options, (response) => {
       if (response.didCancel) {
         return;
@@ -47,67 +37,9 @@ const StoryCreation = ({ navigation }: { navigation: NavigationProp }) => {
     });
   };
 
-  const handleOpenCamera = async () => {
-    if (Platform.OS === 'android') {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.CAMERA,
-        {
-          title: 'Camera Permission',
-          message: 'App needs camera access to take pictures.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        }
-      );
-      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-        Alert.alert('Permission Denied', 'Camera permission is required to take photos.');
-        return;
-      }
-    }
-    const options: ImageLibraryOptions = {
-      mediaType: 'photo' as const,
-      quality: 1,
-      includeBase64: false,
-    };
-    ImagePicker.launchCamera(options, (response) => {
-      if (response.didCancel) {
-        return;
-      }
-      if (response.errorCode) {
-        Alert.alert('Camera Error', response.errorMessage || 'Unknown error');
-        return;
-      }
-      if (response.assets && response.assets[0]) {
-        setMedia(response.assets[0]);
-      }
-    });
-  };
-
-  const handleCaptionChange = async (text: string) => {
-    setCaption(text);
-    if (media && text.trim().length > 0) {
-      setUploading(true);
-      try {
-        const isVideo = media.type && media.type.startsWith('video');
-        const formData = new FormData();
-        formData.append('media_file', {
-          uri: media.uri || '',
-          type: isVideo ? 'video/mp4' : 'image/jpeg',
-          name: isVideo ? 'story.mp4' : 'story.jpg',
-        } as any);
-        formData.append('caption', text);
-        formData.append('is_highlighted', isHighlighted ? 'true' : 'false');
-        formData.append('location', location);
-        formData.append('media[0].is_video', isVideo ? 'true' : 'false');
-        await postStories({ formData });
-        Alert.alert('Success', 'Your story has been uploaded!');
-        navigation.goBack();
-      } catch (e) {
-        Alert.alert('Error', 'Failed to upload story.');
-      } finally {
-        setUploading(false);
-      }
-    }
+  const handleCreateStory = () => {
+    // Here you would typically upload the media and caption to your backend
+    navigation.goBack();
   };
 
   return (
@@ -117,44 +49,38 @@ const StoryCreation = ({ navigation }: { navigation: NavigationProp }) => {
           <Icon name="close" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>New Story</Text>
+        <TouchableOpacity
+          onPress={handleCreateStory}
+          disabled={!media}
+        >
+          <Text style={[styles.shareButton, !media && styles.shareButtonDisabled]}>
+            Share
+          </Text>
+        </TouchableOpacity>
       </View>
+
       <ScrollView style={styles.content}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginVertical: 16 }}>
-          <TouchableOpacity
-            style={[styles.actionButton, uploading && styles.shareButtonDisabled]}
-            onPress={handleOpenCamera}
-            disabled={uploading}
-          >
-            <Icon name="camera" size={24} color="#0095f6" />
-            <Text style={styles.actionButtonText}>Open Camera</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, uploading && styles.shareButtonDisabled]}
-            onPress={handleSelectMedia}
-            disabled={uploading}
-          >
-            <Icon name="images" size={24} color="#0095f6" />
-            <Text style={styles.actionButtonText}>Upload from Gallery</Text>
-          </TouchableOpacity>
-        </View>
         {media ? (
-          <Image source={{ uri: media.uri || '' }} style={styles.mediaPreview} />
+          <Image source={{ uri: media.uri }} style={styles.mediaPreview} />
         ) : (
-          <View style={styles.mediaPlaceholder}>
+          <TouchableOpacity
+            style={styles.mediaPlaceholder}
+            onPress={handleSelectMedia}
+          >
             <Icon name="add-circle-outline" size={48} color="#666" />
             <Text style={styles.mediaPlaceholderText}>
               Select photo or video
             </Text>
-          </View>
+          </TouchableOpacity>
         )}
+
         <View style={styles.captionContainer}>
           <TextInput
             style={styles.captionInput}
             placeholder="Write a caption..."
             value={caption}
-            onChangeText={handleCaptionChange}
+            onChangeText={setCaption}
             multiline
-            editable={!uploading}
           />
         </View>
       </ScrollView>
@@ -187,6 +113,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  shareButton: {
+    color: '#0095f6',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  shareButtonDisabled: {
+    opacity: 0.5,
+  },
   content: {
     flex: 1,
   },
@@ -212,35 +146,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minHeight: 100,
     textAlignVertical: 'top',
-  },
-  shareButtonContainer: {
-    backgroundColor: '#0095f6',
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  shareButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  shareButtonDisabled: {
-    opacity: 0.5,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginHorizontal: 5,
-  },
-  actionButtonText: {
-    color: '#0095f6',
-    fontWeight: '600',
-    fontSize: 15,
-    marginLeft: 8,
   },
 });
 

@@ -16,7 +16,6 @@ import { useNavigation, useRoute, RouteProp, CommonActions } from '@react-naviga
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { CreatePostStackParamList, RootStackParamList } from '../../Navigation/types';
-import { postStories } from '../../Api/Api';
 
 type StoryPreviewScreenRouteProp = RouteProp<CreatePostStackParamList, 'StoryPreview'>;
 type StoryPreviewScreenNavigationProp = NativeStackNavigationProp<CreatePostStackParamList, 'StoryPreview'>;
@@ -86,28 +85,16 @@ const StoryPreviewScreen = () => {
     setShowTextEditor(false);
   };
 
-  const handlePost = async (uri) => {
-    console.log("uri", uri);
-
+  const handlePost = async () => {
     try {
       // Here you would typically upload the media to your backend
       // For now, we'll just navigate back to the main screen
-      const formData = new FormData();
-      formData.append('media_file', {
-        uri: uri,
-        type: type === 'video' ? 'video/mp4' : 'image/jpeg',
-        name: type === 'video' ? 'story.mp4' : 'story.jpg',
-      });
-      const response = await postStories(formData);
-      console.log("response story", response);
-
-      // Handle success (e.g., show a message, n
       navigation.navigate('MainTab', {
-        screen: 'HomeTab',
-        params: {
-          screen: 'Home',
-        },
-      });
+  screen: 'HomeTab',
+  params: {
+    screen: 'Home',
+  },
+});
     } catch (error) {
       console.error('Error posting story:', error);
     }
@@ -116,8 +103,8 @@ const StoryPreviewScreen = () => {
   const renderMedia = () => {
     if (type === 'video') {
       return (
-        <TouchableOpacity
-          style={styles.mediaContainer}
+        <TouchableOpacity 
+          style={styles.mediaContainer} 
           onPress={() => setIsPlaying(!isPlaying)}
           activeOpacity={1}
         >
@@ -148,7 +135,7 @@ const StoryPreviewScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
           <Icon name="close" size={24} color="#FFFFFF" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => handlePost(uri)} style={styles.shareButton}>
+        <TouchableOpacity onPress={handlePost} style={styles.shareButton}>
           <Text style={styles.shareButtonText}>Share</Text>
         </TouchableOpacity>
       </View>

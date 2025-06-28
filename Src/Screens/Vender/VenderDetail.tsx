@@ -23,7 +23,6 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { VendorStackParamList } from '../../Navigation/types'; // Adjust path as needed
-import { vendorDetail } from '../../Api/Api';
 
 // Get screen dimensions for responsive styling
 const { width, height } = Dimensions.get('window');
@@ -112,11 +111,7 @@ const VendorDetailScreen: React.FC = () => {
   const navigation = useNavigation<VendorDetailScreenNavigationProp>();
   const route = useRoute<VendorDetailScreenRouteProp>();
   const isMounted = useRef(false); // Added isMounted ref
-  const [vendor, setVendor] = useState([])
 
-  const [vendorData, setVendorData] = useState<Vendor | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   // Add cleanup on unmount
   useEffect(() => {
     isMounted.current = true; // Set to true when mounted
@@ -125,8 +120,6 @@ const VendorDetailScreen: React.FC = () => {
       // Cleanup any subscriptions or listeners here
     };
   }, []);
-console.log("route",route.params);
-
 
   const handleGoBack = () => {
     try {
@@ -147,27 +140,10 @@ console.log("route",route.params);
       }, 100); // 100ms delay
     }
   };
-console.log("route.params.vendorId",route.params.vendorId);
-
-    useEffect(() => {
-  
-      fetchVendor();
-    }, []);
-    const fetchVendor = async () => {
-      try {
-  
-        const response = await vendorDetail(route.params.vendorId);
-        console.log("vendor Detail", response.data);
-  
-        setVendor(response.data);
-      } catch (error: any) {
-        setError('Something went wrong while loading profile.');
-      } finally {
-        setLoading(false);
-      }
-    };
   // States for vendor data (replace with actual fetch)
- 
+  const [vendorData, setVendorData] = useState<Vendor | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Refs for scroll positions for "jump to section" functionality
   const aboutRef = useRef<View>(null);
@@ -184,29 +160,42 @@ console.log("route.params.vendorId",route.params.vendorId);
 
   // Simulate fetching vendor data based on ID from route params
   useEffect(() => {
-    // const fetchVendor = async () => {
-    //   try {
-    //     setLoading(true);
-    //     // In a real app, you'd fetch data using route.params?.vendorId
-    //     // const response = await api.get(`/vendors/${route.params?.vendorId}`);
-    //     // setVendorData(response.data);
+    const fetchVendor = async () => {
+      try {
+        setLoading(true);
+        // In a real app, you'd fetch data using route.params?.vendorId
+        // const response = await api.get(`/vendors/${route.params?.vendorId}`);
+        // setVendorData(response.data);
         
-    //     // Using dummy data for demonstration
-    //     setTimeout(() => {
-    //       if (!isMounted.current) return; // Prevent state update if component unmounted
-    //       setVendorData(dummyVendor);
-    //       setLoading(false);
-    //     }, 1000); // Simulate network delay
-    //   } catch (err) {
-    //     if (!isMounted.current) return; // Prevent state update if component unmounted
-    //     setError('Failed to load vendor details.');
-    //     setLoading(false);
-    //   }
-    // };
-    // fetchVendor();
+        // Using dummy data for demonstration
+        setTimeout(() => {
+          if (!isMounted.current) return; // Prevent state update if component unmounted
+          setVendorData(dummyVendor);
+          setLoading(false);
+        }, 1000); // Simulate network delay
+      } catch (err) {
+        if (!isMounted.current) return; // Prevent state update if component unmounted
+        setError('Failed to load vendor details.');
+        setLoading(false);
+      }
+    };
+    fetchVendor();
   }, [route.params?.vendorId]); // Re-fetch if vendorId changes
 
- 
+  const scrollToSection = (ref: React.RefObject<View>) => {
+    if (ref.current && scrollViewRef.current) {
+      const scrollViewNode = findNodeHandle(scrollViewRef.current);
+      if (scrollViewNode) {
+        ref.current.measureLayout(
+          scrollViewNode,
+          (x, y, width, height) => {
+            scrollViewRef.current?.scrollTo({ y: y, animated: true });
+          },
+          () => console.warn('Failed to measure layout')
+        );
+      }
+    }
+  };
 
   const renderStars = (rating: number) => {
     const stars = [];
@@ -279,7 +268,7 @@ console.log("route.params.vendorId",route.params.vendorId);
         </View>
 
         {/* Section Navigation (Jump Links) */}
-        {/* <View style={styles.sectionNavContainer}>
+        <View style={styles.sectionNavContainer}>
           {sections.map((section) => (
             <TouchableOpacity
               key={section.name}
@@ -289,7 +278,7 @@ console.log("route.params.vendorId",route.params.vendorId);
               <Text style={styles.sectionNavText}>{section.name}</Text>
             </TouchableOpacity>
           ))}
-        </View> */}
+        </View>
 
         {/* --- Content Sections --- */}
 
@@ -415,7 +404,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 15,
     paddingVertical: 10,
-    // backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     zIndex: 1000,
   },
   backButton: {
@@ -439,7 +428,7 @@ const styles = StyleSheet.create({
   },
   heroOverlay: {
     position: 'absolute',
-    top: height * 0.40 - 100, // Position above the bottom of the cover image
+    top: height * 0.35 - 100, // Position above the bottom of the cover image
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -485,7 +474,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: 'bold',
     color: '#333',
-    // marginTop: 10,
+    marginTop: 10,
   },
   vendorCategory: {
     fontSize: 16,

@@ -26,8 +26,6 @@ import StoryViewerScreen from '../Screens/Story/StoryViewerScreen';
 import MediaPickerScreen from '../Screens/Post/Mediapicker';
 import RoleSelectionScreen from '../Screens/Auth/RoleSelectionScreen';
 import SignUpScreen from '../Screens/Auth/UserSignUpScreen';
-import MainCategoryScreen from '../Screens/Auth/MainCategory';
-import SubCategoryScreen from '../Screens/Auth/SubCategory';
 import { SearchBar } from 'react-native-screens';
 import SearchDetailScreen from '../Screens/Search/SearchDetailScreen';
 import MenuScreen from '../Screens/Profile/MenuScreen';
@@ -47,14 +45,15 @@ import VendorDetailScreen from '../Screens/Vender/VenderDetail';
 import PostPreviewScreen from '../Screens/Post/PostPreviewScreen';
 import ReelEditorScreen from '../Screens/Post/ReelEditorScreennew';
 import ProfilePostDetailScreen from '../Screens/Profile/ProfilePostDetailScreen';
-import { Image } from 'react-native';
-// import VendorStackScreen from '../Screens/Vendor/VendorStack';
 import UserProfileScreen from '../Screens/Profile/UserProfileScreen';
-import CommentScreen from "../Screens/Comment/CommentScreen";
+import CommentScreen from "../Screens/Comments/CommentScreen";
 import SubCateGoryDisplay from '../Screens/Search/SubCateGoryDisplay';
+import TrendingDetailScreen from '../Screens/TrendingDetailScreen';
+// import VendorStackScreen from '../Screens/Vendor/VendorStack';
+import { navigationRef } from '../Component/Route';
+import FollowersFollowingScreen from '../Screens/Profile/FollowersFollowingScreen';
 import UploadPost from '../Screens/Post/UploadPost';
 import PreViewForPost from '../Screens/Post/PreViewForPost';
-
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -68,13 +67,11 @@ const VenderStack = createNativeStackNavigator<VendorStackParamList>();
 
 function AuthStackScreen() {
   return (
-    <AuthStack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Login">
+    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="SignUp" component={SignUpScreen} />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <AuthStack.Screen name="RoleSelection" component={RoleSelectionScreen}/>
-      <AuthStack.Screen name="MainCategory" component={MainCategoryScreen} />
-      <AuthStack.Screen name="SubCategory" component={SubCategoryScreen} />
     </AuthStack.Navigator>
   );
 }
@@ -133,7 +130,7 @@ function SearchStackScreen() {
     <SearchStack.Navigator screenOptions={{ headerShown: false }}>
       <SearchStack.Screen name="Search" component={SearchScreen} />
       <SearchStack.Screen name="SearchDetail" component={SearchDetailScreen}/>
-      
+      <SearchStack.Screen name="TrendingDetailScreen" component={TrendingDetailScreen}/>
     </SearchStack.Navigator>
   );
 }
@@ -159,13 +156,13 @@ function CreatePostStackScreen() {
         animation: 'slide_from_bottom',
       }}
     >
-      {/* <CreatePostStack.Screen 
+      <CreatePostStack.Screen 
         name="CreatePostHome" 
         component={CreatePostScreen}
         options={{
           gestureEnabled: false
         }}
-      /> */}
+      />
       <CreatePostStack.Screen 
         name="UploadOptions" 
         component={UploadOptionsScreen}
@@ -263,7 +260,6 @@ function MainTabScreen() {
     <MainTabs.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarShowLabel: false,
         tabBarIcon: ({ focused, color, size }) => {
           let iconName = 'help-outline';
 
@@ -274,7 +270,7 @@ function MainTabScreen() {
           } else if (route.name === 'CreatePostTab') {
             iconName = focused ? 'add-circle' : 'add-circle-outline';
           } else if (route.name === 'VendorTab') {
-            iconName = focused ? "yoga" : "yoga"
+            iconName = focused ? 'business' : 'business-outline';
           } else if (route.name === 'ProfileTab') {
             iconName = focused ? 'person' : 'person-outline';
           }
@@ -330,8 +326,7 @@ function MainTabScreen() {
         name="ProfileTab" 
         component={ProfileStackScreen}
         options={{
-           tabBarLabel: 'Profile',
-          
+          tabBarLabel: 'Profile',
         }}
       />
     </MainTabs.Navigator>
@@ -371,24 +366,42 @@ const Navigation = () => {
   }
 
   return (
-  
-  
-    
-       <NavigationContainer>
+    <NavigationContainer 
+    onStateChange={(state) => {
+
+      const currentRouteName = navigationRef.current.getCurrentRoute().name;
+
+      
+      navigationRef.current.previousRouteName = currentRouteName;
+  }}
+    ref={navigationRef}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="SplashScreen" component={SplashScreen} />
         <Stack.Screen name="MainTab" component={MainTabScreen} />
         <Stack.Screen name="Auth" component={AuthStackScreen} />
-        <Stack.Screen name="StoryCreation" component={StoryCreation} />
         <Stack.Screen name="UserProfile" component={UserProfileScreen} />
         <Stack.Screen name="CommentScreen" component={CommentScreen} />
         <Stack.Screen name="SubCateGoryDisplay" component={SubCateGoryDisplay} />
+        <Stack.Screen name="ProfilePostDetailScreen" component={ProfilePostDetailScreen} />
+        <Stack.Screen name="CreatePostHome" component={CreatePostScreen} />
+        <Stack.Screen name="Post" component={PostScreen} />
+        <Stack.Screen name="PostDetails" component={PostDetailsScreen} />
+        <Stack.Screen name="PostPreview" component={PostPreviewScreen} />
+        <Stack.Screen name="ReelEditor" component={ReelEditorScreen} />
+        <Stack.Screen name="ReelPreview" component={ReelPreviewScreen} />
+        <Stack.Screen name="ReelCamera" component={ReelCameraScreen} />
+        <Stack.Screen name="ProfileStack" component={ProfileStackScreen} />
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="SignUp" component={SignUpScreen} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+        <Stack.Screen name="RoleSelection" component={RoleSelectionScreen}/>
+        <Stack.Screen name="FollowersFollowingScreen" component={FollowersFollowingScreen} />
         <Stack.Screen name="UploadPost" component={UploadPost} />
-        <Stack.Screen name="PreViewForPost" component={PreViewForPost}/>
-        <Stack.Screen name="StoryViewerScreen" component={StoryViewerScreen} />
+        <Stack.Screen name="UploadOptionsScreen" component={UploadOptionsScreen} />
+        <Stack.Screen name="PreViewForPost" component={PreViewForPost} />
+        <Stack.Screen name="StoryCreation" component={StoryCreation} /> 
       </Stack.Navigator>
     </NavigationContainer>
-  
   );
 };
 

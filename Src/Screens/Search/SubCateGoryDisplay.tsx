@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { goBack } from '../../Component/Route';
 
 // Static images for different subcategories
 // const subCategoryImages = {
@@ -77,12 +78,7 @@ const SubCateGoryDisplay = () => {
       <View style={styles.header}>
         <TouchableOpacity onPress={() => {
 
-          navigation.navigate('MainTab', {
-            screen: 'SearchTab',
-            params: {
-              screen: 'Search',
-            },
-          });
+          goBack()
         }}>
           <Icon name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>

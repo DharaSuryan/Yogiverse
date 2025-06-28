@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 // Types
-interface ApiResponse  {
+interface ApiResponse {
   data: any;
   status: number;
   message: string;
@@ -36,7 +36,7 @@ interface LoginCredentials {
 }
 
 // API Configuration
-export const BASE_URL = 'https://pashuahar.com';  // Your local API endpoint
+export const BASE_URL = 'https://pashuahar.com/';  // Your local API endpoint
 
 export const API_INTERNET_CONNECTION_CAPTION_EN =
   'Sorry, No Internet connectivity detected. Please reconnect and try again';
@@ -107,24 +107,9 @@ api.interceptors.response.use(
   }
 );
 
-
 export const registerUser  = async (formData: FormData): Promise<ApiResponse> => {
-  console.log("api",api);
-  
-  try {
-    const url = '/vendor_register/';
-    console.log(`Registering user at URL: ${api.defaults.baseURL}${url}`);
-    const response = await api.post(url, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
-  } catch (error: any) {
-    console.error("Registration API Error:", error.response?.data || error.message);
-    throw error;
-  }
-}
+  return api.post('/vendor_register/', formData);
+};
 export const loginUser = async (credentials: { username: string; password: string }): Promise<ApiResponse> => {
   try {
     const response = await api.post('/login/', credentials);
@@ -141,20 +126,18 @@ export const loginUser = async (credentials: { username: string; password: strin
 };
 export const logoutUser = async () => {
   try {
-    const refreshToken = await AsyncStorage.getItem('refreshToken');
-    const response = await api.post('/logout/', );
-    return {
-      data: response.data,
-      status: response.status,
-      message: 'Logout successful',
-    };
+    await Promise.all([
+      AsyncStorage.removeItem('accessToken'),
+      AsyncStorage.removeItem('refreshToken'),
+      AsyncStorage.removeItem('userData'),
+    ]);
   } catch (error) {
-    console.error('Logout Error:', error.response?.data || error.message);
+    console.error('Logout Error:', error);
     throw error;
   }
-}
+};
 export const getProfile = async (): Promise<ApiResponse> => {
-  // console.log("get ");
+  console.log("get ");
   
   const response = await api.get(`/profile/`); // ✅ adjust if endpoint differs
   return {
@@ -163,20 +146,75 @@ export const getProfile = async (): Promise<ApiResponse> => {
     message: 'Profile fetched successfully',
   };
 };
-export const getPost = async (): Promise<ApiResponse> => {
-  // console.log("get ");
-  
-  const response = await api.get(`/posts/`); // ✅ adjust if endpoint differs
+
+// Fetch posts for the logged-in user
+export const getUserPosts = async (): Promise<ApiResponse> => {
+  const response = await api.get('/posts/');
   return {
     data: response.data,
     status: response.status,
-    message: 'Profile fetched successfully',
+    message: 'Posts fetched successfully',
   };
 };
+
+// Fetch reels for the logged-in user
+export const getUserReels = async (): Promise<ApiResponse> => {
+  const response = await api.get('/reels/');
+  return {
+    data: response.data,
+    status: response.status,
+    message: 'Reels fetched successfully',
+  };
+};
+
+// Fetch following count for the logged-in user
+export const getFollowingCount = async (): Promise<ApiResponse> => {
+  const response = await api.get('/follower/following');
+  return {
+    data: response.data,
+    status: response.status,
+    message: 'Following count fetched successfully',
+  };
+};
+
+// Fetch followers count for the logged-in user
+export const getFollowersCount = async (): Promise<ApiResponse> => {
+  const response = await api.get('/follower/followers');
+  console.log("here ....",response?.data?.data);
+  
+  return {
+    data: response.data,
+    status: response.status,
+    message: 'Followers count fetched successfully',
+  };
+};
+
+// Post creation API
+export const postPosts = async ({ formData }: { formData: FormData }): Promise<ApiResponse> => {
+  const response = await api.post('/posts/', formData);
+  return {
+    data: response.data,
+    status: response.status,
+    message: 'Post created successfully',
+  };
+};
+
+// Story creation API
+export const postStories = async ({ formData }: { formData: FormData }): Promise<ApiResponse> => {
+  console.log("formData inside postStories",formData);
+  
+  const response = await api.post('/stories/', formData);
+  return {
+    data: response.data,
+    status: response.status,
+    message: 'Story created successfully',
+  };
+};
+
 export const fetchCountries = async (page = 1, limit = 10): Promise<ApiResponse> => {
   try {
     const response = await api.get('/helper_app/countries/', { params: { page, limit } });
-    // console.log("response",response);
+    console.log("response",response);
     
     return {
       data: response.data,
@@ -201,97 +239,14 @@ export const fetchStates = async (countryId: number, page = 1, limit = 10): Prom
   }
 };
 
-
-
-export const vendorList  = async (): Promise<ApiResponse> => {
-  
-    try {
-    const response = await api.get('/vendor_list/');
+export const fetchCities = async (stateId: number, page = 1, limit = 10): Promise<ApiResponse> => {
+  try {
+    const response = await api.get('/helper_app/cities/', { params: { stateId, page, limit } });
 
     return {
       data: response.data,
       status: response.status,
       message: 'Cities fetched successfully'
-    };
-  } catch (error) {
-    throw error;
-  }
-}
-
-export const vendorDetail = async (id: string): Promise<ApiResponse> => {
-  try {
-    const response = await api.get(`/user_profile/${id}/`);
-    return {
-      data: response.data,
-      status: response.status,
-      message: 'Vendor details fetched successfully'
-    };
-  } catch (error: any) {
-    return { 
-      data: null, 
-      status: error.response?.status || 500, 
-      message: error.message 
-    };
-  }
-};
-// stories
-export const postStories  = async ({formData}:any): Promise<ApiResponse> => {
-  const authToken = await AsyncStorage.getItem('accessToken');
-  try {
-   const response = await axios.post(`${BASE_URL}/stories/`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        'Authorization': `Bearer ${authToken}`
-      },
-    });
-    return {
-      data: response.data,
-      status: response.status,
-      message: 'Story Send successful',
-      user: response.data.user,
-      token: response.data.token
-    };
-  } catch
-   (error) {
-    throw error;
-  }
-};
-
-export const postPosts  = async ({formData}:any): Promise<ApiResponse> => {
-  const authToken = await AsyncStorage.getItem('accessToken');
-  try {
-   const response = await axios.post(`${BASE_URL}/posts/`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        'Authorization': `Bearer ${authToken}`
-      },
-    });
-    return {
-      data: response.data,
-      status: response.status,
-      message: 'Story Send successful',
-      user: response.data.user,
-      token: response.data.token
-    };
-  } catch (error) {
-    throw error;
-  }
-};
-export const postReels  = async ({formData}:any): Promise<ApiResponse> => {
-  const authToken = await AsyncStorage.getItem('accessToken');
-  try {
-    const response = await axios.post(`${BASE_URL}/reels/`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        'Authorization': `Bearer ${authToken}`
-      },
-    });
-    return {
-      data: response.data,
-      status: response.status,
-      message: 'Story Send successful',
-      user: response.data.user,
-      token: response.data.token
     };
   } catch (error) {
     throw error;
@@ -326,7 +281,6 @@ export const onAddDevicesAPICall = (params: any) => {
   return _REQUEST2SERVER_Authorization_Post_FCM(`/fcm-token/`, params);
 };
 
-
 const registerFCMToken = async (token: string) => {
   try {
     const authToken = await AsyncStorage.getItem('authToken'); // Get your auth token
@@ -335,7 +289,7 @@ const registerFCMToken = async (token: string) => {
       return;
     }
 
-    const response = await axios.post('https://pashuahar.com/fcm-token/', 
+    const response = await axios.post('http://192.168.1.160:9001/fcm-token/', 
       { token },
       {
         headers: {
@@ -347,54 +301,6 @@ const registerFCMToken = async (token: string) => {
     console.log('FCM token registered successfully');
   } catch (error) {
     console.error('Error registering FCM token:', error);
-  }
-};
-export const getUserPosts = async (): Promise<ApiResponse> => {
-  const response = await api.get('/posts/');
-  return {
-    data: response.data,
-    status: response.status,
-    message: 'Posts fetched successfully',
-  };
-};
-
-// Fetch following count for the logged-in user
-export const getFollowingCount = async (): Promise<ApiResponse> => {
-  const response = await api.get('/follower/following');
-  return {
-    data: response.data,
-    status: response.status,
-    message: 'Following count fetched successfully',
-  };
-};
-
-// Fetch followers count for the logged-in user
-export const getFollowersCount = async (): Promise<ApiResponse> => {
-  const response = await api.get('/follower/followers');
-  // console.log("here ....",response?.data?.data);
-  
-  return {
-    data: response.data,
-    status: response.status,
-    message: 'Followers count fetched successfully',
-  };
-};
-
-// Fetch stories (GET)
-export const getStories = async (): Promise<ApiResponse> => {
-  try {
-    const response = await api.get('/stories');
-    console.log("here comes response",response?.data?.data);
-    
-    return {
-      data: response.data,
-      status: response.status,
-      message: 'Stories fetched successfully',
-    };
-  } catch (error) {
-    console.log("here comes error",error);
-    
-    throw error;
   }
 };
 

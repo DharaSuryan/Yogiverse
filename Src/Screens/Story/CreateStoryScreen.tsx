@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -24,15 +24,6 @@ const CreateStoryScreen = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [location, setLocation] = useState('');
   const [duration, setDuration] = useState(5); // Default 5 seconds
-  const [caption, setCaption] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [imageMeta, setImageMeta] = useState<{ type: string; name: string }>({ type: 'image/jpeg', name: 'story.jpg' });
-
-  useEffect(() => {
-    // Open gallery by default when screen mounts
-    handleImagePicker();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const handleImagePicker = () => {
     ImagePicker.launchImageLibrary({
@@ -45,13 +36,8 @@ const CreateStoryScreen = () => {
         console.log('User cancelled image picker');
       } else if (response.errorCode) {
         Alert.alert('Error', response.errorMessage);
-      } else if (response.assets && response.assets[0]) {
-        const asset = response.assets[0];
-        setSelectedImage(asset.uri || null);
-        setImageMeta({
-          type: asset.type || 'image/jpeg',
-          name: asset.fileName || 'story.jpg',
-        });
+      } else if (response.assets && response.assets[0].uri) {
+        setSelectedImage(response.assets[0].uri);
       }
     });
   };
@@ -67,42 +53,34 @@ const CreateStoryScreen = () => {
         console.log('User cancelled camera');
       } else if (response.errorCode) {
         Alert.alert('Error', response.errorMessage);
-      } else if (response.assets && response.assets[0]) {
-        // Extract uri, type, fileName for FormData
-        const asset = response.assets[0];
-        setSelectedImage(asset.uri || null);
-        // Optionally store type and fileName in state if needed for upload
-        setImageMeta({
-          type: asset.type || 'image/jpeg',
-          name: asset.fileName || 'story.jpg',
-        });
+      } else if (response.assets && response.assets[0].uri) {
+        setSelectedImage(response.assets[0].uri);
       }
     });
   };
 
-  const handleShare = async () => {
-    if (!selectedImage || !caption.trim()) return;
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append('media_file', {
-        uri: selectedImage,
-        type: imageMeta.type,
-        name: imageMeta.name,
-      });
-      formData.append('caption', caption);
-      formData.append('is_highlighted', 'false');
-      formData.append('location', location || '');
-      formData.append('media[0].is_video', 'false');
-      // Call your API here (e.g., postStories({ formData }))
-      // await postStories({ formData });
-      Alert.alert('Success', 'Your story has been uploaded!');
-      navigation.goBack();
-    } catch (e) {
-      Alert.alert('Error', 'Failed to upload story.');
-    } finally {
-      setUploading(false);
+  const handleShare = () => {
+    if (!selectedImage) {
+      Alert.alert('Error', 'Please select an image first');
+      return;
     }
+
+    const newStory: Story = {
+      id: Date.now().toString(),
+      userId: 'current_user_id', // Replace with actual user ID
+      username: 'Your Story',
+      userProfilePicture: 'https://picsum.photos/200', // Replace with actual user profile picture
+      mediaUrl: selectedImage,
+      timestamp: 'Just now',
+      duration: duration,
+      viewers: [],
+      isViewed: false,
+      type: 'image',
+      location: location || undefined,
+    };
+
+    dispatch(addStory(newStory));
+    navigation.goBack();
   };
 
   return (
@@ -114,17 +92,17 @@ const CreateStoryScreen = () => {
         <Text style={styles.headerTitle}>New Story</Text>
         <TouchableOpacity
           onPress={handleShare}
-          disabled={!selectedImage || !caption.trim() || uploading}
+          disabled={!selectedImage}
           style={[
             styles.shareButton,
-            (!selectedImage || !caption.trim() || uploading) && styles.shareButtonDisabled,
+            !selectedImage && styles.shareButtonDisabled,
           ]}>
           <Text
             style={[
               styles.shareButtonText,
-              (!selectedImage || !caption.trim() || uploading) && styles.shareButtonTextDisabled,
+              !selectedImage && styles.shareButtonTextDisabled,
             ]}>
-            {uploading ? 'Uploading...' : 'Share'}
+            Share
           </Text>
         </TouchableOpacity>
       </View>
@@ -187,17 +165,6 @@ const CreateStoryScreen = () => {
               onChangeText={setLocation}
             />
           </View>
-        </View>
-        <View style={styles.settingItem}>
-          <Text style={styles.settingLabel}>Caption</Text>
-          <TextInput
-            style={styles.locationInput}
-            placeholder="Write a caption..."
-            value={caption}
-            onChangeText={setCaption}
-            multiline
-            editable={!uploading}
-          />
         </View>
       </ScrollView>
     </View>
