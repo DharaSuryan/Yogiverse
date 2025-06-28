@@ -373,7 +373,7 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
       role: route.params.role,
       
       // Categories (will be filled in later screens)
-      main_categories: [],
+      main_categories:  [],
       subcategories: []
     };
     
