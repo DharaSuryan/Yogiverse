@@ -9,7 +9,7 @@ export interface MainCategoryType {
 export interface SubCategoryType {
   id: number;
   name: string;
-  subcategory_image: string | null;
+  sub_category_image: string | null;
 }
 
 export interface MainCategoryWithSubCategories {

@@ -125,6 +125,8 @@ const VendorDetailScreen: React.FC = () => {
       // Cleanup any subscriptions or listeners here
     };
   }, []);
+console.log("route",route.params);
+
 
   const handleGoBack = () => {
     try {

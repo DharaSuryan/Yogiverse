@@ -588,20 +588,25 @@ const handleVendorNext = (values) => {
                   {touched.subcategories && errors.subcategories && <Text style={styles.error}>{errors.subcategories}</Text>} */}
                 </>
               )}
-              {role === 'vendor' && (
+              {/* {role === 'vendor' && (
                 <TouchableOpacity style={styles.button} onPress={handleVendorNext as (e?: GestureResponderEvent) => void} disabled={isSubmitting}>
                   {isSubmitting
                     ? <ActivityIndicator color="#FFFFFF" />
                     : <Text style={styles.buttonText}>Next</Text>
                   }
-                </TouchableOpacity>)}
-                    {role === 'user' && (
+                </TouchableOpacity>)} */}
+                    {role === 'user' ? (
                 <TouchableOpacity style={styles.button} onPress={handleSubmit as (e?: GestureResponderEvent) => void} disabled={isSubmitting}>
                   {isSubmitting
                     ? <ActivityIndicator color="#FFFFFF" />
                     : <Text style={styles.buttonText}>Sign Up</Text>
                   }
-                </TouchableOpacity>)}
+                </TouchableOpacity>):  <TouchableOpacity style={styles.button} onPress={handleVendorNext as (e?: GestureResponderEvent) => void} disabled={isSubmitting}>
+                  {isSubmitting
+                    ? <ActivityIndicator color="#FFFFFF" />
+                    : <Text style={styles.buttonText}>Next</Text>
+                  }
+                </TouchableOpacity>}
             </View>
           )}
         </Formik>
