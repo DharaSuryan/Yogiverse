@@ -52,8 +52,6 @@ import TrendingDetailScreen from '../Screens/TrendingDetailScreen';
 // import VendorStackScreen from '../Screens/Vendor/VendorStack';
 import { navigationRef } from '../Component/Route';
 import FollowersFollowingScreen from '../Screens/Profile/FollowersFollowingScreen';
-import UploadPost from '../Screens/Post/UploadPost';
-import PreViewForPost from '../Screens/Post/PreViewForPost';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -396,9 +394,8 @@ const Navigation = () => {
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="RoleSelection" component={RoleSelectionScreen}/>
         <Stack.Screen name="FollowersFollowingScreen" component={FollowersFollowingScreen} />
-        <Stack.Screen name="UploadPost" component={UploadPost} />
         <Stack.Screen name="UploadOptionsScreen" component={UploadOptionsScreen} />
-        <Stack.Screen name="PreViewForPost" component={PreViewForPost} />
+       
         <Stack.Screen name="StoryCreation" component={StoryCreation} /> 
       </Stack.Navigator>
     </NavigationContainer>
