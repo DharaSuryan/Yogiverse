@@ -31,6 +31,7 @@ interface PostProps {
   location?: string;
   createdAt?: string;
   profile?: any;
+  isSaved?: boolean;
 }
 
 const fallbackAvatar = require('../Assets/yoga.jpg');
@@ -52,6 +53,7 @@ const Post: React.FC<PostProps> = ({
   location = '',
   createdAt = '',
   profile = {},
+  isSaved: initialIsSaved = false,
 }) => {
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [likesCount, setLikesCount] = useState(likes);
@@ -59,6 +61,8 @@ const Post: React.FC<PostProps> = ({
   const [showFallbackAvatar, setShowFallbackAvatar] = useState(false);
   const [showFallbackPostImage, setShowFallbackPostImage] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isSaved, setIsSaved] = useState(initialIsSaved);
+  const [saveLoading, setSaveLoading] = useState(false);
 
   const getMediaUri = (item: any) => {
     if (item.media_file) return item.media_file.startsWith('http') ? item.media_file : `https://pashuahar.com/${item.media_file}`;
@@ -103,6 +107,35 @@ console.log("id.....",id,contentType);
     });
   };
 
+  const handleSave = async () => {
+    if (saveLoading) return;
+    setSaveLoading(true);
+    setIsSaved(!isSaved);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      };
+      
+      // Save post API call
+      await axios.post('https://pashuahar.com/collections/items/', {
+        collection: 1,
+        content_type: contentType,
+        object_id: parseInt(id),
+      }, { headers });
+      
+      console.log('Post saved successfully:', !isSaved);
+    } catch (err) {
+      console.log("Save error:", err);
+      // Revert UI if failed
+      setIsSaved(isSaved);
+      Alert.alert('Error', 'Failed to save post.');
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -118,7 +151,7 @@ console.log("id.....",id,contentType);
           </View>
         </View>
         <TouchableOpacity>
-          <Ionicons name="ellipsis-vertical" size={20} color="#bea063" />
+          {React.createElement(Ionicons as any, { name: "ellipsis-vertical", size: 20, color: "#bea063" })}
         </TouchableOpacity>
       </View>
 
@@ -148,7 +181,7 @@ console.log("id.....",id,contentType);
                   />
                   {!isActive && (
                     <View style={{ position: 'absolute', top: '45%', left: '45%' }}>
-                      <Ionicons name="play-circle" size={48} color="#bea063" />
+                      {React.createElement(Ionicons as any, { name: "play-circle", size: 48, color: "#bea063" })}
                     </View>
                   )}
                 </View>
@@ -183,24 +216,37 @@ console.log("id.....",id,contentType);
       )}
 
       <View style={styles.actions}>
-        <TouchableOpacity onPress={handleLike} disabled={likeLoading}>
-          {likeLoading ? (
-            <ActivityIndicator size={20} color="#FF3B30" />
-          ) : (
-            <Ionicons
-              name={isLiked ? 'heart' : 'heart-outline'}
-              size={28}
-              color={isLiked ? '#bea063' : '#bea063'}
-            />
-          )}
-        </TouchableOpacity>
-        {allowComments && (
-          <TouchableOpacity style={styles.actionButton} onPress={handleComment}>
-            <Ionicons name="chatbubble-outline" size={24} color="#bea063" />
+        <View style={styles.leftActions}>
+          <TouchableOpacity onPress={handleLike} disabled={likeLoading}>
+            {likeLoading ? (
+              <ActivityIndicator size={20} color="#FF3B30" />
+            ) : (
+              React.createElement(Ionicons as any, {
+                name: isLiked ? 'heart' : 'heart-outline',
+                size: 28,
+                color: isLiked ? '#bea063' : '#bea063'
+              })
+            )}
           </TouchableOpacity>
-        )}
-        <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="paper-plane-outline" size={24} color="#bea063" />
+          {allowComments && (
+            <TouchableOpacity style={styles.actionButton} onPress={handleComment}>
+              {React.createElement(Ionicons as any, { name: "chatbubble-outline", size: 24, color: "#bea063" })}
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={styles.actionButton}>
+            {React.createElement(Ionicons as any, { name: "paper-plane-outline", size: 24, color: "#bea063" })}
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saveLoading}>
+          {saveLoading ? (
+            <ActivityIndicator size={20} color="#bea063" />
+          ) : (
+            React.createElement(Ionicons as any, {
+              name: isSaved ? 'bookmark' : 'bookmark-outline',
+              size: 24,
+              color: "#bea063"
+            })
+          )}
         </TouchableOpacity>
       </View>
 
@@ -265,9 +311,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 10,
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  leftActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   actionButton: {
     marginLeft: 15,
+  },
+  saveButton: {
+    marginLeft: 'auto',
   },
   likesContainer: {
     paddingHorizontal: 10,

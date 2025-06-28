@@ -37,7 +37,6 @@
     "react-native": "0.76.0",
     "react-native-camera": "^4.2.1",
     "react-native-emoji-selector": "^0.2.0",
-    "react-native-image-compressor": "^0.0.2",
     "react-native-image-crop-picker": "^0.42.0",
     "react-native-image-gallery": "^2.1.5",
     "react-native-image-picker": "^8.2.1",
