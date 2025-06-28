@@ -327,17 +327,63 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
       subcategories: [] as number[],
     }),
   };
-const handleVendorNext = (values) => {
-  // Add extra values if needed, e.g. country/state/city objects
-  const userData = {
-    ...values,
-    country: selectedCountry,
-    state: selectedState,
-    city: selectedCity,
-    profileImage: profileImage, // or use profileImageUri if you want
+
+  const handleVendorNext = (formValues) => {
+    console.log('=== VENDOR NEXT CLICKED ===');
+    console.log('Form values:', formValues);
+    
+    // Check if all required fields are filled
+    if (!formValues.first_name || !formValues.last_name || !formValues.email || !formValues.username || !formValues.password || !formValues.phone_no) {
+      Alert.alert('Validation Error', 'Please fill in all required fields before proceeding.');
+      return;
+    }
+
+    if (!selectedCountry || !selectedState || !selectedCity) {
+      Alert.alert('Validation Error', 'Please select country, state, and city.');
+      return;
+    }
+
+    if (route.params.role === 'vendor' && !formValues.business_name) {
+      Alert.alert('Validation Error', 'Please enter business name.');
+      return;
+    }
+
+    // Create data object in the same format as handleSubmit
+    const signupData = {
+      // Form values (same as handleSubmit)
+      first_name: formValues.first_name,
+      last_name: formValues.last_name,
+      username: formValues.username,
+      email: formValues.email,
+      phone_no: `+${selectedCountry?.calling_code || '91'}${formValues.phone_no || ''}`,
+      password: formValues.password,
+      confirm_password: formValues.confirm_password,
+      bio: formValues.bio || '',
+      business_name: formValues.business_name || '',
+      
+      // Location IDs (same as handleSubmit)
+      country_id: selectedCountry?.id,
+      state_id: selectedState?.id,
+      city_id: selectedCity?.id,
+      
+      // Profile image (same as handleSubmit)
+      profileImage: profileImage,
+      
+      // Role (same as handleSubmit)
+      role: route.params.role,
+      
+      // Categories (will be filled in later screens)
+      main_categories:  [],
+      subcategories: []
+    };
+    
+    console.log('Signup data object created:', signupData);
+    console.log('Navigating to MainCategory...');
+    
+    // Navigate to MainCategory
+    navigation.navigate('MainCategory', { signupData });
   };
-  navigation.navigate('MainCategory', { userData }); // Pass your userData object
-};
+
   // Form Submission
   const handleSubmit = async (values: typeof initialValues, { setSubmitting }: FormikHelpers<typeof initialValues>) => {
     try {
@@ -588,20 +634,35 @@ const handleVendorNext = (values) => {
                   {touched.subcategories && errors.subcategories && <Text style={styles.error}>{errors.subcategories}</Text>} */}
                 </>
               )}
-              {role === 'vendor' && (
+              {/* {role === 'vendor' && (
                 <TouchableOpacity style={styles.button} onPress={handleVendorNext as (e?: GestureResponderEvent) => void} disabled={isSubmitting}>
                   {isSubmitting
                     ? <ActivityIndicator color="#FFFFFF" />
                     : <Text style={styles.buttonText}>Next</Text>
                   }
-                </TouchableOpacity>)}
-                    {role === 'user' && (
+                </TouchableOpacity>)} */}
+                    {role === 'user' ? (
                 <TouchableOpacity style={styles.button} onPress={handleSubmit as (e?: GestureResponderEvent) => void} disabled={isSubmitting}>
                   {isSubmitting
                     ? <ActivityIndicator color="#FFFFFF" />
                     : <Text style={styles.buttonText}>Sign Up</Text>
                   }
-                </TouchableOpacity>)}
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.button} 
+                  onPress={() => {
+                    console.log('Current form values:', values);
+                    handleVendorNext(values);
+                  }}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting
+                    ? <ActivityIndicator color="#FFFFFF" />
+                    : <Text style={styles.buttonText}>Next</Text>
+                  }
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </Formik>

@@ -52,8 +52,8 @@ export default function VenderList() {
   const renderVendorCard = ({ item }: { item: VendorItem }) => (
     <TouchableOpacity
       style={styles.vendorCard}
-    //   onPress={() => navigation.navigate('VenderDetail', { vendorId: item.profile?.user })
-    // }
+      onPress={() => navigation.navigate('VenderDetail', { vendorId: item.profile?.user })
+     }
     >
       <View style={styles.imageContainer}>
         <Image

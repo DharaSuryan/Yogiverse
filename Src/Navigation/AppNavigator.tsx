@@ -28,13 +28,10 @@ export type AppStackParamList = {
   LoginScreen: undefined;
   SignUpScreen: { role: 'user' | 'vendor' };
   MainCategory: {
-    userData: any;
-    profileImageUri: string | null;
+    signupData: any;
   };
   SubCategory: {
-    userData: any;
-    profileImageUri: string | null;
-    mainCategories: number[];
+    signupData: any;
   };
   MainTabs: undefined;
   StoryNavigator: undefined;
