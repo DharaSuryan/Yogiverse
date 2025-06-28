@@ -109,7 +109,7 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
         // Replace with your actual API endpoint if baseURL is not set globally
         const res = await api.get('main_with_sub_categories/');
         setMainCategories(res.data.data || []);
-        console.log(res.data.data, "maincategories");
+        // console.log(res.data.data, "maincategories");
 
       } catch (err) {
         Alert.alert('Error', 'Failed to load categories');
@@ -166,7 +166,6 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
       throw error;
     }
   };
-
 
   // State handler
   const handleStateSelect = async (item: State, setFieldValue: (field: string, value: any) => void) => {
@@ -328,7 +327,17 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
       subcategories: [] as number[],
     }),
   };
-
+const handleVendorNext = (values) => {
+  // Add extra values if needed, e.g. country/state/city objects
+  const userData = {
+    ...values,
+    country: selectedCountry,
+    state: selectedState,
+    city: selectedCity,
+    profileImage: profileImage, // or use profileImageUri if you want
+  };
+  navigation.navigate('MainCategory', { userData }); // Pass your userData object
+};
   // Form Submission
   const handleSubmit = async (values: typeof initialValues, { setSubmitting }: FormikHelpers<typeof initialValues>) => {
     try {
@@ -337,7 +346,7 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
       console.log('Form values:', values);
 
       const formData = new FormData();
-      
+
       // Append all fields one by one, which is the format the server expects
       formData.append('first_name', values.first_name || '');
       formData.append('last_name', values.last_name || '');
@@ -357,7 +366,7 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
         formData.append('main_categories', JSON.stringify(mainCategoryIds || []));
         formData.append('subcategories', JSON.stringify(subCategoryIds || []));
       }
-      
+
       if (profileImage) {
         formData.append('profile_image', {
           uri: profileImage,
@@ -367,8 +376,11 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
       }
 
       console.log('Sending FormData:', formData);
+
+      console.log('Calling registration API...');
       const response = await registerUser(formData);
-      
+      console.log('Sign-up API Response:', JSON.stringify(response, null, 2));
+
       if (response.status) {
         Alert.alert('Success', response.message || 'Registration successful!');
         navigation.navigate('Login');
@@ -389,7 +401,7 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
       <ScrollView contentContainerStyle={styles.content}>
         {/* {role !== 'user' ? <Text style={{ textAlign: 'center', color: '#bea063', marginTop: 10 }}>Everyone is Yogi</Text> : null}
         {role !== 'user' ? <Text style={{ textAlign: 'center', marginVertical: 5, color: '#bea063' }}>by his/her Karma and Dharma.</Text> : null} */}
-        <Text style={{fontSize: 22, fontWeight: 'bold', marginVertical: 16, alignSelf: 'center', color: 'gray'}}>Sign Up as <Text style={styles.header}>{role === 'user' ? 'Seekers' : "Yogi's"}</Text></Text>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', marginVertical: 16, alignSelf: 'center', color: 'gray' }}>Sign Up as <Text style={styles.header}>{role === 'user' ? 'Seekers' : "Yogi's"}</Text></Text>
         <Formik
           initialValues={initialValues}
           validationSchema={role === 'user' ? UserSchema : VendorSchema}
@@ -526,7 +538,7 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
                     <Text style={styles.errorText}>{errors.business_name}</Text>
                   )}
 
-                  <Text style={styles.sectionTitle}>Categories</Text>
+                  {/* <Text style={styles.sectionTitle}>Categories</Text>
                   <MultiSelect
                     items={mainCategories}
                     uniqueKey="categories"
@@ -547,42 +559,49 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
                       if (!mainCategory?.sub_categories) return null;
 
                       const subcatsForThisMain = mainCategory.sub_categories;
-                      const selectedSubcatIdsForThisMain = (values.subcategories || []).filter(subId => 
-                          subcatsForThisMain.some(s => s.id === subId)
+                      const selectedSubcatIdsForThisMain = (values.subcategories || []).filter(subId =>
+                        subcatsForThisMain.some(s => s.id === subId)
                       );
 
                       return (
-                          <View key={mainCategory.categories} style={{marginTop: 16}}>
-                              <Text style={styles.subCategoryHeader}>{mainCategory.category_name}</Text>
-                              <MultiSelect
-                                  items={subcatsForThisMain}
-                                  uniqueKey="id"
-                                  onSelectedItemsChange={(newlySelectedIds) => {
-                                      const otherSubcatIds = (values.subcategories || []).filter(subId =>
-                                          !subcatsForThisMain.some(s => s.id === subId)
-                                      );
-                                      const allSelectedIds = [...otherSubcatIds, ...newlySelectedIds];
-                                      setSubCategoryIds(allSelectedIds);
-                                      setFieldValue('subcategories', allSelectedIds);
-                                  }}
-                                  selectedItems={selectedSubcatIdsForThisMain}
-                                  selectText="Select subcategories..."
-                                  displayKey="name"
-                                  submitButtonText="Done"
-                              />
-                          </View>
+                        <View key={mainCategory.categories} style={{ marginTop: 16 }}>
+                          <Text style={styles.subCategoryHeader}>{mainCategory.category_name}</Text>
+                          <MultiSelect
+                            items={subcatsForThisMain}
+                            uniqueKey="id"
+                            onSelectedItemsChange={(newlySelectedIds) => {
+                              const otherSubcatIds = (values.subcategories || []).filter(subId =>
+                                !subcatsForThisMain.some(s => s.id === subId)
+                              );
+                              const allSelectedIds = [...otherSubcatIds, ...newlySelectedIds];
+                              setSubCategoryIds(allSelectedIds);
+                              setFieldValue('subcategories', allSelectedIds);
+                            }}
+                            selectedItems={selectedSubcatIdsForThisMain}
+                            selectText="Select subcategories..."
+                            displayKey="name"
+                            submitButtonText="Done"
+                          />
+                        </View>
                       );
-                  })}
-                  {touched.subcategories && errors.subcategories && <Text style={styles.error}>{errors.subcategories}</Text>}
+                    })}
+                  {touched.subcategories && errors.subcategories && <Text style={styles.error}>{errors.subcategories}</Text>} */}
                 </>
               )}
-
-              <TouchableOpacity style={styles.button} onPress={handleSubmit as (e?: GestureResponderEvent) => void} disabled={isSubmitting}>
-                {isSubmitting 
-                  ? <ActivityIndicator color="#FFFFFF" /> 
-                  : <Text style={styles.buttonText}>Sign Up</Text>
-                }
-              </TouchableOpacity>
+              {role === 'vendor' && (
+                <TouchableOpacity style={styles.button} onPress={handleVendorNext as (e?: GestureResponderEvent) => void} disabled={isSubmitting}>
+                  {isSubmitting
+                    ? <ActivityIndicator color="#FFFFFF" />
+                    : <Text style={styles.buttonText}>Next</Text>
+                  }
+                </TouchableOpacity>)}
+                    {role === 'user' && (
+                <TouchableOpacity style={styles.button} onPress={handleSubmit as (e?: GestureResponderEvent) => void} disabled={isSubmitting}>
+                  {isSubmitting
+                    ? <ActivityIndicator color="#FFFFFF" />
+                    : <Text style={styles.buttonText}>Sign Up</Text>
+                  }
+                </TouchableOpacity>)}
             </View>
           )}
         </Formik>
@@ -594,8 +613,6 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   content: { padding: 20, paddingBottom: 40 },
-
-
   header: { fontSize: 22, fontWeight: 'bold', marginVertical: 16, alignSelf: 'center', color: '#bea063' },
   sectionTitle: {
     fontSize: 18,

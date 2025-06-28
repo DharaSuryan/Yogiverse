@@ -55,7 +55,9 @@ interface StoryFormData {
 
 export const PostApi = {
   // Post creation
+
   createPost: async (formData: FormData) => {
+
     return axios.post(`${BASE_URL}/posts/`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

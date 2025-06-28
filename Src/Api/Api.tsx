@@ -36,7 +36,7 @@ interface LoginCredentials {
 }
 
 // API Configuration
-export const BASE_URL = 'https://pashuahar.com/';  // Your local API endpoint
+export const BASE_URL = 'https://pashuahar.com';  // Your local API endpoint
 
 export const API_INTERNET_CONNECTION_CAPTION_EN =
   'Sorry, No Internet connectivity detected. Please reconnect and try again';
@@ -109,8 +109,12 @@ api.interceptors.response.use(
 
 
 export const registerUser  = async (formData: FormData): Promise<ApiResponse> => {
+  console.log("api",api);
+  
   try {
-    const response = await api.post('/vendor_register/', formData, {
+    const url = '/vendor_register/';
+    console.log(`Registering user at URL: ${api.defaults.baseURL}${url}`);
+    const response = await api.post(url, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -137,16 +141,18 @@ export const loginUser = async (credentials: { username: string; password: strin
 };
 export const logoutUser = async () => {
   try {
-    await Promise.all([
-      AsyncStorage.removeItem('accessToken'),
-      AsyncStorage.removeItem('refreshToken'),
-      AsyncStorage.removeItem('userData'),
-    ]);
+    const refreshToken = await AsyncStorage.getItem('refreshToken');
+    const response = await api.post('/logout/', );
+    return {
+      data: response.data,
+      status: response.status,
+      message: 'Logout successful',
+    };
   } catch (error) {
-    console.error('Logout Error:', error);
+    console.error('Logout Error:', error.response?.data || error.message);
     throw error;
   }
-};
+}
 export const getProfile = async (): Promise<ApiResponse> => {
   // console.log("get ");
   
@@ -230,10 +236,34 @@ export const vendorDetail = async (id: string): Promise<ApiResponse> => {
 };
 // stories
 export const postStories  = async ({formData}:any): Promise<ApiResponse> => {
+  const authToken = await AsyncStorage.getItem('accessToken');
   try {
-   const response = await api.post('/stories/', formData, {
+   const response = await axios.post(`${BASE_URL}/stories/`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
+        'Authorization': `Bearer ${authToken}`
+      },
+    });
+    return {
+      data: response.data,
+      status: response.status,
+      message: 'Story Send successful',
+      user: response.data.user,
+      token: response.data.token
+    };
+  } catch
+   (error) {
+    throw error;
+  }
+};
+
+export const postPosts  = async ({formData}:any): Promise<ApiResponse> => {
+  const authToken = await AsyncStorage.getItem('accessToken');
+  try {
+   const response = await axios.post(`${BASE_URL}/posts/`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        'Authorization': `Bearer ${authToken}`
       },
     });
     return {
@@ -247,12 +277,13 @@ export const postStories  = async ({formData}:any): Promise<ApiResponse> => {
     throw error;
   }
 };
-
-export const postPosts  = async ({formData}:any): Promise<ApiResponse> => {
+export const postReels  = async ({formData}:any): Promise<ApiResponse> => {
+  const authToken = await AsyncStorage.getItem('accessToken');
   try {
-   const response = await api.post('/posts/', formData, {
+    const response = await axios.post(`${BASE_URL}/reels/`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
+        'Authorization': `Bearer ${authToken}`
       },
     });
     return {

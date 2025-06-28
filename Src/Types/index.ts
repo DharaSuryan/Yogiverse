@@ -54,6 +54,7 @@ export interface Story {
   imageUrl: string;
   createdAt: string;
   expiresAt: string;
+  caption?: string;
   user: User;
   viewedBy?: string[];
 }

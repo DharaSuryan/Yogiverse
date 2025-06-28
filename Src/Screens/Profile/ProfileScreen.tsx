@@ -22,12 +22,23 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const { width } = Dimensions.get('window');
 const numColumns = 3;
 const tileSize = width / numColumns;
+
+interface Post {
+  id: string;
+  image: string;
+  type: 'image' | 'reel';
+  likes: number;
+  comments: number;
+  caption: string;
+  timestamp: string;
+}
+
 type ProfileNavigationProp = NativeStackNavigationProp<ProfileStackParamList>;
 
 const ProfileScreen = () => {
   const [activeTab, setActiveTab] = useState('posts');
-  const [likedPosts, setLikedPosts] = useState({});
-   const [savedPosts, setSavedPosts] = useState({});
+  const [likedPosts, setLikedPosts] = useState<{[key: string]: boolean}>({});
+  const [savedPosts, setSavedPosts] = useState<{[key: string]: boolean}>({});
   const [profile, setProfile] = useState<any>();
   const [loading, setLoading] = useState(true);
   const[user,setUser]=useState<any>();
@@ -57,62 +68,62 @@ console.log("profile",profile);
   ];
 
   // Dummy posts data
-  // const posts = [
-  //   { 
-  //     id: '1', 
-  //     image: 'https://picsum.photos/500', 
-  //     type: 'image', 
-  //     likes: 123, 
-  //     comments: 45,
-  //     caption: 'Morning yoga session 🌅',
-  //     timestamp: '2h'
-  //   },
-  //   { 
-  //     id: '2', 
-  //     image: 'https://picsum.photos/501', 
-  //     type: 'reel', 
-  //     likes: 456, 
-  //     comments: 78,
-  //     caption: 'New meditation technique',
-  //     timestamp: '3h'
-  //   },
-  //   { 
-  //     id: '3', 
-  //     image: 'https://picsum.photos/502', 
-  //     type: 'image', 
-  //     likes: 789, 
-  //     comments: 123,
-  //     caption: 'Sunset yoga flow',
-  //     timestamp: '5h'
-  //   },
-  //   { 
-  //     id: '4', 
-  //     image: 'https://picsum.photos/503', 
-  //     type: 'reel', 
-  //     likes: 234, 
-  //     comments: 56,
-  //     caption: 'Yoga for beginners',
-  //     timestamp: '1d'
-  //   },
-  //   { 
-  //     id: '5', 
-  //     image: 'https://picsum.photos/504', 
-  //     type: 'image', 
-  //     likes: 567, 
-  //     comments: 89,
-  //     caption: 'Peaceful morning',
-  //     timestamp: '2d'
-  //   },
-  //   { 
-  //     id: '6', 
-  //     image: 'https://picsum.photos/505', 
-  //     type: 'image', 
-  //     likes: 890, 
-  //     comments: 234,
-  //     caption: 'Mindful living',
-  //     timestamp: '3d'
-  //   },
-  // ];
+  const posts = [
+    { 
+      id: '1', 
+      image: 'https://picsum.photos/500', 
+      type: 'image', 
+      likes: 123, 
+      comments: 45,
+      caption: 'Morning yoga session 🌅',
+      timestamp: '2h'
+    },
+    { 
+      id: '2', 
+      image: 'https://picsum.photos/501', 
+      type: 'reel', 
+      likes: 456, 
+      comments: 78,
+      caption: 'New meditation technique',
+      timestamp: '3h'
+    },
+    { 
+      id: '3', 
+      image: 'https://picsum.photos/502', 
+      type: 'image', 
+      likes: 789, 
+      comments: 123,
+      caption: 'Sunset yoga flow',
+      timestamp: '5h'
+    },
+    { 
+      id: '4', 
+      image: 'https://picsum.photos/503', 
+      type: 'reel', 
+      likes: 234, 
+      comments: 56,
+      caption: 'Yoga for beginners',
+      timestamp: '1d'
+    },
+    { 
+      id: '5', 
+      image: 'https://picsum.photos/504', 
+      type: 'image', 
+      likes: 567, 
+      comments: 89,
+      caption: 'Peaceful morning',
+      timestamp: '2d'
+    },
+    { 
+      id: '6', 
+      image: 'https://picsum.photos/505', 
+      type: 'image', 
+      likes: 890, 
+      comments: 234,
+      caption: 'Mindful living',
+      timestamp: '3d'
+    },
+  ];
 // const user = useSelector((state: RootState) => state.auth.user);
 //    const profileId :any = user?.data?.profile?.id;
 //    console.log("user",user);
@@ -161,21 +172,21 @@ useEffect(() => {
   //   }
   // }, [user?.id]);
  
-  const handleLike = (postId) => {
+  const handleLike = (postId: string) => {
     setLikedPosts(prev => ({
       ...prev,
       [postId]: !prev[postId]
     }));
   };
 
-  const handleSave = (postId) => {
+  const handleSave = (postId: string) => {
     setSavedPosts(prev => ({
       ...prev,
       [postId]: !prev[postId]
     }));
   };
 
-  const renderHighlight = ({ item }) => (
+  const renderHighlight = ({ item }: { item: { id: string, image: string, title: string } }) => (
       <TouchableOpacity
       style={styles.highlightContainer}
       onPress={() => navigation.navigate('HighlightViewer', { highlightId: item.id })}
@@ -189,7 +200,7 @@ useEffect(() => {
       </TouchableOpacity>
   );
 
-const renderPost = ({ item }) => (
+const renderPost = ({ item }: { item: Post }) => (
   <TouchableOpacity
     style={styles.postContainer}
     onPress={() => navigation.navigate('ProfilePostDetailScreen', { post: item })}
@@ -216,8 +227,29 @@ const renderPost = ({ item }) => (
   //   }
   // }, [profileId]);
 
-  // if (loading) return <Text>Loading...</Text>;
-  // if (error) return <Text>{error}</Text>;
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.loadingText}>Loading profile...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.errorText}>{error}</Text>
+      </SafeAreaView>
+    );
+  }
+  
+  if (!profile) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.errorText}>Could not load profile.</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -301,13 +333,33 @@ const renderPost = ({ item }) => (
           </TouchableOpacity>
         </View>
 
-        <FlatList
-          data={posts}
-          renderItem={renderPost}
-          keyExtractor={item => item.id}
-          numColumns={numColumns}
-          scrollEnabled={false}
-        />
+        <View style={styles.tabContent}>
+          {activeTab === 'posts' ? (
+            <FlatList
+              data={profile.posts}
+              renderItem={renderPost}
+              keyExtractor={(item) => item.id}
+              numColumns={numColumns}
+              scrollEnabled={false}
+            />
+          ) : activeTab === 'reels' ? (
+            <FlatList
+              data={profile.reels}
+              renderItem={renderPost}
+              keyExtractor={(item) => item.id}
+              numColumns={numColumns}
+              scrollEnabled={false}
+            />
+          ) : (
+            <FlatList
+              data={profile.tagged}
+              renderItem={renderPost}
+              keyExtractor={(item) => item.id}
+              numColumns={numColumns}
+              scrollEnabled={false}
+            />
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -317,6 +369,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+    paddingTop: Platform.OS === 'android' ? 25 : 0,
+  },
+  loadingText: {
+    textAlign: 'center',
+    marginTop: 50,
+    fontSize: 18,
+  },
+  errorText: {
+    textAlign: 'center',
+    marginTop: 50,
+    fontSize: 18,
+    color: 'red',
   },
   header: {
     flexDirection: 'row',
@@ -486,6 +550,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginLeft: 4,
     fontSize: 12,
+  },
+  tabContent: {
+    flex: 1,
   },
 });
 

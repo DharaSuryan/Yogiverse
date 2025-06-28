@@ -15,6 +15,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { RootStackParamList, MainTabParamList } from '../../Navigation/types';
 import { PostApi } from '../../Api/PostApi';
+import {postPosts, postReels} from "../../Api/Api";
 
 
 const ReelPreviewScreen = () => {
@@ -34,14 +35,17 @@ const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>(
       formData.append('is_draft', 'false');
       formData.append('allow_comments', 'false');
       formData.append('hide_like_count', 'false');
-      formData.append('location', 'india');
-      formData.append('media_files', {
+      formData.append('music_track', ' ');
+      formData.append('video_file', {
         uri,
         type: 'video/mp4',
         name: 'reel.mp4',
       });
       formData.append('media_metadata', JSON.stringify([{ is_video: true }]));
-      await PostApi.createReel(formData);
+
+      console.log("reels params ----->>",JSON.stringify(formData))
+
+      await postReels({ formData });
       setLoading(false);
       navigation.navigate('MainTab', {
         screen: 'HomeTab',

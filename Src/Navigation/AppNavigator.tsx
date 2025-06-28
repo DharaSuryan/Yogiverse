@@ -20,11 +20,38 @@ import CommentScreen from '../Screens/Comment/CommentScreen';
 import SubCateGoryDisplay from 'Src/Screens/Search/SubCateGoryDisplay';
 import UploadPost from 'Src/Screens/Post/UploadPost';
 import PreViewForPost from 'Src/Screens/Post/PreViewForPost';
+import MainCategoryScreen from '../Screens/Auth/MainCategory';
+import SubCategoryScreen from '../Screens/Auth/SubCategory';
 
-
+export type AppStackParamList = {
+  Splash: undefined;
+  LoginScreen: undefined;
+  SignUpScreen: { role: 'user' | 'vendor' };
+  MainCategory: {
+    userData: any;
+    profileImageUri: string | null;
+  };
+  SubCategory: {
+    userData: any;
+    profileImageUri: string | null;
+    mainCategories: number[];
+  };
+  MainTabs: undefined;
+  StoryNavigator: undefined;
+  UserProfile: undefined;
+  CommentScreen: undefined;
+  SubCateGoryDisplay: undefined;
+  SearchDetail: undefined;
+  Home: undefined;
+  Search: undefined;
+  Reels: undefined;
+  Post: undefined;
+  Profile: undefined;
+  Login: any;
+};
 
 const Tab = createBottomTabNavigator();
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<AppStackParamList>();
 
 const MainTabs = () => {
   return (
@@ -73,6 +100,8 @@ const AppNavigator = () => {
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="LoginScreen" component={LoginScreen} />
         <Stack.Screen name="SignUpScreen" component={SignUpScreen} />
+        <Stack.Screen name="MainCategory" component={MainCategoryScreen} />
+        <Stack.Screen name="SubCategory" component={SubCategoryScreen} />
         <Stack.Screen name="MainTabs" component={MainTabs} />
         <Stack.Screen name="StoryNavigator" component={StoryNavigator} />
         <Stack.Screen name="UserProfile" component={UserProfileScreen} />

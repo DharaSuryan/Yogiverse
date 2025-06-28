@@ -8,6 +8,6 @@ import {name as appName} from './app.json';
 import PushNotifications from './Src/Screens/PushNotifications';
 AppRegistry.registerComponent(appName, () => App);
 AppRegistry.registerHeadlessTask(
-  'RNFirebaseBackgroundMessage',
-  () => PushNotifications,
-);                                                                                           
+    'RNFirebaseBackgroundMessage',
+    () => PushNotifications,
+);

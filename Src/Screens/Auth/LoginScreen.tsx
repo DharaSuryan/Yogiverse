@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Platform,
-  Keyboard, StatusBar, TouchableWithoutFeedback, Alert
+  Keyboard, StatusBar, TouchableWithoutFeedback, Alert, ActivityIndicator
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../../Store/actions/authActions';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList, AuthStackParamList } from '../../Navigation/types';
+import { NativeStackNavigationProp, CommonActions } from '@react-navigation/native';
+import { RootStackParamList, MainTabParamList, HomeStackParamList, AuthStackParamList } from '../../Navigation/types';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { loginUser } from '../../Api/Api';
@@ -18,7 +18,7 @@ import { useBackHandler } from '../../Utils/BackHandler';
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 0;
 
 type LoginScreenProps = {
-  navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
+  navigation: NativeStackNavigationProp<RootStackParamList, 'Auth'>;
 };
 
 const LoginSchema = Yup.object().shape({
@@ -28,15 +28,20 @@ const LoginSchema = Yup.object().shape({
 
 const LoginScreen: React.FC<LoginScreenProps> = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { navigate } = navigation;
   const dispatch = useDispatch();
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // Add back handler
   useBackHandler();
 
   const handleLogin = async (values: { username: string; password: string }) => {
+    setLoading(true);
     try {
       const response = await loginUser(values);
+      console.log("response",response);
+      
       if (response.status === 200 && response.data) {
         console.log("Login response", response);
         
@@ -52,21 +57,33 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
           loginSuccess({
             user: response.data.user,
             token: response.data.access_token,
-            refreshToken: response.data.refresh_token,
+            refreshToken: response.data.refresh_token
           })
         );
-        
-        // Navigate to main tab using reset
-        navigation.reset({
-    index: 0,
-    routes: [{ name: 'MainTab' }], 
-  });
+
+        // Reset navigation to MainTab with HomeTab
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{
+              name: 'MainTab',
+              params: {
+                screen: 'HomeTab'
+              }
+            }]
+          })
+        );
       } else {
         Alert.alert('Login Failed', 'Invalid username or password');
+        console.log("response .... message ",response.message);
+        
       }
     } catch (error: any) {
       console.error('Login error:', error);
-      Alert.alert('Login Failed', error.response?.data?.message || 'Invalid username or password');
+      Alert.alert('Login Failed', error.response?.data?.message);
+         console.log("response .... message ",error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -136,6 +153,11 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
             </View>
           )}
         </Formik>
+        {loading && (
+          <View style={styles.loaderOverlay}>
+            <ActivityIndicator size="large" color="#fff" />
+          </View>
+        )}
       </View>
     </TouchableWithoutFeedback>
   );
@@ -228,6 +250,13 @@ const styles = StyleSheet.create({
     top: '50%',
     transform: [{ translateY: -12 }],
     padding: 5,
+  },
+  loaderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
   },
 });
 

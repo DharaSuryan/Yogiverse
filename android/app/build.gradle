@@ -71,11 +71,6 @@ def enableProguardInReleaseBuilds = false
  * this variant is about 6MiB larger per architecture than default.
  */
 def jscFlavor = 'org.webkit:android-jsc:+'
-project.ext.react = [
-   enableHermes: true, // or false, both are okay
-       bundleInDebug: false, // this is important
-       bundleInRelease: true
-]
 
 android {
     ndkVersion rootProject.ext.ndkVersion
@@ -90,6 +85,12 @@ android {
         versionCode 5
         versionName "3.0"
         missingDimensionStrategy 'react-native-camera', 'general'
+        vectorDrawables.useSupportLibrary = true
+        // Needed to load JS bundle from assets
+            packagingOptions {
+                pickFirst '**/libc++_shared.so'
+            }
+
     }
     signingConfigs {
         debug {
@@ -98,19 +99,17 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
-        
+
           release {
                 storeFile file('/my-upload-key.jks')
                 storePassword 'suryanorganic'
                 keyAlias 'suryanorganic'
-                keyPassword 'suryanorganic'           
+                keyPassword 'suryanorganic'
           }
     }
     buildTypes {
-
         debug {
             signingConfig signingConfigs.debug
-            buildConfigField "boolean", "USE_DEV_SERVER", "true" // ✅ Add this
         }
         release {
             // Caution! In production, you need to generate your own keystore file.
@@ -126,7 +125,7 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
     implementation project(':react-native-vector-icons')
-    implementation 'com.google.firebase:firebase-messaging:23.4.1' 
+    implementation 'com.google.firebase:firebase-messaging:23.4.1'
     implementation project(':react-native-camera') {
         configurations.all {
             resolutionStrategy {
@@ -134,7 +133,7 @@ dependencies {
             }
         }
     }
-   
+
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
