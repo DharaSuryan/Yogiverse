@@ -40,8 +40,7 @@ interface MainCategoryProps {
   navigation: NativeStackNavigationProp<AuthStackParamList>;
   route: NativeStackScreenProps<AuthStackParamList, 'MainCategory'> & {
     params: {
-      userData: any;
-      profileImageUri: string | null;
+      signupData: any;
       role: 'user' | 'vendor';
     };
   };
@@ -51,7 +50,7 @@ const MainCategoryScreen: React.FC<MainCategoryProps> = ({
   route,
   navigation,
 }) => {
-  const {userData, profileImageUri, role} = route.params || {};
+  const { signupData } = route.params || {};
   const [mainCategories, setMainCategories] = useState<MainCategoryType[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,7 +137,7 @@ const MainCategoryScreen: React.FC<MainCategoryProps> = ({
       textAlign: 'center',
     },
   });
-console.log("userdata.... params", userData);
+console.log("userdata.... params", signupData);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -232,13 +231,13 @@ console.log("userdata.... params", userData);
     React.useCallback(() => {
       const onBackPress = () => {
         setSelectedCategories([]);
-        navigation.navigate('SignUp', {role: role as 'user' | 'vendor'});
+        navigation.navigate('SignUp', {role: route.params.role as 'user' | 'vendor'});
         return true;
       };
       BackHandler.addEventListener('hardwareBackPress', onBackPress);
       return () =>
         BackHandler.removeEventListener('hardwareBackPress', onBackPress);
-    }, [navigation, role]),
+    }, [navigation, route.params.role]),
   );
 
   const handleSelectCategory = (categoryId: number | undefined) => {
@@ -252,15 +251,20 @@ console.log("userdata.... params", userData);
 
   const handleNext = () => {
     if (selectedCategories.length === 0) {
-      Alert.alert('Selection Required', 'Please select at least one category.');
+      Alert.alert('Selection Required', 'Please select at least one main category.');
       return;
     }
-    navigation.navigate('SubCategory', {
-      userData,
-      profileImageUri,
-      role: role as 'user' | 'vendor',
-      mainCategories: selectedCategories, // Just pass the selected category IDs
-    });
+    
+    // Update the data object with main categories (same format)
+    const updatedData = {
+      ...signupData,
+      main_categories: selectedCategories
+    };
+    
+    console.log('Updated data with main categories:', updatedData);
+    
+    // Navigate to SubCategory with updated data object
+    navigation.navigate('SubCategory', { signupData: updatedData });
   };
 
 
@@ -287,7 +291,7 @@ console.log("userdata.... params", userData);
               onPress={() => {
                 setSelectedCategories([]);
                 navigation.navigate('SignUp', {
-                  role: role as 'user' | 'vendor',
+                  role: route.params.role as 'user' | 'vendor',
                 });
               }}>
               <MaterialIcons name="arrow-back" size={24} color="#bea063" />
@@ -315,7 +319,7 @@ console.log("userdata.... params", userData);
             style={styles.backButton}
             onPress={() => {
               setSelectedCategories([]);
-              navigation.navigate('SignUp', {role: role as 'user' | 'vendor'});
+              navigation.navigate('SignUp', {role: route.params.role as 'user' | 'vendor'});
             }}>
             <MaterialIcons name="arrow-back" size={24} color="#bea063" />
           </TouchableOpacity>

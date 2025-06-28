@@ -19,8 +19,8 @@ export type AuthStackParamList = {
   SignUp: { role: 'user' | 'vendor' };
   ForgotPassword: undefined;
   RoleSelection: undefined;
-  MainCategory: { userData: any; profileImageUri: string | null; role: 'user' | 'vendor' };
-  SubCategory: { userData: any; profileImageUri: string | null; mainCategories: number[]; role: 'user' | 'vendor' };
+  MainCategory: { signupData: any; role?: 'user' | 'vendor' };
+  SubCategory: { signupData: any; role?: 'user' | 'vendor' };
   UserSignUpScreen: { userData: any; profileImageUri: string | null; role: 'user' | 'vendor' };
 };
 

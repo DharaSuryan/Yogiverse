@@ -6,20 +6,21 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/types';
 import { MainCategoryWithSubCategories, SubCategoryType } from '../../types';
-import api from '../../Api/Api';
+import api, { registerUser } from '../../Api/Api';
 
 const NUM_COLUMNS = 3;
 
 const SubCategoryScreen: React.FC<NativeStackScreenProps<AuthStackParamList, 'SubCategory'>> = ({
   route, navigation
 }) => {
-  const { userData, profileImageUri, mainCategories, role } = route.params || {};
+  const { signupData, role } = route.params || {};
   const [categories, setCategories] = useState<MainCategoryWithSubCategories[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!mainCategories?.length) {
+    if (!signupData?.main_categories?.length) {
       Alert.alert('Error', 'No categories selected');
       navigation.goBack();
       return;
@@ -27,23 +28,77 @@ const SubCategoryScreen: React.FC<NativeStackScreenProps<AuthStackParamList, 'Su
     setLoading(true);
     api.get('main_with_sub_categories/').then(res => {
       const data: MainCategoryWithSubCategories[] = res.data.data || [];
-      setCategories(data.filter(cat => mainCategories.includes(cat.categories)));
+      setCategories(data.filter(cat => signupData.main_categories.includes(cat.categories)));
     }).catch(() => {
       Alert.alert('Error', 'Failed to load subcategories');
     }).finally(() => setLoading(false));
-  }, [mainCategories, navigation]);
+  }, [signupData?.main_categories, navigation]);
 
   const handleSelect = (id: number) => {
     setSelected(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     if (selected.length === 0) {
       Alert.alert('Selection Required', 'Please select at least one subcategory.');
       return;
     }
-    // Submit logic here
-    Alert.alert('Selected:', JSON.stringify(selected));
+
+    try {
+      setSubmitting(true);
+      console.log('Form submission started');
+      console.log('Signup data:', signupData);
+      console.log('Selected subcategories:', selected);
+
+      const formData = new FormData();
+
+      // Append all fields one by one, which is the format the server expects
+      formData.append('first_name', signupData.first_name || '');
+      formData.append('last_name', signupData.last_name || '');
+      formData.append('email', signupData.email || '');
+      formData.append('phone_no', signupData.phone_no || '');
+      formData.append('username', signupData.username || '');
+      formData.append('password', signupData.password || '');
+      formData.append('country', signupData.country_id?.toString() || '');
+      formData.append('state', signupData.state_id?.toString() || '');
+      formData.append('city', signupData.city_id?.toString() || '');
+      formData.append('role', signupData.role || 'user');
+      formData.append('bio', signupData.bio || '');
+
+      if (signupData.role === 'vendor') {
+        formData.append('business_name', signupData.business_name || '');
+        // The server expects the arrays as a JSON string
+        formData.append('main_categories', JSON.stringify(signupData.main_categories || []));
+        formData.append('subcategories', JSON.stringify(selected || []));
+      }
+
+      if (signupData.profileImage) {
+        formData.append('profile_image', {
+          uri: signupData.profileImage,
+          type: 'image/jpeg',
+          name: 'profile.jpg',
+        });
+      }
+
+      console.log('Sending FormData:', formData);
+      console.log('Calling registration API...');
+      
+      const response = await registerUser(formData);
+      console.log('Sign-up API Response:', JSON.stringify(response, null, 2));
+
+      if (response.status) {
+        Alert.alert('Success', response.message || 'Registration successful!');
+        navigation.navigate('Login');
+      } else {
+        Alert.alert('Error', response.message || 'Registration failed. Please try again.');
+      }
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      const serverMessage = error?.response?.data?.message || error.message;
+      Alert.alert('Error', serverMessage || 'An error occurred during registration.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const renderSubcategoryRow = (subcats: SubCategoryType[], catIdx: number) => {
@@ -77,7 +132,7 @@ const SubCategoryScreen: React.FC<NativeStackScreenProps<AuthStackParamList, 'Su
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate('MainCategory', { userData, profileImageUri, role })}>
+        <TouchableOpacity onPress={() => navigation.navigate('MainCategory', { signupData })}>
           <MaterialIcons name="arrow-back" size={24} color="#bea063" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Select Subcategories</Text>
@@ -89,8 +144,16 @@ const SubCategoryScreen: React.FC<NativeStackScreenProps<AuthStackParamList, 'Su
             {renderSubcategoryRow(cat.sub_categories, idx)}
           </View>
         ))}
-        <TouchableOpacity style={styles.button} onPress={handleSignUp}>
-          <Text style={styles.buttonText}>Sign Up</Text>
+        <TouchableOpacity 
+          style={[styles.button, submitting && { opacity: 0.6 }]} 
+          onPress={handleSignUp}
+          disabled={submitting}
+        >
+          {submitting ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Complete Sign Up</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -111,6 +174,9 @@ const styles = StyleSheet.create({
   button: { backgroundColor: '#bea063', paddingVertical: 15, borderRadius: 8, alignItems: 'center', marginTop: 24, width: "85%", alignSelf: 'center' },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
 });
 
 export default SubCategoryScreen;
