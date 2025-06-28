@@ -38,8 +38,8 @@ const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>(
       formData.append('music_track', ' ');
       formData.append('video_file', {
         uri,
-        type: 'video/mp4',
-        name: 'reel.mp4',
+        // type: 'video/mp4',
+        // name: 'reel.mp4',
       });
       formData.append('media_metadata', JSON.stringify([{ is_video: true }]));
 
