@@ -55,6 +55,11 @@ import SubCateGoryDisplay from '../Screens/Search/SubCateGoryDisplay';
 import UploadPost from '../Screens/Post/UploadPost';
 import PreViewForPost from '../Screens/Post/PreViewForPost';
 
+//dscbksbdchdbs
+import TrendingDetailScreen from '../Screens/TrendingDetailScreen';
+import FollowersFollowingScreen from '../Screens/Profile/FollowersFollowingScreen';
+
+
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -386,6 +391,8 @@ const Navigation = () => {
         <Stack.Screen name="UploadPost" component={UploadPost} />
         <Stack.Screen name="PreViewForPost" component={PreViewForPost}/>
         <Stack.Screen name="StoryViewerScreen" component={StoryViewerScreen} />
+        <Stack.Screen name="FollowersFollowingScreen" component={FollowersFollowingScreen} />
+        <Stack.Screen name="TrendingDetailScreen" component={TrendingDetailScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   

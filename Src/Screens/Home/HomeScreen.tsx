@@ -308,6 +308,7 @@ export default function HomeScreen() {
         location={post.location || ''}
         createdAt={post.created_at || ''}
         profile={profile}
+        item={item}
       />
     );
   };

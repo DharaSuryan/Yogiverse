@@ -71,13 +71,22 @@ interface LikedState {
 }
 
 const ReelsScreen: React.FC = () => {
-  const [activeReel, setActiveReel] = useState(0);
+  const [activeReelId, setActiveReelId] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
   const [liked, setLiked] = useState<LikedState>({});
+  const [pausedReels, setPausedReels] = useState<{ [key: string]: boolean }>({});
   const flatListRef = useRef<FlatList>(null);
 
-  const renderReel = ({ item, index }: { item: Reel; index: number }) => {
+  const handleTogglePause = (id: string) => {
+    setPausedReels(prev => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const renderReel = ({ item }: { item: Reel; index: number }) => {
     const isLiked = liked[item.id] || false;
+    const isPaused = pausedReels[item.id] || false;
 
     const handleLike = () => {
       setLiked(prev => ({
@@ -87,25 +96,30 @@ const ReelsScreen: React.FC = () => {
     };
 
     return (
-      <View style={styles.reelContainer}>
+      <TouchableOpacity activeOpacity={1} style={styles.reelContainer} onPress={() => activeReelId === item.id && handleTogglePause(item.id)}>
         <Video
           source={{ uri: item.video }}
           style={styles.video}
           resizeMode="cover"
           repeat
           muted={muted}
-          paused={activeReel !== index}
+          paused={activeReelId !== item.id || isPaused}
         />
-
+        {activeReelId === item.id && isPaused && (
+          <View style={{ position: 'absolute', top: '45%', left: '45%' }}>
+            {/* @ts-ignore */}
+            <Icon name="play" size={64} color="#fff" />
+          </View>
+        )}
         {/* Gradient overlay */}
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.5)']}
           style={styles.gradient}
         />
-
         {/* Right sidebar */}
         <View style={styles.sidebar}>
           <TouchableOpacity onPress={handleLike}>
+            {/* @ts-ignore */}
             <Icon
               name={isLiked ? 'heart' : 'heart-outline'}
               size={28}
@@ -113,22 +127,21 @@ const ReelsScreen: React.FC = () => {
             />
             <Text style={styles.sidebarText}>{item.likes}</Text>
           </TouchableOpacity>
-
           <TouchableOpacity style={styles.sidebarIcon}>
+            {/* @ts-ignore */}
             <Icon name="chatbubble-outline" size={28} color="#fff" />
             <Text style={styles.sidebarText}>{item.comments}</Text>
           </TouchableOpacity>
-
           <TouchableOpacity style={styles.sidebarIcon}>
+            {/* @ts-ignore */}
             <Icon name="paper-plane-outline" size={28} color="#fff" />
             <Text style={styles.sidebarText}>{item.shares}</Text>
           </TouchableOpacity>
-
           <TouchableOpacity style={styles.sidebarIcon}>
+            {/* @ts-ignore */}
             <Icon name="ellipsis-vertical" size={28} color="#fff" />
           </TouchableOpacity>
         </View>
-
         {/* Bottom info section */}
         <View style={styles.bottomSection}>
           <View style={styles.userInfo}>
@@ -140,32 +153,31 @@ const ReelsScreen: React.FC = () => {
               </TouchableOpacity>
             )}
           </View>
-
           <Text style={styles.description}>{item.description}</Text>
-
           <View style={styles.musicSection}>
+            {/* @ts-ignore */}
             <Icon name="musical-notes" size={16} color="#fff" />
             <Text style={styles.musicText}>{item.music}</Text>
           </View>
         </View>
-
         {/* Sound toggle */}
         <TouchableOpacity
           style={styles.soundToggle}
           onPress={() => setMuted(!muted)}>
+          {/* @ts-ignore */}
           <Icon
             name={muted ? 'volume-mute' : 'volume-high'}
             size={24}
             color="#fff"
           />
         </TouchableOpacity>
-      </View>
+      </TouchableOpacity>
     );
   };
 
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     if (viewableItems[0]) {
-      setActiveReel(viewableItems[0].index || 0);
+      setActiveReelId(viewableItems[0].item.id);
     }
   }).current;
 

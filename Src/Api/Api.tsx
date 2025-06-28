@@ -256,6 +256,15 @@ export const postStories  = async ({formData}:any): Promise<ApiResponse> => {
     throw error;
   }
 };
+export const getUserReels = async (): Promise<ApiResponse> => {
+  const response = await api.get('/reels/');
+  return {
+    data: response.data,
+    status: response.status,
+    message: 'Reels fetched successfully',
+  };
+};
+
 
 export const postPosts  = async ({formData}:any): Promise<ApiResponse> => {
   const authToken = await AsyncStorage.getItem('accessToken');

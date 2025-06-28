@@ -61,6 +61,8 @@ const CommentScreen = () => {
   }, [object_id, content_type]);
 
   const fetchComments = async () => {
+    console.log("content_type .....",content_type,object_id);
+    
     try {
       setLoading(true);
       const authToken = await AsyncStorage.getItem('accessToken');
@@ -142,7 +144,9 @@ const CommentScreen = () => {
     }
   };
 
-  const toggleLike = async (commentId: number) => {
+  const toggleLike = async (commentId: number, item: any) => {
+    console.log("item .....",item);
+    
     try {
       const authToken = await AsyncStorage.getItem('accessToken');
       const updatedComments = comments.map(comment => {
@@ -192,7 +196,7 @@ const CommentScreen = () => {
           <Text style={styles.commentReply}>Reply</Text>
         </View>
       </View>
-      <TouchableOpacity onPress={() => toggleLike(item.id)} style={styles.likeButton}>
+      <TouchableOpacity onPress={() => toggleLike(item.id , item)} style={styles.likeButton}>
         <Icon
           name={item.is_liked ? "heart" : "heart-outline"}
           size={16}
@@ -228,7 +232,14 @@ const CommentScreen = () => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => {
-                  navigation.navigate('UserProfile' as any, { userId: undefined });
+            navigation.navigate('MainTab', {
+              screen: 'SearchTab',
+              params: {
+                userId: undefined
+              },
+            });
+                 
+                  // navigation.navigate('UserProfile' as any, { userId: undefined });
           }} style={styles.backButton}>
             <Icon name="arrow-back" size={24} color="#000" />
           </TouchableOpacity>

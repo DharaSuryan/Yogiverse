@@ -15,8 +15,10 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { SearchStackParamList } from '../../Navigation/types';
 import { useNavigation } from '@react-navigation/native';
-// import WarpperComponent from './warppercomponets';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { navigate,push } from '../../Component/Route';
+
 
 const screenWidth = Dimensions.get('window').width;
 const imageSource = require('../../Assets/yoga.jpg');
@@ -43,6 +45,9 @@ const SearchScreen = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [trendingPosts, setTrendingPosts] = useState([]);
+  const [trendingLoading, setTrendingLoading] = useState(false);
+  const [trendingError, setTrendingError] = useState<string | null>(null);
   const NUM_COLUMNS = 2;
   const ITEM_MARGIN = 10;
   const { width } = Dimensions.get('window');
@@ -51,6 +56,7 @@ const SearchScreen = () => {
   
   useEffect(() => {
     fetchCategories();
+    fetchTrendingPosts();
   }, []);
 
   const fetchCategories = async (query = '') => {
@@ -91,6 +97,25 @@ const SearchScreen = () => {
     }
   };
 
+  const fetchTrendingPosts = async () => {
+    setTrendingLoading(true);
+    setTrendingError(null);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+
+      const headers = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      };
+      const res = await axios.get('https://pashuahar.com/trending/?type=post',{headers});
+      setTrendingPosts(res.data?.data || []);
+    } catch (err) {
+      setTrendingError('Failed to load trending posts');
+    } finally {
+      setTrendingLoading(false);
+    }
+  };
+
   const handleSearchChange = (text: string) => {
     setSearchQuery(text);
     fetchSearchResults(text);
@@ -105,7 +130,7 @@ const SearchScreen = () => {
       navigation.navigate('UserProfile' as any, { userId: item.id.toString() });
     } else {
       // Category or other result - navigate to SubCateGoryDisplay
-      navigation.navigate('SubCateGoryDisplay' as any, { item });
+      push('SubCateGoryDisplay' , { item });
     }
   };
 
@@ -175,6 +200,45 @@ const SearchScreen = () => {
     );
   };
 
+  const renderTrendingPost = ({ item }: any) => {
+    // console.log("here comes item ...", item);
+
+    let mediaUrl = '';
+    if (Array.isArray(item.media) && item.media.length > 0) {
+      mediaUrl = item.media[0]?.media_file || '';
+    }
+
+    return (
+      <TouchableOpacity
+        style={{
+          width: (screenWidth - 36) / 2,
+          backgroundColor: '#fff',
+          borderRadius: 18,
+          marginBottom: 8,
+          marginHorizontal: 4,
+          overflow: 'hidden',
+          elevation: 2,
+          shadowColor: '#000',
+          shadowOpacity: 0.06,
+          shadowOffset: { width: 0, height: 2 },
+          shadowRadius: 8,
+        }}
+        onPress={() => navigation.push('TrendingDetailScreen', { post: item })}
+        activeOpacity={0.9}
+      >
+        {mediaUrl ? (
+          <Image
+            source={{ uri: mediaUrl }}
+            style={{ width: '100%', height: 180 }}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={{ width: '100%', height: 180, backgroundColor: '#eee' }} />
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
@@ -220,6 +284,24 @@ const SearchScreen = () => {
             scrollEnabled={false}
             contentContainerStyle={{ paddingBottom: 20 }}
           />
+          {trendingLoading ? (
+            <ActivityIndicator size="large" color="#000" style={{ marginTop: 20 }} />
+          ) : trendingError ? (
+            <Text style={{ color: 'red', textAlign: 'center' }}>{trendingError}</Text>
+          ) : trendingPosts.length > 0 && (
+            <View style={{ marginTop: 30, marginBottom: 10 }}>
+              <Text style={[styles.categoryTitle, { fontSize: 18, marginBottom: 10 }]}>Trending</Text>
+              <FlatList
+                data={trendingPosts}
+                keyExtractor={(item) => item?.id?.toString() || Math.random().toString()}
+                renderItem={renderTrendingPost}
+                numColumns={2}
+                columnWrapperStyle={{ justifyContent: 'space-between', paddingHorizontal: 8 }}
+                contentContainerStyle={{ paddingBottom: 30, paddingTop: 8 }}
+                scrollEnabled={false}
+              />
+            </View>
+          )}
         </>
       )}
     </ScrollView>
@@ -296,6 +378,11 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 16,
   },
+  searchResultType: {
+    color: '#666',
+    fontSize: 13,
+    marginTop: 2,
+  },
   // categoryCard: {
   //   backgroundColor: '#D3D3D3',
   //   padding: 15,
@@ -352,4 +439,4 @@ const styles = StyleSheet.create({
   },
 })
 
-export default SearchScreen
+export default SearchScreen;

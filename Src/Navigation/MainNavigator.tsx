@@ -11,6 +11,8 @@ import SubCateGoryDisplay from '../Screens/Search/SubCateGoryDisplay';
 import CreatePostScreen from '../Screens/Post/CreatePostScreen';
 import ProfileScreen from '../Screens/Profile/ProfileScreen';
 import PreViewForPost from '../Screens/Post/PreViewForPost';
+import TrendingDetailScreen from '../Screens/TrendingDetailScreen';
+import FollowersFollowingScreen from 'Src/Screens/Profile/FollowersFollowingScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const SearchStack = createNativeStackNavigator<SearchStackParamList>();
@@ -21,7 +23,9 @@ const SearchNavigator = () => {
       <SearchStack.Screen name="Search" component={SearchScreen} />
       <SearchStack.Screen name="SearchDetail" component={SearchDetailScreen} />
       <SearchStack.Screen name="PreViewForPost" component={PreViewForPost} />
-      {/* <SearchStack.Screen name="SubCateGoryDisplay" component={SubCateGoryDisplay} /> */}
+      <SearchStack.Screen name="TrendingDetailScreen" component={TrendingDetailScreen} />
+      <SearchStack.Screen name="FollowersFollowingScreen" component={FollowersFollowingScreen} />
+        {/* <SearchStack.Screen name="SubCateGoryDisplay" component={SubCateGoryDisplay} /> */}
     </SearchStack.Navigator>
   );
 };

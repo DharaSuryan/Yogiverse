@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   Alert,
   BackHandler,
+  SectionList,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MainTabParamList, HomeStackParamList } from '../../Navigation/types';
@@ -184,18 +185,28 @@ useFocusEffect(
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => navigation.navigate('Home')}>
+          onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
       </View>
-      <FlatList
+      <View style={{flex:1}}>
+      <SectionList
+  sections={[{ title: 'All', data: notifications }]}
+  keyExtractor={(item) => item.id}
+  renderItem={({ item }) => renderNotification({ item })}
+  showsVerticalScrollIndicator={false}
+  contentContainerStyle={styles.listContainer}
+/>
+        
+      {/* <FlatList
         data={notifications}
         renderItem={renderNotification}
         keyExtractor={item => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContainer}
-      />
+      /> */}
+      </View>
     </SafeAreaView>
   );
 };
