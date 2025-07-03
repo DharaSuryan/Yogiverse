@@ -16,86 +16,57 @@ import { MainTabParamList, HomeStackParamList } from '../../Navigation/types';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Notification } from '../../Types';
 import { useFocusEffect } from '@react-navigation/native';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type NotificationsScreenProps = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'Notifications'>;
 };
 
-// Mock notifications data
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'like',
-    userId: '2',
-    username: 'user2',
-    userProfilePicture: 'https://i.pravatar.cc/150?u=2',
-    postId: '1',
-    timestamp: '2h',
-    isRead: false,
-    createdAt: new Date().toISOString(),
-    read: false,
-    user: {
-      username: 'user2',
-      email: 'user2@example.com',
-      isVerified: false
-    }
-  },
-  {
-    id: '2',
-    type: 'comment',
-    userId: '3',
-    username: 'user3',
-    userProfilePicture: 'https://i.pravatar.cc/150?u=3',
-    postId: '1',
-    commentId: '1',
-    timestamp: '3h',
-    isRead: false,
-    createdAt: new Date().toISOString(),
-    read: false,
-    user: {
-      username: 'user3',
-      email: 'user3@example.com',
-      isVerified: false
-    }
-  },
-  {
-    id: '3',
-    type: 'follow',
-    userId: '4',
-    username: 'user4',
-    userProfilePicture: 'https://i.pravatar.cc/150?u=4',
-    timestamp: '4h',
-    isRead: true,
-    createdAt: new Date().toISOString(),
-    read: true,
-    user: {
-      username: 'user4',
-      email: 'user4@example.com',
-      isVerified: false
-    }
-  },
-  {
-    id: '4',
-    type: 'mention',
-    userId: '5',
-    username: 'user5',
-    userProfilePicture: 'https://i.pravatar.cc/150?u=5',
-    postId: '2',
-    commentId: '2',
-    timestamp: '5h',
-    isRead: false,
-    createdAt: new Date().toISOString(),
-    read: false,
-    user: {
-      username: 'user5',
-      email: 'user5@example.com',
-      isVerified: false
-    }
-  },
-];
+// Helper to format time ago (weeks)
+function formatTimeAgo(dateString: string) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffW = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7));
+  if (diffW > 0) return `${diffW}w`;
+  const diffD = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffD > 0) return `${diffD}d`;
+  const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+  if (diffH > 0) return `${diffH}h`;
+  const diffM = Math.floor(diffMs / (1000 * 60));
+  if (diffM > 0) return `${diffM}m`;
+  return 'now';
+}
 
 const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation }) => {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+   
+    fetchNotifications();
+  }, []);
+  const fetchNotifications = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      };
+      const res = await axios.get('https://pashuahar.com/follower/notifications/', { headers });
+      setNotifications(res.data?.data?.results || []);
+      console.log("res.data?.data",res.data?.data?.results[0].user, res.data?.data?.results[0].data?.type);
+      
+    } catch (err) {
+      setError('Failed to load notifications');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -126,59 +97,153 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
         return 'interacted with your post';
     }
   };
-useFocusEffect(
-  React.useCallback(() => {
-    const onBackPress = () => {
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        BackHandler.exitApp(); // Exit app if there's no back screen
-      }
-      return true;
-    };
 
-    BackHandler.addEventListener('hardwareBackPress', onBackPress);
-    return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
-  }, [navigation])
-);
-  const handleNotificationPress = (notification: Notification) => {
-    // Mark as read
-    setNotifications(prev =>
-      prev.map(n =>
-        n.id === notification.id ? { ...n, isRead: true } : n
-      )
-    );
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+        } else {
+          BackHandler.exitApp(); // Exit app if there's no back screen
+        }
+        return true;
+      };
 
-    // Navigate based on notification type
-    if (notification.postId) {
-      navigation.navigate('PostDetails', { postId: notification.postId });
-    } else if (notification.type === 'follow') {
-      navigation.navigate('Home');
+      BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+    }, [navigation])
+  );
+
+  const handleApprove = async (item: any) => {
+    console.log("itemitemitem",item?.user?.id , item);
+    // return
+    
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      };
+      await axios.post(
+        'https://pashuahar.com/follower/follow-request/',
+        {
+          request_id:item?.data?.request_id,
+          action: 'approve'
+        },
+        { headers }
+      );
+      fetchNotifications();
+      Alert.alert('Success', 'Follow request approved!');
+      // Optionally update notification state here
+    } catch (e) {
+      console.log("eororo",e);
+      
+      Alert.alert('Error', 'Failed to approve follow request.');
+    }
+  };
+  const handleReject = async (item: any) => {
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      };
+      await axios.post(
+        'https://pashuahar.com/follower/follow-request/',
+        {
+          request_id: item?.data?.request_id,
+          action: 'reject'
+        },
+        { headers }
+      );
+      fetchNotifications();
+      Alert.alert('Success', 'Follow request rejected!');
+      // Optionally update notification state here
+    } catch (e) {
+      Alert.alert('Error', 'Failed to reject follow request.');
     }
   };
 
-  const renderNotification = ({ item }: { item: Notification }) => (
-    <TouchableOpacity
-      style={[styles.notificationItem, !item.isRead && styles.unreadNotification]}
-      onPress={() => handleNotificationPress(item)}>
-      <Image
-        source={{ uri: item.userProfilePicture }}
-        style={styles.userAvatar}
-      />
-      <View style={styles.notificationContent}>
-        <Text style={styles.notificationText}>
-          <Text style={styles.username}>{item.username}</Text>{' '}
-          {getNotificationText(item)}
-        </Text>
-        <Text style={styles.timestamp}>{item.timestamp}</Text>
-      </View>
-      <Ionicons
-        name={getNotificationIcon(item.type)}
-        size={20}
-        color={item.type === 'like' ? '#ed4956' : '#666'}
-      />
-    </TouchableOpacity>
-  );
+  const handleNotificationPress = async (item: any) => {
+    console.log("Pressed notification:", item?.id);
+    // console.log("itemitemitem12244",item?.id,  item?.data?.follower_id , item?.data?.following_id , item?.data?.liker_id , item?.data?.commenter_id);
+    let user_id = item?.data?.follower_id || item?.data?.following_id || item?.data?.liker_id || item?.data?.commenter_id;
+    console.log("user_id:", user_id);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      };
+      console.log("Calling read API:", `https://pashuahar.com/follower/notifications/${item?.id}/read/`);
+      await axios.post(
+        `https://pashuahar.com/follower/notifications/${item?.id}/read/`,
+        {},
+        { headers }
+      );
+      console.log("Read API call successful for notification:", item?.id);
+      console.log("yes comes .....");
+      
+    } catch (e) {
+      console.log("eororo",e);
+      
+      // handle error (optional)
+    }
+    // Navigate to user profile or post
+    if (user_id) {
+      navigation.navigate('UserProfile' as any, { userId: user_id });
+    } else if (item.postId) {
+      navigation.navigate('PostDetails', { postId: item.postId });
+    }
+  };
+
+  const renderNotification = ({ item }: { item: any }) => {
+    // Instagram-style notification row
+    const isFollowRequest = item?.data?.type === 'follow_request';
+    // console.log("isFollowRequest",isFollowRequest.data);
+    
+    const username = item.user?.username || '';
+    const avatarUri = item.user && item.user.profile_picture
+      ? item.user.profile_picture
+      : 'https://i.pravatar.cc/150?u=' + (item.user ? item.user.id : 'default');
+    return (
+      <TouchableOpacity
+        style={styles.notificationItem}
+        onPress={() => handleNotificationPress(item)}
+        activeOpacity={0.7}
+      >
+        <Image
+          source={{ uri: avatarUri }}
+          style={styles.userAvatar}
+        />
+        <View style={styles.notificationContent}>
+          <Text style={styles.notificationText}>
+            {/* {username ? <Text style={styles.username}>{username}</Text> : null} */}
+            {username ? ' ' : ''}{item.body}
+          </Text>
+          <Text style={styles.timestamp}>{formatTimeAgo(item.created_at)}</Text>
+          {isFollowRequest && (
+            <View style={{ flexDirection: 'row', marginTop: 8 }}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
+                onPress={() => handleApprove(item)}
+              >
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Accept</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#F44336', marginLeft: 8 }]}
+                onPress={() => handleReject(item)}
+              >
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Reject</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -191,21 +256,23 @@ useFocusEffect(
         <Text style={styles.headerTitle}>Notifications</Text>
       </View>
       <View style={{flex:1}}>
-      <SectionList
-  sections={[{ title: 'All', data: notifications }]}
-  keyExtractor={(item) => item.id}
-  renderItem={({ item }) => renderNotification({ item })}
-  showsVerticalScrollIndicator={false}
-  contentContainerStyle={styles.listContainer}
-/>
-        
-      {/* <FlatList
-        data={notifications}
-        renderItem={renderNotification}
-        keyExtractor={item => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContainer}
-      /> */}
+        {loading ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text>Loading notifications...</Text>
+          </View>
+        ) : error ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ color: 'red' }}>{error}</Text>
+          </View>
+        ) : (
+          <SectionList
+            sections={[{ title: 'All', data: notifications }]}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => renderNotification({ item })}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContainer}
+          />
+        )}
       </View>
     </SafeAreaView>
   );
@@ -229,6 +296,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
+    color: '#222',
   },
   listContainer: {
     padding: 10,
@@ -236,34 +304,42 @@ const styles = StyleSheet.create({
   notificationItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
-    marginBottom: 5,
-    borderRadius: 5,
-  },
-  unreadNotification: {
-    backgroundColor: '#fafafa',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+    marginBottom: 2,
+    borderRadius: 8,
   },
   userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginRight: 12,
+    backgroundColor: '#333',
   },
   notificationContent: {
     flex: 1,
-    marginRight: 10,
+    justifyContent: 'center',
   },
   notificationText: {
-    fontSize: 14,
-    color: '#262626',
+    color: '#222',
+    fontSize: 15,
   },
   username: {
-    fontWeight: '600',
+    fontWeight: 'bold',
+    color: '#222',
   },
   timestamp: {
+    color: '#888',
     fontSize: 12,
-    color: '#8e8e8e',
     marginTop: 2,
+  },
+  actionButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

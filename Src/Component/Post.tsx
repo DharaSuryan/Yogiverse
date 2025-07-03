@@ -20,6 +20,18 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../Navigation/types';
 
+interface Collection {
+  id: number;
+  name: string;
+  created_at: string;
+  post_count?: number; // Optional since it's not in the API response
+  cover_image?: string; // Optional since it's not in the API response
+}
+
+interface SectionData {
+  title: string;
+  data: Collection[];
+}
 
 interface PostProps {
   id: string;
@@ -39,6 +51,7 @@ interface PostProps {
   profile?: any;
   item?: any;
   onDelete?: (id: string) => void;
+  isdrmoDetails?: boolean;
 }
 
 const fallbackAvatar = require('../Assets/yoga.jpg');
@@ -62,6 +75,7 @@ const Post: React.FC<PostProps> = ({
   profile = {},
   item,
   onDelete,
+  isdrmoDetails = false,
 }) => {
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [likesCount, setLikesCount] = useState(likes);
@@ -71,8 +85,12 @@ const Post: React.FC<PostProps> = ({
   const [activeIndex, setActiveIndex] = useState(0);
   const [optionsVisible, setOptionsVisible] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [saveModalVisible, setSaveModalVisible] = useState(false);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [collectionsLoading, setCollectionsLoading] = useState(false);
+  const [savingToCollectionId, setSavingToCollectionId] = useState<number | null>(null);
   const navigations = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-
 
   const getMediaUri = (item: any) => {
     if (item.media_file) return item.media_file.startsWith('http') ? item.media_file : `http://192.168.1.160:9001${item.media_file}`;
@@ -83,6 +101,8 @@ console.log("id.....", item?.profile?.id , id);
 
   const handleLike = async () => {
     const authToken = await AsyncStorage.getItem('accessToken');
+    console.log("isdrmoDetails",isdrmoDetails);
+    
       const headers = {
         'Accept': 'application/json',
         'Authorization': `Bearer ${authToken}`
@@ -92,11 +112,11 @@ console.log("id.....", item?.profile?.id , id);
     setIsLiked(!isLiked);
     setLikesCount(isLiked ? likesCount - 1 : likesCount + 1);
     try {
-      console.log("contentType .....",contentType,id);
+      console.log("contentType .....",item?.profile,contentType,id);
       
       let like = await axios.post('https://pashuahar.com/like-toggle/', {
         content_type: contentType == "reel" ? "reel" : "post",
-        object_id: item?.profile?.id ? item?.profile?.id : id,
+        object_id: item?.profile?.id && !isdrmoDetails ? item?.profile?.id : id,
       },{headers});
       console.log("like .....",like);
       
@@ -119,6 +139,100 @@ console.log("id.....", item?.profile?.id , id);
       object_id: item?.profile?.id ? item?.profile?.id : id,
     });
   };
+
+  const handleSave = async () => {
+    setSaveModalVisible(true);
+    await fetchCollections();
+  };
+
+  const fetchCollections = async () => {
+    setCollectionsLoading(true);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      console.log('Auth token:', authToken ? 'Present' : 'Missing');
+      
+      const headers = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      };
+      
+      console.log('Fetching collections from: https://pashuahar.com/collections/');
+      const response = await axios.get('https://pashuahar.com/collections/', { headers });
+      console.log('Collections API response status:', response.status);
+      console.log('Collections API response data:', JSON.stringify(response.data, null, 2));
+      
+      if (response.data?.data?.results) {
+        console.log('Found collections:', response.data.data.results.length);
+        setCollections(response.data.data.results);
+      } else if (response.data?.data && Array.isArray(response.data.data)) {
+        console.log('Found collections (data array):', response.data.data.length);
+        setCollections(response.data.data);
+      } else if (response.data?.results) {
+        console.log('Found collections (direct results):', response.data.results.length);
+        setCollections(response.data.results);
+      } else if (Array.isArray(response.data)) {
+        console.log('Found collections (array):', response.data.length);
+        setCollections(response.data);
+      } else {
+        console.log('No collections found in response');
+        setCollections([]);
+      }
+    } catch (error: any) {
+      console.error('Error fetching collections:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      setCollections([]);
+    } finally {
+      setCollectionsLoading(false);
+    }
+  };
+
+  const handleCollectionPress = async (collection: Collection) => {
+    console.log("isdrmoDetailsisdrmoDetails",item?.profile?.id ,isdrmoDetails);
+    // return
+    
+    setSavingToCollectionId(collection.id);
+    setSaveLoading(true);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      };
+      
+      const payload = {
+        collection: collection.id,
+        content_type: contentType === 'reel' ? 'reel' : 'post',
+        object_id: id,
+        // object_id:  item?.profile?.id && !isdrmoDetails ? item?.profile?.id : id,
+      };
+      
+      console.log('Saving post to collection:', payload);
+      
+      await axios.post(
+        'https://pashuahar.com/collections/items/',
+        payload,
+        { headers }
+      );
+      
+      Alert.alert('Success', 'Post saved to collection!');
+      setSaveModalVisible(false);
+    } catch (error: any) {
+      console.error('Error saving post to collection:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to save post';
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setSaveLoading(false);
+      setSavingToCollectionId(null);
+    }
+  };
+
+  const handleCreateCollection = () => {
+    setSaveModalVisible(false);
+    navigations.navigate('CreateCollectionScreen');
+  };
+
   const sections = [
     {
       title: 'Media',
@@ -162,6 +276,56 @@ console.log("id.....", item?.profile?.id , id);
     setOptionsVisible(false);
     // You can navigate to an edit screen or call the edit API here
     Alert.alert('Edit', 'Edit functionality coming soon!');
+  };
+
+  const renderCollectionItem = ({ item }: { item: Collection }) => (
+    <TouchableOpacity 
+      style={styles.collectionItem} 
+      onPress={() => handleCollectionPress(item)}
+      disabled={saveLoading}
+    >
+      <View style={styles.collectionImageContainer}>
+        {item.cover_image ? (
+          <Image 
+            source={{ uri: item.cover_image }} 
+            style={styles.collectionImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.placeholderImage}>
+            <Icon name="bookmark-outline" size={20} color="#999" />
+          </View>
+        )}
+      </View>
+      <View style={styles.collectionInfo}>
+        <Text style={styles.collectionName} numberOfLines={1}>
+          {item.name}
+        </Text>
+        <Text style={styles.collectionCount}>
+          {item.post_count || 0} {(item.post_count || 0) === 1 ? 'post' : 'posts'}
+        </Text>
+      </View>
+      {saveLoading && savingToCollectionId === item.id && (
+        <View style={styles.saveLoadingOverlay}>
+          <ActivityIndicator size={16} color="#bea063" />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+
+  const renderSectionHeader = ({ section }: { section: SectionData }) => (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionTitle}>{section.title}</Text>
+    </View>
+  );
+
+  const getSectionData = (): SectionData[] => {
+    if (collections.length === 0) return [];
+    
+    return [{
+      title: 'Choose Collection',
+      data: collections
+    }];
   };
 
   return (
@@ -324,7 +488,59 @@ console.log("id.....", item?.profile?.id , id);
             <Icon name="paper-plane-outline" size={24} color="#000" />
           </>
         </TouchableOpacity>
+       {!isdrmoDetails ?  <TouchableOpacity style={styles.actionButton} onPress={handleSave}>
+          <Icon name="bookmark-outline" size={24} color="#000" />
+        </TouchableOpacity> : null}
       </View>
+
+      {/* Save to Collection Modal */}
+      <Modal
+        visible={saveModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSaveModalVisible(false)}
+      >
+        <View style={styles.saveModalOverlay}>
+          <View style={styles.saveModalContent}>
+            <View style={styles.saveModalHeader}>
+              <Text style={styles.saveModalTitle}>Save to Collection</Text>
+              <TouchableOpacity onPress={() => setSaveModalVisible(false)}>
+                <Icon name="close" size={24} color="#000" />
+              </TouchableOpacity>
+            </View>
+            
+            {collectionsLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#bea063" />
+              </View>
+            ) : collections.length === 0 ? (
+              <View style={styles.emptyCollectionsContainer}>
+                <Icon name="bookmark-outline" size={60} color="#ccc" />
+                <Text style={styles.emptyCollectionsTitle}>No Collections Yet</Text>
+                <Text style={styles.emptyCollectionsSubtitle}>
+                  Create a collection to save your favorite posts
+                </Text>
+                <TouchableOpacity 
+                  style={styles.createCollectionButton} 
+                  onPress={handleCreateCollection}
+                >
+                  <Text style={styles.createCollectionButtonText}>Create Collection</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <SectionList
+                sections={getSectionData()}
+                renderItem={renderCollectionItem}
+                renderSectionHeader={renderSectionHeader}
+                keyExtractor={(item) => item.id.toString()}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.collectionsList}
+                stickySectionHeadersEnabled={false}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* Options Modal */}
       <Modal
@@ -434,6 +650,122 @@ const styles = StyleSheet.create({
   },
   caption: {
     flex: 1,
+  },
+  // Save Modal Styles
+  saveModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  saveModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+  },
+  saveModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  saveModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyCollectionsContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyCollectionsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  emptyCollectionsSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  createCollectionButton: {
+    backgroundColor: '#bea063',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  createCollectionButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  collectionsList: {
+    padding: 20,
+  },
+  collectionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#eee',
+  },
+  collectionImageContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginRight: 15,
+  },
+  collectionImage: {
+    width: '100%',
+    height: '100%',
+  },
+  placeholderImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  collectionInfo: {
+    flex: 1,
+  },
+  collectionName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#000',
+    marginBottom: 4,
+  },
+  collectionCount: {
+    fontSize: 14,
+    color: '#666',
+  },
+  saveLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sectionHeader: {
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

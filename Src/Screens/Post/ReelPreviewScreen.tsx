@@ -6,53 +6,98 @@ import {
   TouchableOpacity,
   SafeAreaView,
   TextInput,
+  ActivityIndicator, Platform, Alert,
 } from 'react-native';
 import Video from 'react-native-video';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useNavigation, useRoute,CompositeNavigationProp } from '@react-navigation/native';
-
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { RootStackParamList, MainTabParamList } from '../../Navigation/types';
+import { CreatePostStackParamList } from '../../Navigation/types';
 import { PostApi } from '../../Api/PostApi';
 import {postPosts, postReels} from "../../Api/Api";
-
+import { CommonActions } from '@react-navigation/native';
+import { Video as CompressorVideo } from 'react-native-compressor';
 
 const ReelPreviewScreen = () => {
   
-const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+const navigation = useNavigation<NativeStackNavigationProp<CreatePostStackParamList>>();
   const route = useRoute();
   // @ts-ignore
   const { uri } = route.params || {};
   const [caption, setCaption] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const getMimeType = (uri: string): string => {
+    const extension = uri.split('.').pop()?.toLowerCase();
+    const mimeTypes: { [key: string]: string } = {
+      mp4: 'video/mp4',
+      mov: 'video/quicktime',
+      avi: 'video/x-msvideo',
+      webm: 'video/webm',
+      m4v: 'video/x-m4v',
+      mkv: 'video/x-matroska',
+    };
+    return (extension && mimeTypes[extension]) || 'application/octet-stream';
+  };
+
   const handlePost = async () => {
     try {
       setLoading(true);
       const formData = new FormData();
+      // Type guard for params
+      let uri: string = '';
+      if (
+        route &&
+        typeof route === 'object' &&
+        'params' in route &&
+        route.params &&
+        typeof route.params === 'object' &&
+        'uri' in route.params &&
+        typeof (route.params as any).uri === 'string'
+      ) {
+        uri = (route.params as any).uri;
+      }
+      const fileName = uri.split('/').pop();
+      const fileType = getMimeType(uri);
       formData.append('caption', caption);
       formData.append('is_draft', 'false');
-      formData.append('allow_comments', 'false');
+      formData.append('allow_comments', 'true');
       formData.append('hide_like_count', 'false');
-      formData.append('music_track', ' ');
+      formData.append('music_track', '');
+      formData.append('duration', '15');
+      let compressedUri = uri;
+      try {
+        compressedUri = await CompressorVideo.compress(uri, {
+          compressionMethod: 'auto',
+        });
+      } catch (e) {
+        console.log('Video compression error:', e);
+      }
       formData.append('video_file', {
-        uri,
-        type: 'video/mp4',
-        name: 'reel.mp4',
+        uri: Platform.OS === 'ios' ? compressedUri.replace('file://', '') : compressedUri,
+        name: fileName || 'video.mp4',
+        type: fileType,
       });
-      formData.append('media_metadata', JSON.stringify([{ is_video: true }]));
-
-      console.log("reels params ----->>",JSON.stringify(formData))
 
       await postReels({ formData });
       setLoading(false);
-      navigation.navigate('MainTab', {
-        screen: 'HomeTab',
-        params: {
-          screen: 'Home',
-        },
-      });
+
+      Alert.alert('Success', 'Your Reel has been uploaded!');
+      navigation.navigate("UploadOptions")
+      // navigation.goBack();
+      // navigation.dispatch(
+      //   CommonActions.reset({
+      //     index: 0,
+      //     routes: [
+      //       {
+      //         name: 'MainTab',
+      //         state: {
+      //           routes: [{ name: 'HomeTab' }],
+      //         },
+      //       },
+      //     ],
+      //   })
+      // );
     } catch (error) {
       setLoading(false);
       console.error('Error uploading reel:', error);
@@ -94,10 +139,24 @@ const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>(
 
       <TouchableOpacity
         style={styles.filterButton}
-        onPress={() => navigation.navigate('ReelEditor', { media: [{ uri, type: 'video' }] })}
+        onPress={() => navigation.navigate('ReelEditor', { media: { uri, type: 'video' } })}
       >
         <Text style={styles.filterButtonText}>Filter</Text>
       </TouchableOpacity>
+
+      {loading && (
+        <View
+          style={{
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 10,
+          }}
+        >
+          <ActivityIndicator size="large" color="#0095f6" />
+        </View>
+      )}
     </SafeAreaView>
   );
 };

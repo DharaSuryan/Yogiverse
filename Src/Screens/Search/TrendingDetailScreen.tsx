@@ -4,9 +4,9 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import axios from 'axios';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { SearchStackParamList } from '../Navigation/types';
-import Post from '../Component/Post';
-import { goBack } from '../Component/Route';
+import { SearchStackParamList } from '../../Navigation/types';
+import Post from '../../Component/Post';
+import { goBack, navigate } from '../../Component/Route';
 // import { SearchStackParamList } from '../../Navigation/types';
 
 const screenWidth = Dimensions.get('window').width;
@@ -84,7 +84,8 @@ const TrendingDetailScreen = () => {
           zIndex: 10,
         }}
         onPress={() => {
-         goBack()
+        //  goBack()
+        navigate('Search')
         }}
       >
         <Icon name="arrow-back" size={28} color="#000" />
@@ -128,21 +129,18 @@ const TrendingDetailScreen = () => {
                     ? item.media[0]?.media_file
                     : '';
 
+                // Randomize height for demo, or use actual image aspect ratio if available
+                const randomHeight = Math.floor(Math.random() * 100) + 200; // 200-300px
+
                 return (
                   <TouchableOpacity
                     key={item.id?.toString() || index.toString()}
                     style={{
-                      width: (screenWidth - 36) / 2,
-                      aspectRatio: 1,
-                      backgroundColor: '#fff',
-                      borderRadius: 18,
+                      flex: 1,
                       marginHorizontal: 4,
+                      borderRadius: 16,
                       overflow: 'hidden',
-                      elevation: 2,
-                      shadowColor: '#000',
-                      shadowOpacity: 0.06,
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowRadius: 8,
+                      backgroundColor: '#fff',
                     }}
                     onPress={() =>
                       navigation.push('TrendingDetailScreen', { post: item })
@@ -152,15 +150,16 @@ const TrendingDetailScreen = () => {
                     {mediaUrl ? (
                       <Image
                         source={{ uri: mediaUrl }}
-                        style={{ width: '100%', height: '100%' }}
+                        style={{ width: '100%', height: randomHeight, borderRadius: 16 }}
                         resizeMode="cover"
                       />
                     ) : (
                       <View
                         style={{
                           width: '100%',
-                          height: '100%',
+                          height: randomHeight,
                           backgroundColor: '#eee',
+                          borderRadius: 16,
                         }}
                       />
                     )}

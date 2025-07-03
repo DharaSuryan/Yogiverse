@@ -13,6 +13,7 @@ import PostPreviewScreen from '../Screens/Post/PostPreviewScreen';
 import PostDetails from '../Screens/Post/PostDetails';
 import UploadPost from '../Screens/Post/UploadPost';
 import { CreatePostStackParamList } from './types';
+import SearchScreen from '../Screens/Search/SearchScreen';
 
 const Stack = createNativeStackNavigator<CreatePostStackParamList>();
 
@@ -115,6 +116,7 @@ const CreatePostNavigator = () => {
           animation: 'slide_from_right',
         }}
       />
+      <Stack.Screen name="Search" component={SearchScreen} />
     </Stack.Navigator>
   );
 };

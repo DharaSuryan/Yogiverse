@@ -403,7 +403,7 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
       formData.append('country', selectedCountry ? selectedCountry.id.toString() : '');
       formData.append('state', selectedState ? selectedState.id.toString() : '');
       formData.append('city', selectedCity ? selectedCity.id.toString() : '');
-      formData.append('role', route.params.role);
+      formData.append('role', 'user');
       formData.append('bio', values.bio || '');
 
       if (role === 'vendor') {
@@ -434,7 +434,7 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
         Alert.alert('Error', response.message || 'Registration failed. Please try again.');
       }
     } catch (error: any) {
-      console.error('Registration error:', error);
+      console.error('Registration error:', error.errors);
       const serverMessage = error?.response?.data?.message || error.message;
       Alert.alert('Error', serverMessage || 'An error occurred during registration.');
     } finally {

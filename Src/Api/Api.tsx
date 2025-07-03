@@ -125,6 +125,37 @@ export const registerUser  = async (formData: FormData): Promise<ApiResponse> =>
     throw error;
   }
 }
+export const editProfile  = async (userId: number, formData: FormData): Promise<ApiResponse> => {
+  console.log("api",api);
+  
+  try {
+    const url = `/profile/${userId}/`;
+    console.log(`Editprofile  user at URL: ${api.defaults.baseURL}${url}`);
+    const response = await api.post(url, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Registration API Error:", error.response?.data || error.message);
+    throw error;
+  }
+}
+export const forgotPassword = async (email: string): Promise<ApiResponse> => {
+  try {
+    const url = '/reset-password/';
+    const response = await api.post(url, { email }, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Reset API Error:", error.response?.data || error.message);
+    throw error;
+  }
+};
 export const loginUser = async (credentials: { username: string; password: string }): Promise<ApiResponse> => {
   try {
     const response = await api.post('/login/', credentials);
@@ -195,6 +226,19 @@ export const fetchStates = async (countryId: number, page = 1, limit = 10): Prom
       data: response.data,
       status: response.status,
       message: 'States fetched successfully'
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const fetchCities = async (stateId: number, page = 1, limit = 10): Promise<ApiResponse> => {
+  try {
+    const response = await api.get(`/helper_app/cities/${stateId}/?page=${page}&limit=${limit}`);
+    return {
+      data: response.data,
+      status: response.status,
+      message: 'Cities fetched successfully'
     };
   } catch (error) {
     throw error;
@@ -288,6 +332,8 @@ export const postPosts  = async ({formData}:any): Promise<ApiResponse> => {
 };
 export const postReels  = async ({formData}:any): Promise<ApiResponse> => {
   const authToken = await AsyncStorage.getItem('accessToken');
+  console.log("formData",BASE_URL,formData,);
+  
   try {
     const response = await axios.post(`${BASE_URL}/reels/`, formData, {
       headers: {

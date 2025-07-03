@@ -5,9 +5,17 @@
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",
-    "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "lint": "eslint .",
+    "android-clean": "cd android && ./gradlew clean",
+    "android-bundle": "react-native bundle --platform android --dev false --entry-file ./index.js --bundle-output ./android/app/src/main/assets/index.android.bundle --sourcemap-output ./android/app/src/main/assets/index.android.map --assets-dest ./android/app/src/main/res/",
+    "android-build-debug": "cd android/ && ./gradlew assembleDebug",
+    "ios-bundle": "react-native bundle --dev false --entry-file index.js --bundle-output ios/main.jsbundle --platform ios",
+    "refresh": "adb shell input text \"RR\"",
+    "show-debugger": "adb shell input keyevent 82",
+    "android-apk": "npm run android-clean && npm run android-bundle && npm run android-build-debug",
+    "android-build-release": "cd ./android && rm -rf app/src/main/res/drawable* && ./gradlew app:assembleRelease"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
@@ -24,7 +32,6 @@
     "@react-navigation/native-stack": "^7.3.10",
     "@react-navigation/stack": "^7.3.2",
     "@reduxjs/toolkit": "^2.8.2",
-    "@shopify/react-native-skia": "^2.0.7",
     "axios": "^1.9.0",
     "chalk": "^4.1.2",
     "deprecated-react-native-prop-types": "^5.0.0",
@@ -34,6 +41,8 @@
     "react-native": "0.76.0",
     "react-native-camera": "^4.2.1",
     "react-native-compressor": "^1.12.0",
+    "react-native-document-picker": "^9.3.1",
+    "react-native-element-dropdown": "^2.12.4",
     "react-native-emoji-selector": "^0.2.0",
     "react-native-gesture-handler": "^2.26.0",
     "react-native-image-crop-picker": "^0.42.0",
@@ -51,7 +60,6 @@
     "react-native-vector-icons": "^10.2.0",
     "react-native-video": "^6.14.1",
     "react-native-vision-camera": "^4.6.4",
-    "react-native-webview": "^13.13.5",
     "react-redux": "^9.2.0",
     "redux-persist": "^6.0.0",
     "yup": "^1.6.1"

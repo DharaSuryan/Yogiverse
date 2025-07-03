@@ -1,128 +1,157 @@
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Dimensions, SafeAreaView, Platform } from 'react-native'
-import React, { useEffect, useState } from 'react'
-import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { VendorStackParamList } from '../../Navigation/types';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { vendorList } from '../../Api/Api';
-const screenWidth = Dimensions.get('window').width;
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  FlatList,
+  ScrollView,
+  TouchableOpacity,
+  Dimensions,
+  ActivityIndicator,
+  Platform,
+} from 'react-native';
+import { SearchStackParamList } from '../../Navigation/types';
+import { useNavigation } from '@react-navigation/native';
+import axios from 'axios';
+import { push } from '../../Component/Route';
 
-const { width } = Dimensions.get('window');
-const numColumns = 2;
-const tileSize = (width - (numColumns + 1) * 16) / numColumns;
+const imageSource = require('../../Assets/yoga.jpg');
 
-type VendorListNavigationProp = NativeStackNavigationProp<VendorStackParamList, 'Vendor'>;
 
-interface VendorItem {
-  id: string;
-  title: string;
-  subtitle: string;
-  image: any;
-  isVerified?: boolean;
-  location?: string;
-}
 
-export default function VenderList() {
-  const navigation = useNavigation<VendorListNavigationProp>();
-  const [vendor, setVendor] = useState([])
-  const [loading, setLoading] = useState(true);
+type SearchScreenNavigationProp = NativeStackNavigationProp<
+  SearchStackParamList,
+  'Search'
+>;
+
+const VenderList = () => {
+  const navigation = useNavigation<SearchScreenNavigationProp>();
+
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
- 
-
-  console.log("vendor data",vendor);
-  
   useEffect(() => {
-
-    fetchVendor();
+    fetchCategories();
+    
   }, []);
-  const fetchVendor = async () => {
+
+  const fetchCategories = async (query = '') => {
+    setLoading(true);
+    setError(null);
     try {
-
-      const response = await vendorList();
-      console.log("vendor list", response.data);
-
-      setVendor(response.data.vendors);
-    } catch (error: any) {
-      setError('Something went wrong while loading profile.');
+      const mainCategoryRes = await axios.get(
+        `https://pashuahar.com/main_with_sub_categories?search=${query}`
+      );
+      // console.log("here comes resoponse ...",mainCategoryRes.data?.data);
+      
+      setCategories(mainCategoryRes.data?.data || []);
+    } catch (err) {
+      setError('Failed to load categories');
     } finally {
       setLoading(false);
     }
   };
-  const renderVendorCard = ({ item }: { item: VendorItem }) => (
-    <TouchableOpacity
-      style={styles.vendorCard}
-      onPress={() => navigation.navigate('VenderDetail', { vendorId: item.profile?.user })
-     }
-    >
-      <View style={styles.imageContainer}>
-        <Image
-          source={{uri:item?.profile?.profile_picture}}
-          style={styles.vendorImage}
-          resizeMode="cover"
-        />
-        {item.isVerified && (
-          <View style={styles.verifiedBadge}>
-            <Icon name="checkmark-circle" size={16} color="#fff" />
-          </View>
-        )}
-      </View>
 
-      <View style={styles.vendorInfo}>
-        <Text style={styles.vendorName} numberOfLines={1}>
-          {item?.profile?.first_name }
+  const handleItemPress = (item: any) => {
+    console.log("here comes ....",item);
+    
+
+    if (item.first_name) {
+      // User result - navigate to UserProfile
+      navigation.navigate('UserProfile' as any, { userId: item.id.toString() });
+    } else {
+      // Category or other result - navigate to SubCateGoryDisplay
+      push('SubCateGoryDisplay' , { item });
+    }
+  };
+
+  const renderCategory = ({ item }: any) => {
+    return (
+      <TouchableOpacity
+        style={styles.categoryCardNew}
+        onPress={() => handleItemPress(item)}
+        activeOpacity={0.8}
+      >
+        <View style={styles.categoryImageWrapperNew}>
+          <Image
+            source={item.main_category_image ? { uri: item.main_category_image } : imageSource}
+            style={styles.categoryImageNew}
+          />
+        </View>
+        <Text
+          numberOfLines={2}
+          ellipsizeMode="tail"
+          style={styles.categoryTitleNew}
+        >
+          {item.category_name}
         </Text>
-
-        <View style={styles.ratingContainer}>
-          {/* <Icon name="star" size={14} color="#FFD700" /> */}
-          <Text style={styles.ratingText}>
-            {item?.followers_count+" "+ "Followers"}
-          </Text>
-        </View>
-
-        <View style={styles.locationContainer}>
-          <Icon name="location-outline" size={14} color="#666" />
-          <Text style={styles.locationText} numberOfLines={1}>
-            {item?.profile?.country}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
+      </TouchableOpacity>
+    );
+  };
+  
+  // const renderCategory = ({ item }: any) => {
+  //   const getImageSource = () => {
+  //     return categoryImages[item.category_name] || categoryImages['default'];
+  //   };
+  
+  //   return (
+  //     <TouchableOpacity
+  //       style={styles.categoryCard}
+  //       onPress={() => handleItemPress(item)}
+  //     >
+  //       <View style={styles.imageContainer}>
+  //         <Image 
+  //           source={getImageSource()} 
+  //           style={styles.categoryImage}
+  //           resizeMode="cover"
+  //         />
+  //       </View>
+  //       <Text style={styles.categoryTitle} numberOfLines={2}>
+  //         {item.category_name}
+  //       </Text>
+  //     </TouchableOpacity>
+  //   );
+  // };
+ 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Everyone is Yogi</Text>
-        {/* <TouchableOpacity style={styles.filterButton}>
-            <Icon name="filter" size={24} color="#333" />
-          </TouchableOpacity> */}
-      </View>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      
 
-      <FlatList
-        data={vendor}
-        renderItem={renderVendorCard}
-        keyExtractor={(item) => item.id}
-        numColumns={numColumns}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Icon name="business-outline" size={48} color="#ccc" />
-            <Text style={styles.emptyText}>No vendors found</Text>
-          </View>
-        }
-      />
-    </SafeAreaView>
+
+      {loading ? (
+        <ActivityIndicator size="large" color="#000" style={{ marginTop: 20 }} />
+      ) : error ? (
+        <Text style={{ color: 'red', textAlign: 'center' }}>{error}</Text>
+      ) : (
+        <>
+         <View style={styles.header}>
+//         <Text style={styles.headerTitle}>Everyone is Yogi</Text>
+//         {/* <TouchableOpacity style={styles.filterButton}>
+//             <Icon name="filter" size={24} color="#333" />
+//           </TouchableOpacity> */}
+//       </View>
+
+          <FlatList
+            data={categories}
+            keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+            renderItem={renderCategory}
+            numColumns={3}
+            scrollEnabled={false}
+            contentContainerStyle={{ paddingBottom: 20 }}
+          />
+          
+        </>
+      )}
+    </ScrollView>
   );
-}
+};
 
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
+
+  container: { flex: 1, backgroundColor: '#fff' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -142,88 +171,77 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  headerTitle: {
+   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#bea063',
   },
-  filterButton: {
-    padding: 8,
-  },
-  listContainer: {
-    padding: 8,
-  },
-  vendorCard: {
-    width: tileSize,
-    margin: 8,
-    backgroundColor: '#fff',
-    borderRadius: 12,
+  
+  cardImage: { width: '95%', height: 70, borderRadius: 40 },
+  
+  imageWrapper: {
+    width: 120,
+    height: 120,
+    borderRadius: 120 / 2,
     overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
+    backgroundColor: '#f5f5f5',
+    marginBottom: 8,
   },
-  imageContainer: {
-    position: 'relative',
-    width: '100%',
-    height: tileSize * 0.7,
-  },
-  vendorImage: {
+  image: {
     width: '100%',
     height: '100%',
+    resizeMode: 'cover',
   },
-  verifiedBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: '#0095f6',
-    borderRadius: 12,
-    padding: 4,
-  },
-  vendorInfo: {
-    padding: 12,
-  },
-  vendorName: {
-    fontSize: 16,
+  categoryTitle: {
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: 4,
+    color: '#222',
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 4,
   },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  ratingText: {
-    marginLeft: 4,
-    fontSize: 14,
-    color: '#666',
-  },
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  locationText: {
-    marginLeft: 4,
-    fontSize: 14,
-    color: '#666',
-  },
-  emptyContainer: {
+ 
+  categoryCardNew: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 16,
     alignItems: 'center',
-    padding: 20,
+    justifyContent: 'center',
+    margin: 6,
+    paddingVertical: 18,
+    paddingHorizontal: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 2,
+    minWidth: 0,
+    maxWidth: '32%',
   },
-  emptyText: {
-    marginTop: 8,
-    fontSize: 16,
-    color: '#666',
+  categoryImageWrapperNew: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  categoryImageNew: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    resizeMode: 'cover',
+  },
+  categoryTitleNew: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#222',
+    textAlign: 'center',
+    marginTop: 2,
+    lineHeight: 20,
   },
 })
+
+export default VenderList;

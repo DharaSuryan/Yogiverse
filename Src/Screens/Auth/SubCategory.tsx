@@ -62,7 +62,7 @@ const SubCategoryScreen: React.FC<NativeStackScreenProps<AuthStackParamList, 'Su
       formData.append('country', signupData.country_id?.toString() || '');
       formData.append('state', signupData.state_id?.toString() || '');
       formData.append('city', signupData.city_id?.toString() || '');
-      formData.append('role', signupData.role || 'user');
+      formData.append('role', 'vendor');
       formData.append('bio', signupData.bio || '');
 
       if (signupData.role === 'vendor') {
@@ -86,6 +86,8 @@ const SubCategoryScreen: React.FC<NativeStackScreenProps<AuthStackParamList, 'Su
       const response = await registerUser(formData);
       console.log('Sign-up API Response:', JSON.stringify(response, null, 2));
 
+      console.log("response ===> ", response);
+
       if (response.status) {
         Alert.alert('Success', response.message || 'Registration successful!');
         navigation.navigate('Login');
@@ -93,13 +95,62 @@ const SubCategoryScreen: React.FC<NativeStackScreenProps<AuthStackParamList, 'Su
         Alert.alert('Error', response.message || 'Registration failed. Please try again.');
       }
     } catch (error: any) {
-      console.error('Registration error:', error);
-      const serverMessage = error?.response?.data?.message || error.message;
-      Alert.alert('Error', serverMessage || 'An error occurred during registration.');
+      
+      console.error('Registration error 000000000:', error?.response?.data); 
+      handleRegistrationError(error?.response?.data)
+      
+      // const serverMessage = error?.response?.data?.message || error.message;
+      // Alert.alert('Error', serverMessage || 'An error occurred during registration.');
+
+      //  if (response.data?.errors) {
+      //   const errorMessages = Object.entries(response.data.errors)
+      //     .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+      //     .join('\n');
+      //   Alert.alert('Validation Error', errorMessages);
+      // } else {
+      //   Alert.alert('Error', response?.data?.message || 'Update failed.');
+      // }
+
     } finally {
       setSubmitting(false);
     }
   };
+
+  function handleRegistrationError(errorResponse: any) {
+    console.error('errorResponse 00000:', errorResponse); 
+  if (!errorResponse || typeof errorResponse !== 'object') {
+    alert('Something went wrong. Please try again.');
+    return;
+  }
+
+  const { errors, message } = errorResponse;
+
+  if (errors) {
+    let alertMessages = [];
+
+    if (errors.email && errors.email.length > 0) {
+      alertMessages.push(`Email: ${errors.email.join(', ')}`);
+    }
+
+    if (errors.username && errors.username.length > 0) {
+      alertMessages.push(`Username: ${errors.username.join(', ')}`);
+    }
+
+    if (errors.phone_no && errors.phone_no.length > 0) {
+      alertMessages.push(`Phone No: ${errors.phone_no.join(', ')}`);
+    }
+
+    // Show the collected error messages
+    if (alertMessages.length > 0) {
+      alert(alertMessages.join('\n'));
+      return;
+    }
+  }
+
+  // Fallback message
+  alert(message || 'Something went wrong. Please try again.');
+}
+
 
   const renderSubcategoryRow = (subcats: SubCategoryType[], catIdx: number) => {
     const rows = [];

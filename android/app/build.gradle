@@ -82,7 +82,7 @@ android {
         applicationId "com.yogiverse"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
+        versionCode 6
         versionName "3.0"
         missingDimensionStrategy 'react-native-camera', 'general'
         vectorDrawables.useSupportLibrary = true
@@ -101,7 +101,7 @@ android {
         }
 
           release {
-                storeFile file('/my-upload-key.jks')
+                storeFile file('my-upload-key.jks')
                 storePassword 'suryanorganic'
                 keyAlias 'suryanorganic'
                 keyPassword 'suryanorganic'
@@ -141,4 +141,7 @@ dependencies {
     }
 }
  apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
- apply plugin: 'com.google.gms.google-services'
+
+
+
+apply plugin: 'com.google.gms.google-services'

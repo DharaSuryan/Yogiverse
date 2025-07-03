@@ -16,10 +16,9 @@ import LoginScreen from '../Screens/Auth/LoginScreen';
 import SignUpScreen from '../Screens/Auth/UserSignUpScreen';
 import SplashScreen from '../Screens/Splash/SplashScreen';
 import SearchDetailScreen from '../Screens/Search/SearchDetailScreen';
-import CommentScreen from '../Screens/Comment/CommentScreen';
+import CommentScreen from "../Screens/Comment/CommentScreen";
 import SubCateGoryDisplay from 'Src/Screens/Search/SubCateGoryDisplay';
 import UploadPost from 'Src/Screens/Post/UploadPost';
-import PreViewForPost from 'Src/Screens/Post/PreViewForPost';
 import MainCategoryScreen from '../Screens/Auth/MainCategory';
 import SubCategoryScreen from '../Screens/Auth/SubCategory';
 
@@ -77,7 +76,7 @@ const MainTabs = () => {
         tabBarActiveTintColor: '#000',
         tabBarInactiveTintColor: 'gray',
         headerShown: false,
-        tabBarShowLabel: false,
+      tabBarShowLabel: false
       })}>
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
@@ -105,7 +104,6 @@ const AppNavigator = () => {
         <Stack.Screen name="CommentScreen" component={CommentScreen} />
         <Stack.Screen name="SubCateGoryDisplay" component={SubCateGoryDisplay} />
         <Stack.Screen name="UploadPost" component={UploadPost} />
-        <Stack.Screen name="PreViewForPost" component={PreViewForPost} />
 
 
         {/* <Stack.Screen name="SearchDetail" component={SearchDetailScreen}/> */}

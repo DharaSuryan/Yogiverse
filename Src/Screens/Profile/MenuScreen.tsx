@@ -113,7 +113,8 @@ export default function MenuScreen({ navigation }: MenuScreenProps) {
                 dispatch({ type: 'AUTH_LOGOUT' }); // Adjust this according to your Redux action type
 
                 // 4. Reset to Auth stack
-                navigation.dispatch(
+                setTimeout(() => {
+                  navigation.dispatch(
                   CommonActions.reset({
                     index: 0,
                     routes: [{
@@ -124,12 +125,16 @@ export default function MenuScreen({ navigation }: MenuScreenProps) {
                     }]
                   })
                 );
-                // Ensure navigation is complete
-                setTimeout(() => {
-                  navigation.navigate('Auth', {
-                    screen: 'Login'
-                  });
-                }, 100);
+
+                }, 300);
+                
+
+                // // Ensure navigation is complete
+                // setTimeout(() => {
+                //   navigation.navigate('Auth', {
+                //     screen: 'Login'
+                //   });
+                // }, 100);
               } else {
                 throw new Error('Logout failed');
               }
@@ -233,7 +238,7 @@ export default function MenuScreen({ navigation }: MenuScreenProps) {
                   <Text style={styles.switchBtnText}>Switch</Text>
                 </TouchableOpacity>
               </View>
-            ))}
+            ))} 
             {/* Security */}
             <Text style={[styles.modalSectionTitle, { marginTop: 8 }]}>Security</Text>
             <View style={styles.row}>

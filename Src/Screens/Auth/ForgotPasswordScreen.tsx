@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../Navigation/types';
+import { forgotPassword } from '../../Api/Api';
 
 type ForgotPasswordScreenProps = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'ForgotPassword'>;
@@ -22,26 +23,37 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const handleResetPassword = async () => {
-    try {
-      // Here you would typically make an API call to send reset password email
-      setSuccess(true);
-    } catch (err) {
-      setError('Failed to send reset password email. Please try again.');
-    }
-  };
+  
+const validateEmail = (email: string) => {
+  const re = /^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/;
+  return re.test(email);
+};
 
+const handleResetPassword = async () => {
+  setError('');
+  setSuccess(false);
+  if (!email.trim()) {
+    setError('Please enter your email address.');
+    return;
+  }
+  if (!validateEmail(email.trim())) {
+    setError('Please enter a valid email address.');
+    return;
+  }
+  try {
+    await forgotPassword(email.trim());
+    setSuccess(true);
+  } catch (err) {
+    setError('Failed to send reset password email. Please try again.');
+  }
+};
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.logoContainer}>
-          <Image
-            source={require('../../Assets/yoga.jpg')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+         <Image source={require('../../Assets/LogoLogin.png')} style={styles.logo} resizeMode="contain" />
         </View>
 
         <View style={styles.formContainer}>

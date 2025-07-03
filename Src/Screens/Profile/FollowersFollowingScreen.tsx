@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  SectionList,
   TouchableOpacity,
   Image,
   ActivityIndicator,
@@ -153,12 +153,14 @@ const FollowersFollowingScreen = () => {
       ) : error ? (
         <Text style={styles.errorText}>{error}</Text>
       ) : (
-        <FlatList
-          data={users}
+        <SectionList
+          sections={[{ title: 'All ' + activeTab, data: users }]}
           keyExtractor={item => item.id?.toString() || item.username}
           renderItem={renderUserItem}
+          renderSectionHeader={({ section }) => (
+            <Text style={styles.sectionTitle}>{section.title}</Text>
+          )}
           contentContainerStyle={{ paddingBottom: 30 }}
-          ListHeaderComponent={<Text style={styles.sectionTitle}>All {activeTab}</Text>}
         />
       )}
     </SafeAreaView>

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { goBack } from '../../Component/Route';
 
 // Static images for different subcategories
 // const subCategoryImages = {
@@ -36,6 +37,8 @@ const SubCateGoryDisplay = () => {
   const { item } = route.params as { item: any };
   const subCategories = item?.sub_categories || [];
   const imageSource = require('../../Assets/yoga.jpg');
+  console.log("itemitemitem",item);
+  
 
 
   //   const getImageSource = (name: string) => {
@@ -52,21 +55,19 @@ const SubCateGoryDisplay = () => {
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',
-          marginTop: 10
         }}>
-          <Image source={item?.cat_image || imageSource} style={{
-            width: 80,
-            height: 80,
-            borderRadius: 40,
-            marginBottom: 6,
-          }} />
-        </View>
-
-        <View style={styles.subCategoryInfo}>
-          <Text style={styles.subCategoryName} numberOfLines={2}>
+          <Image
+            source={item.sub_category_image ? { uri: item.sub_category_image } : imageSource}
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              marginBottom: 6,
+            }}
+          />
+          <Text style={[styles.subCategoryName, { textAlign: 'center', marginTop: 4 }]} numberOfLines={2}>
             {item.name}
           </Text>
-
         </View>
       </TouchableOpacity>
     );
@@ -75,15 +76,7 @@ const SubCateGoryDisplay = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => {
-
-          navigation.navigate('MainTab', {
-            screen: 'SearchTab',
-            params: {
-              screen: 'Search',
-            },
-          });
-        }}>
+        <TouchableOpacity onPress={() =>   navigation.navigate("Search")}>
           <Icon name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
@@ -151,6 +144,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
   },
   subCategoryImage: {
     width: '100%',

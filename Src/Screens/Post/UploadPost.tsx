@@ -101,6 +101,7 @@ const UploadPost = ({ navigation, route }) => {
           Alert.alert('Error', response.errorMessage);
         } else if (response.assets && response.assets.length > 0) {
           setSelectedMedia(response.assets[0].uri ?? null);
+          // navigation.navigate("PostPreviewScreen",{images:response.assets[0].uri})
                 setMediaMeta({
                   type: response.assets[0].type || 'image/jpeg',
                   name: response.assets[0].fileName || (response.assets[0].type?.startsWith('video') ? 'story.mp4' : 'story.jpg'),

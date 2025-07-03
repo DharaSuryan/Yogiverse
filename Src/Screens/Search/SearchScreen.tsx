@@ -41,11 +41,11 @@ const SearchScreen = () => {
   const navigation = useNavigation<SearchScreenNavigationProp>();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [categories, setCategories] = useState([]);
-  const [searchResults, setSearchResults] = useState([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [trendingPosts, setTrendingPosts] = useState([]);
+  const [trendingPosts, setTrendingPosts] = useState<any[]>([]);
   const [trendingLoading, setTrendingLoading] = useState(false);
   const [trendingError, setTrendingError] = useState<string | null>(null);
   const NUM_COLUMNS = 2;
@@ -137,14 +137,21 @@ const SearchScreen = () => {
   const renderCategory = ({ item }: any) => {
     return (
       <TouchableOpacity
-        style={styles.categoryCard}
+        style={styles.categoryCardNew}
         onPress={() => handleItemPress(item)}
         activeOpacity={0.8}
       >
-        <View style={styles.imageWrapper}>
-          <Image source={imageSource} style={styles.image} />
+        <View style={styles.categoryImageWrapperNew}>
+          <Image
+            source={item.main_category_image ? { uri: item.main_category_image } : imageSource}
+            style={styles.categoryImageNew}
+          />
         </View>
-        <Text numberOfLines={2} style={styles.categoryTitle}>
+        <Text
+          numberOfLines={2}
+          ellipsizeMode="tail"
+          style={styles.categoryTitleNew}
+        >
           {item.category_name}
         </Text>
       </TouchableOpacity>
@@ -175,65 +182,82 @@ const SearchScreen = () => {
   //   );
   // };
   const renderSearchResult = ({ item }: any) => {
-    // Handle different types of search results
     let displayName = '';
     let displayType = '';
-    
+    let avatarSource = null;
+    let isUser = false;
+
     if (item.first_name) {
       // User result
       displayName = `${item.first_name} ${item.last_name || ''}`;
-      displayType = 'User';
+      displayType = item.username;
+      isUser = true;
+      avatarSource = item.profile_picture
+        ? { uri: item.profile_picture }
+        : require('../../Assets/yoga.jpg'); // fallback image
     } else if (item.caption) {
       // Post result
       displayName = item.caption;
       displayType = 'Post';
+      avatarSource = require('../../Assets/yoga.jpg');
+    } else {
+      // Suggestion or other
+      displayName = item.title || item.name || '';
+      displayType = '';
+      avatarSource = null;
     }
-    
+
     return (
       <TouchableOpacity
-        style={styles.searchResultCard}
+        style={styles.searchResultRow}
         onPress={() => handleItemPress(item)}
+        activeOpacity={0.8}
       >
-        <Text style={styles.searchResultText}>{displayName}</Text>
-        <Text style={styles.searchResultType}>{displayType}</Text>
+        <View style={styles.searchResultAvatarContainer}>
+          {isUser ? (
+            <Image
+              source={avatarSource}
+              style={styles.searchResultAvatar}
+            />
+          ) : (
+            <View style={styles.searchResultIconCircle}>
+              <Icon name="search" size={20} color="#fff" />
+            </View>
+          )}
+        </View>
+        <View style={styles.searchResultTextContainer}>
+          <Text style={styles.searchResultText} numberOfLines={1}>{displayName}</Text>
+          {displayType ? (
+            <Text style={styles.searchResultType} numberOfLines={1}>{displayType}</Text>
+          ) : null}
+        </View>
       </TouchableOpacity>
     );
   };
 
   const renderTrendingPost = ({ item }: any) => {
-    // console.log("here comes item ...", item);
-
     let mediaUrl = '';
     if (Array.isArray(item.media) && item.media.length > 0) {
       mediaUrl = item.media[0]?.media_file || '';
     }
 
+    // Randomize height for demo, or use actual image aspect ratio if available
+    const randomHeight = Math.floor(Math.random() * 100) + 200; // 200-300px
+
     return (
       <TouchableOpacity
-        style={{
-          width: (screenWidth - 36) / 2,
-          backgroundColor: '#fff',
-          borderRadius: 18,
-          marginBottom: 8,
-          marginHorizontal: 4,
-          overflow: 'hidden',
-          elevation: 2,
-          shadowColor: '#000',
-          shadowOpacity: 0.06,
-          shadowOffset: { width: 0, height: 2 },
-          shadowRadius: 8,
-        }}
+        style={styles.masonryItem}
         onPress={() => navigation.push('TrendingDetailScreen', { post: item })}
         activeOpacity={0.9}
       >
         {mediaUrl ? (
           <Image
             source={{ uri: mediaUrl }}
-            style={{ width: '100%', height: 180 }}
+            style={[styles.masonryImage, { height: randomHeight }]}
             resizeMode="cover"
           />
         ) : (
-          <View style={{ width: '100%', height: 180, backgroundColor: '#eee' }} />
+          <View style={[styles.masonryImage, { height: randomHeight, backgroundColor: '#eee' }]} />
         )}
       </TouchableOpacity>
     );
@@ -272,15 +296,9 @@ const SearchScreen = () => {
           )}
           <FlatList
             data={categories}
-            keyExtractor={(item) => item.categories?.toString() || Math.random().toString()}
+            keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
             renderItem={renderCategory}
-            numColumns={2}
-        //     columnWrapperStyle={{
-        //       justifyContent: 'space-between',
-        //       marginBottom: ITEM_MARGIN,
-        //     }}
-        // contentContainerStyle={{padding: ITEM_MARGIN,
-        //   paddingBottom: 20,}}
+            numColumns={3}
             scrollEnabled={false}
             contentContainerStyle={{ paddingBottom: 20 }}
           />
@@ -289,8 +307,7 @@ const SearchScreen = () => {
           ) : trendingError ? (
             <Text style={{ color: 'red', textAlign: 'center' }}>{trendingError}</Text>
           ) : trendingPosts.length > 0 && (
-            <View style={{ marginTop: 30, marginBottom: 10 }}>
-              <Text style={[styles.categoryTitle, { fontSize: 18, marginBottom: 10 }]}>Trending</Text>
+            <View style={{ marginTop: 30, marginBottom: 10 }}> 
               <FlatList
                 data={trendingPosts}
                 keyExtractor={(item) => item?.id?.toString() || Math.random().toString()}
@@ -368,18 +385,43 @@ const styles = StyleSheet.create({
       borderRadius: 12,
       padding: 4,
   },
-  searchResultCard: {
-    backgroundColor: '#EFEFEF',
-    padding: 10,
-    marginBottom: 8,
-    borderRadius: 8,
+  searchResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  searchResultAvatarContainer: {
+    marginRight: 12,
+  },
+  searchResultAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#333',
+  },
+  searchResultIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#333',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchResultTextContainer: {
+    flex: 1,
+    justifyContent: 'center',
   },
   searchResultText: {
-    color: '#000',
+    color: '#bea063',
     fontSize: 16,
+    fontWeight: '500',
   },
   searchResultType: {
-    color: '#666',
+    color: '#aaa',
     fontSize: 13,
     marginTop: 2,
   },
@@ -436,6 +478,92 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: 4,
+  },
+  gridItem: {
+    flex: 1,
+    aspectRatio: 0.9,
+    margin: 2,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  gridImageContainer: {
+    width: '100%',
+    height: '75%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+    borderRadius: 8,
+  },
+  gridTextContainer: {
+    width: '100%',
+    height: '25%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  gridTitle: {
+    fontSize: 12,
+    color: '#222',
+    textAlign: 'center',
+  },
+  masonryItem: {
+    flex: 1,
+    margin: 4,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: 'transparent',
+  },
+  masonryImage: {
+    width: '100%',
+    borderRadius: 16,
+  },
+  categoryCardNew: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: 6,
+    paddingVertical: 18,
+    paddingHorizontal: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 2,
+    minWidth: 0,
+    maxWidth: '32%',
+  },
+  categoryImageWrapperNew: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  categoryImageNew: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    resizeMode: 'cover',
+  },
+  categoryTitleNew: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#222',
+    textAlign: 'center',
+    marginTop: 2,
+    lineHeight: 20,
   },
 })
 

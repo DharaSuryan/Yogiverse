@@ -4,7 +4,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
+  SectionList,
   StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -40,21 +40,22 @@ interface RouteParams {
   username?: string;
   profile_picture?: string;
   caption?: string;
+  id?:any
 }
 
 const { width, height } = Dimensions.get('window');
 
 const CommentScreen = () => {
   const route = useRoute();
-  const navigation = useNavigation();
-  const { content_type, object_id, media_url, username, profile_picture, caption } = route.params as RouteParams;
+  const navigation = useNavigation<any>();
+  const { content_type, object_id, media_url, username, profile_picture, caption,id } = route.params as RouteParams;
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
   const [posting, setPosting] = useState(false);
-  const flatListRef = useRef<FlatList>(null);
+  const sectionListRef = useRef<SectionList>(null);
 
   useEffect(() => {
     fetchComments();
@@ -132,9 +133,7 @@ const CommentScreen = () => {
           likes_count: 0
         }]);
         setNewComment('');
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 300);
+        // Note: SectionList doesn't support scrollToEnd, so we'll let the user scroll manually
       }
     } catch (err) {
       setError('Failed to post comment');
@@ -163,7 +162,7 @@ const CommentScreen = () => {
       console.log("here comes ....",content_type,object_id);
       
      let like =  await axios.post(`https://pashuahar.com/like-toggle/`, {
-        content_type, object_id
+        content_type, object_id:id
       }, {
         headers: {
           'Authorization': `Bearer ${authToken}`
@@ -232,12 +231,7 @@ const CommentScreen = () => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => {
-            navigation.navigate('MainTab', {
-              screen: 'SearchTab',
-              params: {
-                userId: undefined
-              },
-            });
+            navigation.goBack()
                  
                   // navigation.navigate('UserProfile' as any, { userId: undefined });
           }} style={styles.backButton}>
@@ -266,12 +260,12 @@ const CommentScreen = () => {
           ) : error ? (
             <Text style={styles.errorText}>{error}</Text>
           ) : (
-            <FlatList
-              ref={flatListRef}
-              data={comments}
-              renderItem={renderComment}
+            <SectionList
+              ref={sectionListRef}
+              sections={[{ data: comments }]}
               keyExtractor={item => item.id.toString()}
-              scrollEnabled={false}
+              renderItem={renderComment}
+              renderSectionHeader={() => null}
               ListEmptyComponent={
                 <Text style={styles.emptyComments}>No comments yet</Text>
               }

@@ -10,9 +10,9 @@ import SearchDetailScreen from '../Screens/Search/SearchDetailScreen';
 import SubCateGoryDisplay from '../Screens/Search/SubCateGoryDisplay';
 import CreatePostScreen from '../Screens/Post/CreatePostScreen';
 import ProfileScreen from '../Screens/Profile/ProfileScreen';
-import PreViewForPost from '../Screens/Post/PreViewForPost';
-import TrendingDetailScreen from '../Screens/TrendingDetailScreen';
+import TrendingDetailScreen from '../Screens/Search/TrendingDetailScreen';
 import FollowersFollowingScreen from 'Src/Screens/Profile/FollowersFollowingScreen';
+import UploadOptionsScreen from 'Src/Screens/Post/UploadOptionsScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const SearchStack = createNativeStackNavigator<SearchStackParamList>();
@@ -22,7 +22,6 @@ const SearchNavigator = () => {
     <SearchStack.Navigator screenOptions={{ headerShown: false }}>
       <SearchStack.Screen name="Search" component={SearchScreen} />
       <SearchStack.Screen name="SearchDetail" component={SearchDetailScreen} />
-      <SearchStack.Screen name="PreViewForPost" component={PreViewForPost} />
       <SearchStack.Screen name="TrendingDetailScreen" component={TrendingDetailScreen} />
       <SearchStack.Screen name="FollowersFollowingScreen" component={FollowersFollowingScreen} />
         {/* <SearchStack.Screen name="SubCateGoryDisplay" component={SubCateGoryDisplay} /> */}
@@ -45,7 +44,7 @@ const MainNavigator = () => {
               iconName = focused ? 'search' : 'search-outline';
               break;
             case 'CreatePostTab':
-              iconName = focused ? 'add-circle' : 'add-circle-outline';
+              iconName = focused ? 'meditation' : 'meditation-outline';
               break;
             // case 'Notifications':
             //   iconName = focused ? 'heart' : 'heart-outline';
@@ -87,7 +86,7 @@ const MainNavigator = () => {
       />
       <Tab.Screen 
         name="CreatePostTab" 
-        component={CreatePostScreen}
+        component={UploadOptionsScreen}
         options={{
           tabBarLabel: 'Post',
         }}
@@ -105,6 +104,7 @@ const MainNavigator = () => {
         options={{
           tabBarLabel: 'Profile',
         }}
+        
       />
     </Tab.Navigator>
   );

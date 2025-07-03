@@ -12,15 +12,16 @@ import {
   ActivityIndicator,
   Modal,
   Alert,
+  TextInput,
 } from 'react-native';
 const Ionicons = require('react-native-vector-icons/Ionicons').default;
 import Video from 'react-native-video';
 import Post from '../../Component/Post';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getProfile, getUserPosts, getUserReels } from '../../Api/Api';
-import { Image as Compressor } from 'react-native-compressor';
+ import { Image as Compressor } from 'react-native-compressor';
 
 const { width } = Dimensions.get('window');
 const NUM_COLUMNS = 3;
@@ -39,6 +40,9 @@ interface Post {
   collection_id?: number;
   mediaCount?: number; // Number of media files in this post
   isLiked?: boolean;
+  isCollection?: boolean;
+  collectionName?: string;
+  allMedia?: string[]; // All media files for this post
 }
 
 const ProfileScreen = () => {
@@ -53,10 +57,11 @@ const ProfileScreen = () => {
     followersCount: 0,
     followingCount: 0
   });
-
+  const [data , setData] = useState('')
   // Real data from API
   const [posts, setPosts] = useState<Post[]>([]);
   const [savedPosts, setSavedPosts] = useState<Post[]>([]); // For saved tab
+  const [collections, setCollections] = useState<any[]>([]); // For collections data
   const [savedLoading, setSavedLoading] = useState(false);
   const [savedError, setSavedError] = useState<string | null>(null);
 
@@ -77,6 +82,20 @@ const ProfileScreen = () => {
   const [selectedPost, setSelectedPost] = useState<any>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // Edit functionality state
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editCaption, setEditCaption] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+
+  // Collection creation state
+  const [createCollectionModalVisible, setCreateCollectionModalVisible] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState('');
+  const [createCollectionLoading, setCreateCollectionLoading] = useState(false);
+
+  // Fullscreen media state
+  const [postMediaIndices, setPostMediaIndices] = useState<{ [postId: string]: number }>({});
+  const [userId,setUserId]= useState();
+  console.log("profile s state",profile.id);
   // Simple swipe-to-close using ScrollView drag
   const dragOffsetY = useRef(0);
   const handleScroll = (event: any) => {
@@ -99,8 +118,13 @@ const ProfileScreen = () => {
       if (fullscreenVisible) {
         const currentItem = filteredPosts[newIndex];
         if (currentItem && currentItem.type === 'reel') {
-          pauseAllVideosExcept(currentItem.id);
-          playCurrentVideo(currentItem.id);
+          // Get the current media index for this post
+          const mediaItems = currentItem.allMedia || [currentItem.uri];
+          const currentMediaIndex = postMediaIndices[currentItem.id] || 0;
+          const videoId = mediaItems.length > 1 ? `${currentItem.id}-${currentMediaIndex}` : currentItem.id;
+          
+          pauseAllVideosExcept(videoId);
+          playCurrentVideo(videoId);
         }
       }
     }
@@ -116,8 +140,13 @@ const ProfileScreen = () => {
         // Play the selected video and pause others
         const selectedItem = filteredPosts[selectedIndex];
         if (selectedItem && selectedItem.type === 'reel') {
-          pauseAllVideosExcept(selectedItem.id);
-          playCurrentVideo(selectedItem.id);
+          // Get the current media index for this post
+          const mediaItems = selectedItem.allMedia || [selectedItem.uri];
+          const currentMediaIndex = postMediaIndices[selectedItem.id] || 0;
+          const videoId = mediaItems.length > 1 ? `${selectedItem.id}-${currentMediaIndex}` : selectedItem.id;
+          
+          pauseAllVideosExcept(videoId);
+          playCurrentVideo(videoId);
         }
       }, 0);
     }
@@ -127,6 +156,7 @@ const ProfileScreen = () => {
   useEffect(() => {
     if (!fullscreenVisible) {
       setShouldPauseAllVideos(true);
+      setPostMediaIndices({}); // Reset all post media indices when closing fullscreen
       // Pause all videos when modal closes
       setVideoStates(prev => {
         const newStates = { ...prev };
@@ -214,10 +244,16 @@ const ProfileScreen = () => {
   };
 
   const handleComment = (post: any) => {
-    navigation.navigate('CommentScreen', {
-      content_type: post.type === 'reel' ? 'reel' : 'post',
-      object_id: post.id,
-    });
+    // Close fullscreen modal before navigating to comment screen
+    setFullscreenVisible(false);
+    
+    // Small delay to ensure modal is closed before navigation
+    setTimeout(() => {
+      navigation.navigate('CommentScreen', {
+        content_type: post.type === 'reel' ? 'reel' : 'post',
+        object_id: post.id,
+      });
+    }, 100);
   };
 
   const handleOptions = (post: any) => {
@@ -234,23 +270,98 @@ const ProfileScreen = () => {
         'Accept': 'application/json',
         'Authorization': `Bearer ${authToken}`
       };
-      const collectionId = selectedPost.collection_id || 1;
+      
       const postId = selectedPost.id;
-      await axios.delete(`https://pashuahar.com/collections/${collectionId}/post/${postId}/`, { headers });
-      setPosts(posts.filter(p => p.id !== postId));
+      let deleteUrl = '';
+      
+      // Use different API endpoints based on post type
+      if (selectedPost.type === 'reel') {
+        deleteUrl = `https://pashuahar.com/reels/${postId}/`;
+      } else {
+        deleteUrl = `https://pashuahar.com/posts/${postId}/`;
+      }
+      
+      await axios.delete(deleteUrl, { headers });
+      
+      // Remove from posts array
+      setPosts(prevPosts => prevPosts.filter(p => p.id !== postId));
+      
+      // Also remove from saved posts if it's there
+      setSavedPosts(prevSaved => prevSaved.filter(p => p.id !== postId));
+      
       setOptionsVisible(false);
       setSelectedPost(null);
-      Alert.alert('Deleted', 'Post deleted successfully.');
+      Alert.alert('Deleted', `${selectedPost.type === 'reel' ? 'Reel' : 'Post'} deleted successfully.`);
     } catch (err) {
-      Alert.alert('Error', 'Failed to delete post.');
+      console.error('Error deleting post:', err);
+      Alert.alert('Error', `Failed to delete ${selectedPost?.type === 'reel' ? 'reel' : 'post'}.`);
     } finally {
       setDeleteLoading(false);
     }
   };
 
   const handleEdit = () => {
+    if (!selectedPost) return;
+    
+    // Set the current caption for editing
+    setEditCaption(selectedPost.caption || '');
+    setEditModalVisible(true);
     setOptionsVisible(false);
-    Alert.alert('Edit', 'Edit functionality coming soon!');
+  };
+
+  const handleEditSubmit = async () => {
+    if (!selectedPost) return;
+    
+    setEditLoading(true);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      };
+      
+      const postId = selectedPost.id;
+      let editUrl = '';
+      
+      // Use different API endpoints based on post type
+      if (selectedPost.type === 'reel') {
+        editUrl = `https://pashuahar.com/reels/${postId}/`;
+      } else {
+        editUrl = `https://pashuahar.com/posts/${postId}/`;
+      }
+      
+      await axios.patch(editUrl, {
+        caption: editCaption
+      }, { headers });
+      
+      // Update the post in the posts array
+      setPosts(prevPosts => 
+        prevPosts.map(p => 
+          p.id === postId 
+            ? { ...p, caption: editCaption }
+            : p
+        )
+      );
+      
+      // Also update in saved posts if it's there
+      setSavedPosts(prevSaved => 
+        prevSaved.map(p => 
+          p.id === postId 
+            ? { ...p, caption: editCaption }
+            : p
+        )
+      );
+      
+      setEditModalVisible(false);
+      setEditCaption('');
+      setSelectedPost(null);
+      Alert.alert('Success', `${selectedPost.type === 'reel' ? 'Reel' : 'Post'} updated successfully.`);
+    } catch (err) {
+      console.error('Error updating post:', err);
+      Alert.alert('Error', `Failed to update ${selectedPost?.type === 'reel' ? 'reel' : 'post'}.`);
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   const navigation = useNavigation<any>();
@@ -261,7 +372,7 @@ const ProfileScreen = () => {
       ...prev,
       [itemId]: {
         ...prev[itemId],
-        isMuted: !prev[itemId].isMuted
+        isMuted: !prev[itemId]?.isMuted
       }
     }));
   };
@@ -271,7 +382,7 @@ const ProfileScreen = () => {
       ...prev,
       [itemId]: {
         ...prev[itemId],
-        isPlaying: !prev[itemId].isPlaying
+        isPlaying: !prev[itemId]?.isPlaying
       }
     }));
   };
@@ -301,10 +412,22 @@ const ProfileScreen = () => {
     const newVideoStates: { [key: string]: { isPlaying: boolean; isMuted: boolean } } = {};
     mediaItems.forEach(item => {
       if (item.type === 'reel') {
+        // Initialize for single video
         newVideoStates[item.id] = {
           isPlaying: false,
           isMuted: true
         };
+        
+        // Initialize for multiple media items if they exist
+        if (item.allMedia && item.allMedia.length > 1) {
+          item.allMedia.forEach((_, index) => {
+            const mediaId = `${item.id}-${index}`;
+            newVideoStates[mediaId] = {
+              isPlaying: false,
+              isMuted: true
+            };
+          });
+        }
       }
     });
     setVideoStates(newVideoStates);
@@ -339,7 +462,7 @@ const ProfileScreen = () => {
 
   const playVideo = (itemId: string) => {
     const videoRef = videoRefs[itemId];
-    if (videoRef && !videoStates[itemId].isPlaying) {
+    if (videoRef && !videoStates[itemId]?.isPlaying) {
       videoRef.seek(0);
       setVideoStates(prev => ({
         ...prev,
@@ -352,7 +475,7 @@ const ProfileScreen = () => {
   };
 
   const pauseVideo = (itemId: string) => {
-    if (videoStates[itemId].isPlaying) {
+    if (videoStates[itemId]?.isPlaying) {
       setVideoStates(prev => ({
         ...prev,
         [itemId]: {
@@ -404,21 +527,22 @@ const ProfileScreen = () => {
           // Compress the first image for thumbnail (only for images, not videos)
           let compressedUri = mediaFiles[0];
           if (type === 'image') {
-            compressedUri = await compressImage(mediaFiles[0]);
+             compressedUri = await compressImage(mediaFiles[0]);
           }
 
           const post: Post = {
             id: item.id?.toString() || '',
             type: type,
             uri: mediaFiles[0], // Original URI for fullscreen
-            compressedUri: compressedUri, // Compressed URI for grid
+            compressedUri:compressedUri, // Compressed URI for grid
             likes: item.like_count || 0,
             comments: item.comment_count || 0,
             caption: item.caption || '',
             location: item.location || '',
             createdAt: item.created_at || '',
             collection_id: item.collection_id || 1,
-            mediaCount: mediaFiles.length > 1 ? mediaFiles.length : undefined
+            mediaCount: mediaFiles.length > 1 ? mediaFiles.length : undefined,
+            allMedia: mediaFiles
           };
           
           processedPosts.push(post);
@@ -468,67 +592,85 @@ const ProfileScreen = () => {
   }, []);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
-      // Fetch profile data
-      const profileResponse = await getProfile();
-      console.log("profileResponse",profileResponse.data?.data?.results);
-      
-      let followersCount = 0;
-      let followingCount = 0;
-      // Fetch followers/following counts in parallel
-      [followersCount, followingCount] = await Promise.all([
-        fetchFollowersCount(),
-        fetchFollowingCount()
-      ]);
-      console.log("followersCount",followersCount);
-      
-      if (profileResponse.data) {
-        const profileData = profileResponse.data.data?.profile;
-        // console.log("profileDataprofileData",profileData);
-        
-        setProfile({
-          username: profileData.username || 'jk',
-          fullName: `${profileData.first_name || ''} ${profileData.last_name || ''}`.trim() || 'Jay Chhaniyara',
-          bio: profileData.bio || 'Its Boy Jk',
-          profileImage: profileData.profile_picture || 'https://picsum.photos/200',
-          postsCount: profileData.posts_count || 7,
-          followersCount,
-          followingCount
-        });
-      }
+      // Replace with your actual API endpoint for profile (update as needed)
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      };
+      const response = await axios.get('https://pashuahar.com/profile/', { headers });
+      const data = response.data.data;
+      console.log('profileResponse', data);
+      setData(data)
+      // Set profile info
+      setProfile({
+        username: data.profile.username,
+        fullName: `${data.profile.first_name || ''} ${data.profile.last_name || ''}`.trim(),
+        bio: data.profile.bio || '',
+        profileImage: data.profile.profile_picture || 'https://picsum.photos/200',
+        postsCount: data.post_reels_count || 0,
+        followersCount: data.followers_count || 0,
+        followingCount: data.following_count || 0,
+      });
 
-      // Fetch posts data
-      const postsResponse = await getUserPosts();
-      // console.log("postsResponse",postsResponse?.data?.data?.results);
-      
-      // Fetch reels data
-      const reelsResponse = await getUserReels();
-      // console.log("reelsResponse",reelsResponse.data.data.results);
-      
-      let allMedia: Post[] = [];
-      
-      // Transform posts data with compression and multiple media detection
-      if (postsResponse.data) {
-        const postsData = postsResponse.data.data.results;
-        const processedPosts = await processMediaData(postsData, 'image');
-        allMedia = [...allMedia, ...processedPosts];
-      }
-      
-      // Transform reels data with compression and multiple media detection
-      if (reelsResponse.data) {
-        const reelsData = reelsResponse.data.data.results;
-        const processedReels = await processMediaData(reelsData, 'reel');
-        allMedia = [...allMedia, ...processedReels];
-      }
-      
-      console.log("allMedia........",allMedia);
-      setPosts(allMedia);
-      
-      // Initialize video states for all reels
-      initializeVideoStates(allMedia);
+      // Helper to process posts/reels
+      const processProfileMedia = async (items: any[], type: 'image' | 'reel'): Promise<Post[]> => {
+        const processed: Post[] = [];
+        for (const item of items) {
+          if (type === 'image') {
+            // Posts: handle media array (images/videos)
+            const mediaFiles = item.media || [];
+            const allMedia = mediaFiles.map((m: any) => m.media_file);
+            let compressedUri = allMedia[0];
+            if (mediaFiles.length > 0 && !mediaFiles[0].is_video) {
+              compressedUri = await compressImage(allMedia[0]);
+            }
+            processed.push({
+              id: item.id.toString(),
+              type: 'image',
+              uri: allMedia[0],
+              compressedUri,
+              likes: item.like_count,
+              comments: item.comment_count,
+              caption: item.caption,
+              location: item.location,
+              createdAt: item.created_at,
+              mediaCount: allMedia.length,
+              allMedia,
+              isLiked: item.is_liked || false,
+            });
+          } else if (type === 'reel') {
+            // Reels: use ONLY video_file key, never media array
+            const videoUrl = item.video_file;
+            processed.push({
+              id: item.id.toString(),
+              type: 'reel',
+              uri: videoUrl,
+              compressedUri: videoUrl, // No compression for video
+              likes: item.like_count,
+              comments: item.comment_count,
+              caption: item.caption,
+              location: item.location,
+              createdAt: item.created_at,
+              mediaCount: 1,
+              allMedia: [videoUrl],
+              isLiked: item.is_liked || false,
+            });
+          }
+        }
+        return processed;
+      };
 
-      // Initialize post states when posts are loaded
-      initializePostStates(allMedia);
+      // Process posts and reels
+      const processedPosts = await processProfileMedia(data.posts || [], 'image');
+      const processedReels = await processProfileMedia(data.reels || [], 'reel');
+      setPosts([...processedPosts, ...processedReels]);
+
+      // Initialize video and post states
+      initializeVideoStates([...processedPosts, ...processedReels]);
+      initializePostStates([...processedPosts, ...processedReels]);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -547,20 +689,77 @@ const ProfileScreen = () => {
         'Authorization': `Bearer ${authToken}`
       };
       const res = await axios.get('https://pashuahar.com/collections', { headers });
-      console.log("savedPosts",res.data);
-      // Assume response structure is similar to posts/reels
-      const savedData = res.data?.data?.results || [];
-      // Reuse processMediaData to transform
-      const processedSaved = await processMediaData(savedData, 'image');
-      setSavedPosts(processedSaved);
-      // Optionally: initialize post states for saved posts
-      initializePostStates(processedSaved);
+      console.log("collections",res.data);
+      
+      // Store collections data
+      const collectionsData = res.data?.data || [];
+      setCollections(collectionsData);
+      
+      // Transform collections to show as saved items
+      const processedCollections = collectionsData.map((collection: any) => ({
+        id: collection.id.toString(),
+        type: 'image' as const,
+        uri: 'https://picsum.photos/200', // placeholder image
+        compressedUri: 'https://picsum.photos/200',
+        likes: 0,
+        comments: 0,
+        caption: collection.name,
+        location: '',
+        createdAt: collection.created_at,
+        collection_id: collection.id,
+        isCollection: true,
+        collectionName: collection.name
+      }));
+      setSavedPosts(processedCollections);
+      
     } catch (err) {
       console.log("errerrerr",err);
-      
-      setSavedError('Failed to load saved posts');
+      setSavedError('Failed to load collections');
     } finally {
       setSavedLoading(false);
+    }
+  };
+
+  // Create new collection
+  const createCollection = async (name: string) => {
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      };
+      const res = await axios.post('https://pashuahar.com/collections/', {
+        name: name
+      }, { headers });
+      
+      console.log("Created collection", res.data);
+      
+      // Refresh collections after creating
+      fetchSavedPosts();
+      
+      return res.data;
+    } catch (err) {
+      console.error("Error creating collection:", err);
+      Alert.alert('Error', 'Failed to create collection');
+      throw err;
+    }
+  };
+
+  // Fetch collection details
+  const fetchCollectionDetails = async (collectionId: string) => {
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      };
+      const res = await axios.get(`https://pashuahar.com/collections/${collectionId}`, { headers });
+      console.log("Collection details", res.data);
+      return res.data;
+    } catch (err) {
+      console.error("Error fetching collection details:", err);
+      Alert.alert('Error', 'Failed to load collection details');
+      throw err;
     }
   };
 
@@ -571,6 +770,27 @@ const ProfileScreen = () => {
     }
   }, [activeTab]);
 
+  // Refresh collections when screen comes into focus (e.g., after deletion)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (activeTab === 'saved') {
+        fetchSavedPosts();
+      }
+    }, [activeTab])
+  );
+
+  // Reset fullscreen modal state when returning from comment screen
+  useFocusEffect(
+    React.useCallback(() => {
+      // Reset fullscreen modal state to ensure it works properly after navigation
+      if (!fullscreenVisible) {
+        setSelectedIndex(0);
+        setCurrentFullscreenIndex(0);
+        setShouldPauseAllVideos(false);
+      }
+    }, [])
+  );
+
   // Use correct posts for the current tab
   const filteredPosts = activeTab === 'saved' ? savedPosts : posts.filter(post => {
     if (activeTab === 'posts') return post.type === 'image';
@@ -580,6 +800,7 @@ const ProfileScreen = () => {
 
   const renderPostItem = ({ item, index }: { item: any, index: number }) => {
     const isReel = item.type === 'reel';
+    const isCollection = item.isCollection;
     const shouldShowVideoControls = isReel && activeTab === 'reels';
     const videoState = videoStates[item.id] || { isPlaying: false, isMuted: true };
     
@@ -587,8 +808,16 @@ const ProfileScreen = () => {
       <TouchableOpacity
         style={styles.postItem}
         onPress={() => {
-          setSelectedIndex(index);
-          setFullscreenVisible(true);
+          if (isCollection) {
+            // Navigate to collection details
+            navigation.navigate('CollectionDetailScreen', {
+              collectionId: item.collection_id,
+              collectionName: item.collectionName
+            });
+          } else {
+            setSelectedIndex(index);
+            setFullscreenVisible(true);
+          }
         }}
         activeOpacity={0.9}
       >
@@ -615,7 +844,7 @@ const ProfileScreen = () => {
             {/* Video controls overlay - only show when on reels tab */}
             {shouldShowVideoControls && (
               <View style={styles.videoControls}>
-                {/* <TouchableOpacity 
+                <TouchableOpacity 
                   style={styles.videoControlButton}
                   onPress={(e) => {
                     e.stopPropagation();
@@ -627,9 +856,9 @@ const ProfileScreen = () => {
                     size={20} 
                     color="#fff" 
                   />
-                </TouchableOpacity> */}
+                </TouchableOpacity>
                 
-                {/* <TouchableOpacity 
+                <TouchableOpacity 
                   style={styles.videoControlButton}
                   onPress={(e) => {
                     e.stopPropagation();
@@ -641,9 +870,17 @@ const ProfileScreen = () => {
                     size={20} 
                     color="#fff" 
                   />
-                </TouchableOpacity> */}
+                </TouchableOpacity>
               </View>
             )}
+          </View>
+        )}
+
+        {/* Collection indicator */}
+        {isCollection && (
+          <View style={styles.collectionIndicator}>
+            <Ionicons name="folder-outline" size={16} color="#fff" />
+            <Text style={styles.collectionText}>{item.collectionName}</Text>
           </View>
         )}
 
@@ -656,12 +893,15 @@ const ProfileScreen = () => {
         )}
 
         {/* Top-right options icon */}
-        {/* <TouchableOpacity
+        <TouchableOpacity
           style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
-          onPress={() => handleOptions(item)}
+          onPress={(e) => {
+            e.stopPropagation();
+            handleOptions(item);
+          }}
         >
           <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
-        </TouchableOpacity> */}
+        </TouchableOpacity>
 
         {/* Like/comment counts overlay */}
         {/* <View style={styles.postOverlay}>
@@ -755,95 +995,189 @@ const ProfileScreen = () => {
   const renderFullscreenItem = ({ item, index }: { item: any, index: number }) => {
     const windowHeight = Dimensions.get('window').height;
     const windowWidth = Dimensions.get('window').width;
-    const videoState = videoStates[item.id] || { isPlaying: false, isMuted: true };
     const isCurrentVideo = currentFullscreenIndex === index;
     const isReel = item.type === 'reel';
     const postState = postStates[item.id] || { isLiked: false, likesCount: item.likes, likeLoading: false };
-    // Mock liked by data for demo
-    const likedBy = 'rutvik_d_jagatiya3721';
-    const likedByOthers = true;
-    const pageIndicator = item.mediaCount && item.mediaCount > 1 ? `${index + 1}/${item.mediaCount}` : null;
+    
+    // Get all media items for this post
+    const mediaItems = item.allMedia || [item.uri];
+    const currentMediaIndexForPost = postMediaIndices[item.id] || 0;
+    const currentMedia = mediaItems[currentMediaIndexForPost];
+    const isVideo = currentMedia && (currentMedia.includes('.mp4') || currentMedia.includes('.mov') || currentMedia.includes('.avi'));
+    
+    // Get the correct video state for the current media item
+    const videoId = mediaItems.length > 1 ? `${item.id}-${currentMediaIndexForPost}` : item.id;
+    const videoState = videoStates[videoId] || { isPlaying: false, isMuted: true };
 
     return (
       <View style={{ flex: 1, backgroundColor: '#000' }}>
         {/* Top bar */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 40, paddingBottom: 10, paddingHorizontal: 10, backgroundColor: '#111', justifyContent: 'space-between' }}>
-          {/* <TouchableOpacity onPress={() => setFullscreenVisible(false)}>
-            <Ionicons name="arrow-back" size={28} color="#fff" />
-          </TouchableOpacity> */}
+        {/* <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 40, paddingBottom: 10, paddingHorizontal: 10, backgroundColor: '#111', justifyContent: 'space-between' }}>
           <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>Posts</Text>
-          {/* <TouchableOpacity onPress={() => handleOptions(item)}>
-            <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
-          </TouchableOpacity> */}
-        </View>
+        </View> */}
 
         {/* User info */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingBottom: 8 }}>
-          <Image source={{ uri: profile.profileImage }} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }} />
-          <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 15 }}>{profile.username}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingBottom: 8, justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Image source={{ uri: profile.profileImage }} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }} />
+            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 15 }}>{profile.username}</Text>
+          </View>
+          
+          {/* Options button for fullscreen */}
+          <TouchableOpacity
+            onPress={() => handleOptions(item)}
+            style={{ padding: 8 }}
+          >
+            <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
+          </TouchableOpacity>
         </View>
 
-        {/* Main media */}
-        <View style={{ width: windowWidth, height: windowWidth, alignSelf: 'center', backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
-          {item.type === 'image' ? (
-            <Image
-              source={{ uri: item.uri }}
-              style={{ width: windowWidth, height: windowWidth, resizeMode: 'cover', backgroundColor: '#000' }}
-            />
-          ) : (
-            <View style={{ width: windowWidth, height: windowWidth }}>
-              {videoLoading && (
-                <ActivityIndicator 
-                  size="large" 
-                  color="#fff" 
-                  style={{ position: 'absolute', alignSelf: 'center', top: '45%' }} 
-                />
-              )}
-              <Video
-                ref={(ref) => handleVideoRef(ref, item.id)}
-                source={{ uri: item.uri }}
-                style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
-                muted={videoState.isMuted}
-                repeat
-                resizeMode="cover"
-                paused={!videoState.isPlaying || !isCurrentVideo}
-                onLoadStart={() => setVideoLoading(true)}
-                onLoad={() => setVideoLoading(false)}
-                onError={() => setVideoLoading(false)}
-              />
-              {/* Video controls overlay */}
-              {isReel && (
-                <View style={styles.fullscreenVideoControls}>
-                  <View style={styles.fullscreenControlRow}>
-                    <TouchableOpacity 
-                      style={styles.fullscreenControlButton}
-                      onPress={() => togglePlayPause(item.id)}
-                    >
-                      <Ionicons 
-                        name={videoState.isPlaying ? "pause" : "play"} 
-                        size={30} 
-                        color="#fff" 
+        {/* Main media with horizontal scroll for multiple items */}
+        <View style={{ width: windowWidth, height: windowHeight * 0.5, alignSelf: 'center', backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+          {mediaItems.length > 1 ? (
+            <FlatList
+              data={mediaItems}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(event) => {
+                const newIndex = Math.round(event.nativeEvent.contentOffset.x / windowWidth);
+                setPostMediaIndices(prev => ({
+                  ...prev,
+                  [item.id]: newIndex
+                }));
+              }}
+              renderItem={({ item: mediaItem, index: mediaIndex }) => (
+                <View style={{ width: windowWidth, height: windowHeight * 0.5 }}>
+                  {isVideo ? (
+                    <View style={{ width: windowWidth, height: windowHeight * 0.5 }}>
+                      {videoLoading && (
+                        <ActivityIndicator 
+                          size="large" 
+                          color="#fff" 
+                          style={{ position: 'absolute', alignSelf: 'center', top: '45%' }} 
+                        />
+                      )}
+                      <Video
+                        ref={(ref) => handleVideoRef(ref, `${item.id}-${mediaIndex}`)}
+                        source={{ uri: mediaItem }}
+                        style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
+                        muted={videoStates[`${item.id}-${mediaIndex}`]?.isMuted || true}
+                        repeat
+                        resizeMode="cover"
+                        paused={!videoStates[`${item.id}-${mediaIndex}`]?.isPlaying || !isCurrentVideo}
+                        onLoadStart={() => setVideoLoading(true)}
+                        onLoad={() => setVideoLoading(false)}
+                        onError={() => setVideoLoading(false)}
                       />
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={styles.fullscreenControlButton}
-                      onPress={() => toggleMute(item.id)}
-                    >
-                      <Ionicons 
-                        name={videoState.isMuted ? "volume-mute" : "volume-high"} 
-                        size={30} 
-                        color="#fff" 
-                      />
-                    </TouchableOpacity>
-                  </View>
+                      
+                      {/* Video controls for fullscreen */}
+                      <View style={styles.fullscreenVideoControls}>
+                        <TouchableOpacity 
+                          style={styles.fullscreenControlButton}
+                          onPress={() => togglePlayPause(`${item.id}-${mediaIndex}`)}
+                        >
+                          <Ionicons 
+                            name={videoStates[`${item.id}-${mediaIndex}`]?.isPlaying ? "pause" : "play"} 
+                            size={24} 
+                            color="#fff" 
+                          />
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity 
+                          style={styles.fullscreenControlButton}
+                          onPress={() => toggleMute(`${item.id}-${mediaIndex}`)}
+                        >
+                          <Ionicons 
+                            name={videoStates[`${item.id}-${mediaIndex}`]?.isMuted ? "volume-mute" : "volume-high"} 
+                            size={24} 
+                            color="#fff" 
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : (
+                    <Image
+                      source={{ uri: mediaItem }}
+                      style={{ width: windowWidth, height: windowHeight * 0.5, resizeMode: 'cover', backgroundColor: '#000' }}
+                    />
+                  )}
                 </View>
               )}
-            </View>
+              keyExtractor={(mediaItem, mediaIndex) => `${item.id}-${mediaIndex}`}
+            />
+          ) : (
+            // Single media item
+            isVideo ? (
+              <View style={{ width: windowWidth, height: windowHeight * 0.5 }}>
+                {videoLoading && (
+                  <ActivityIndicator 
+                    size="large" 
+                    color="#fff" 
+                    style={{ position: 'absolute', alignSelf: 'center', top: '45%' }} 
+                  />
+                )}
+                <Video
+                  ref={(ref) => handleVideoRef(ref, item.id)}
+                  source={{ uri: currentMedia }}
+                  style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
+                  muted={videoState.isMuted}
+                  repeat
+                  resizeMode="cover"
+                  paused={!videoState.isPlaying || !isCurrentVideo}
+                  onLoadStart={() => setVideoLoading(true)}
+                  onLoad={() => setVideoLoading(false)}
+                  onError={() => setVideoLoading(false)}
+                />
+                
+                {/* Video controls for fullscreen single video */}
+                <View style={styles.fullscreenVideoControls}>
+                  <TouchableOpacity 
+                    style={styles.fullscreenControlButton}
+                    onPress={() => togglePlayPause(item.id)}
+                  >
+                    <Ionicons 
+                      name={videoState.isPlaying ? "pause" : "play"} 
+                      size={24} 
+                      color="#fff" 
+                    />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={styles.fullscreenControlButton}
+                    onPress={() => toggleMute(item.id)}
+                  >
+                    <Ionicons 
+                      name={videoState.isMuted ? "volume-mute" : "volume-high"} 
+                      size={24} 
+                      color="#fff" 
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <Image
+                source={{ uri: currentMedia }}
+                style={{ width: windowWidth, height: windowHeight * 0.5, resizeMode: 'cover', backgroundColor: '#000' }}
+              />
+            )
           )}
-          {/* Page indicator */}
-          {pageIndicator && (
-            <View style={{ position: 'absolute', bottom: 10, right: 16, backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 }}>
-              <Text style={{ color: '#fff', fontSize: 13 }}>{pageIndicator}</Text>
+          
+          {/* Media indicator dots for multiple items */}
+          {mediaItems.length > 1 && (
+            <View style={{ position: 'absolute', bottom: 20, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center' }}>
+              {mediaItems.map((_: string, dotIndex: number) => (
+                <View
+                  key={dotIndex}
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: dotIndex === currentMediaIndexForPost ? '#fff' : 'rgba(255,255,255,0.5)',
+                    marginHorizontal: 4,
+                  }}
+                />
+              ))}
             </View>
           )}
         </View>
@@ -895,6 +1229,13 @@ const ProfileScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+     <View style={styles.header}>
+      <TouchableOpacity onPress={() => navigation.navigate('Menu')}>
+        <Ionicons name="menu-outline" size={24} color="#bea063" />
+      </TouchableOpacity>
+      <Text style={styles.headerTitle}>{profile?.username}</Text>
+      <View style={{width: 24}} />
+    </View>
       {/* Fullscreen Modal */}
       <Modal
         visible={fullscreenVisible}
@@ -921,9 +1262,12 @@ const ProfileScreen = () => {
               keyExtractor={item => item.id}
               pagingEnabled
               initialScrollIndex={selectedIndex}
-              getItemLayout={(data, index) => (
-                { length: Dimensions.get('window').height, offset: Dimensions.get('window').height * index, index }
-              )}
+              getItemLayout={(data, index) => {
+                const mediaHeight = Dimensions.get('window').height * 0.5;
+                const contentHeight = 150; // Approximate height for user info, likes, comments, caption
+                const totalItemHeight = mediaHeight + contentHeight;
+                return { length: totalItemHeight, offset: totalItemHeight * index, index };
+              }}
               showsVerticalScrollIndicator={false}
               viewabilityConfig={viewabilityConfig}
               onViewableItemsChanged={onViewableItemsChanged}
@@ -939,7 +1283,7 @@ const ProfileScreen = () => {
         {renderBio()}
         
         <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.editButton}>
+          <TouchableOpacity style={styles.editButton}  onPress={() => navigation.navigate('EditProfile',{data : data})}>
             <Text style={styles.editButtonText}>Edit Profile</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.shareButton}>
@@ -949,14 +1293,48 @@ const ProfileScreen = () => {
 
         {renderTabBar()}
 
-        <FlatList
-          data={filteredPosts}
-          renderItem={renderPostItem}
-          keyExtractor={item => item.id}
-          numColumns={NUM_COLUMNS}
-          scrollEnabled={false}
-          contentContainerStyle={styles.postsGrid}
-        />
+        {activeTab === 'saved' && savedLoading ? (
+          <View style={styles.emptyStateContainer}>
+            <ActivityIndicator size="large" color="#666" />
+            <Text style={styles.emptyStateText}>Loading collections...</Text>
+          </View>
+        ) : activeTab === 'saved' && savedError ? (
+          <View style={styles.emptyStateContainer}>
+            <Ionicons name="alert-circle-outline" size={48} color="#666" />
+            <Text style={styles.emptyStateText}>{savedError}</Text>
+          </View>
+        ) : activeTab === 'saved' && filteredPosts.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
+            <Ionicons name="bookmark-outline" size={48} color="#666" />
+            <Text style={styles.emptyStateText}>No collections yet</Text>
+            <Text style={styles.emptyStateSubtext}>Create your first collection to save posts</Text>
+            <TouchableOpacity 
+              style={styles.createCollectionButton}
+              onPress={() => setCreateCollectionModalVisible(true)}
+            >
+              <Text style={styles.createCollectionButtonText}>Create Collection</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredPosts}
+            renderItem={renderPostItem}
+            keyExtractor={item => item.id}
+            numColumns={NUM_COLUMNS}
+            scrollEnabled={false}
+            contentContainerStyle={styles.postsGrid}
+          />
+        )}
+
+        {/* Create Collection Button for Saved Tab */}
+        {activeTab === 'saved' && filteredPosts.length > 0 && (
+          <TouchableOpacity 
+            style={styles.floatingCreateButton}
+            onPress={() => setCreateCollectionModalVisible(true)}
+          >
+            <Ionicons name="add" size={24} color="#fff" />
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       <Modal
@@ -981,6 +1359,171 @@ const ProfileScreen = () => {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Create Collection Modal */}
+      <Modal
+        visible={createCollectionModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCreateCollectionModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }}
+          activeOpacity={1}
+          onPressOut={() => setCreateCollectionModalVisible(false)}
+        >
+          <View style={{ backgroundColor: '#fff', borderRadius: 10, padding: 20, minWidth: 300 }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' }}>
+              Create New Collection
+            </Text>
+            
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: '#ddd',
+                borderRadius: 5,
+                padding: 12,
+                marginBottom: 20,
+                fontSize: 16
+              }}
+              placeholder="Collection name"
+              value={newCollectionName}
+              onChangeText={setNewCollectionName}
+              autoFocus
+            />
+            
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <TouchableOpacity 
+                style={{ 
+                  flex: 1, 
+                  padding: 12, 
+                  marginRight: 10, 
+                  borderWidth: 1, 
+                  borderColor: '#ddd', 
+                  borderRadius: 5,
+                  alignItems: 'center'
+                }}
+                onPress={() => {
+                  setCreateCollectionModalVisible(false);
+                  setNewCollectionName('');
+                }}
+              >
+                <Text style={{ fontSize: 16 }}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={{ 
+                  flex: 1, 
+                  padding: 12, 
+                  backgroundColor: '#000', 
+                  borderRadius: 5,
+                  alignItems: 'center'
+                }}
+                onPress={async () => {
+                  if (newCollectionName.trim()) {
+                    setCreateCollectionLoading(true);
+                    try {
+                      await createCollection(newCollectionName.trim());
+                      setCreateCollectionModalVisible(false);
+                      setNewCollectionName('');
+                    } catch (error) {
+                      // Error already handled in createCollection function
+                    } finally {
+                      setCreateCollectionLoading(false);
+                    }
+                  } else {
+                    Alert.alert('Error', 'Please enter a collection name');
+                  }
+                }}
+                disabled={createCollectionLoading}
+              >
+                {createCollectionLoading ? (
+                  <ActivityIndicator size={20} color="#fff" />
+                ) : (
+                  <Text style={{ fontSize: 16, color: '#fff' }}>Create</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Edit Post/Reel Modal */}
+      <Modal
+        visible={editModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }}
+          activeOpacity={1}
+          onPressOut={() => setEditModalVisible(false)}
+        >
+          <View style={{ backgroundColor: '#fff', borderRadius: 10, padding: 20, minWidth: 300 }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' }}>
+              Edit {selectedPost?.type === 'reel' ? 'Reel' : 'Post'}
+            </Text>
+            
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: '#ddd',
+                borderRadius: 5,
+                padding: 12,
+                marginBottom: 20,
+                fontSize: 16,
+                minHeight: 100,
+                textAlignVertical: 'top'
+              }}
+              placeholder="Enter caption..."
+              value={editCaption}
+              onChangeText={setEditCaption}
+              multiline
+              autoFocus
+            />
+            
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <TouchableOpacity 
+                style={{ 
+                  flex: 1, 
+                  padding: 12, 
+                  marginRight: 10, 
+                  borderWidth: 1, 
+                  borderColor: '#ddd', 
+                  borderRadius: 5,
+                  alignItems: 'center'
+                }}
+                onPress={() => {
+                  setEditModalVisible(false);
+                  setEditCaption('');
+                  setSelectedPost(null);
+                }}
+              >
+                <Text style={{ fontSize: 16 }}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={{ 
+                  flex: 1, 
+                  padding: 12, 
+                  backgroundColor: '#000', 
+                  borderRadius: 5,
+                  alignItems: 'center'
+                }}
+                onPress={handleEditSubmit}
+                disabled={editLoading}
+              >
+                {editLoading ? (
+                  <ActivityIndicator size={20} color="#fff" />
+                ) : (
+                  <Text style={{ fontSize: 16, color: '#fff' }}>Update</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -989,6 +1532,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#bea063',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#bea063',
+    textAlign: 'center',
+    flex: 1,
   },
   profileHeader: {
     flexDirection: 'row',
@@ -1252,6 +1811,64 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     paddingHorizontal: 10,
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyStateText: {
+    color: '#666',
+    fontSize: 18,
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  emptyStateSubtext: {
+    color: '#999',
+    fontSize: 14,
+    marginTop: 5,
+    textAlign: 'center',
+  },
+  collectionIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 3,
+  },
+  collectionText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 2,
+  },
+  createCollectionButton: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  createCollectionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  floatingCreateButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

@@ -11,26 +11,29 @@ import { store } from './Src/Store/store';
 import Navigation from './Src/Navigation/Navigation';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { registerFCMToken, setupFCMListeners } from './Src/Utils/NotificationConfig';
+import { SafeAreaView } from 'react-native';
 
 const App = () => {
-  useEffect(() => {
-    // Register FCM token
-    registerFCMToken();
+  // useEffect(() => {
+  //   // Register FCM token
+  //   registerFCMToken();
 
-    // Setup FCM listeners
-    const unsubscribe = setupFCMListeners();
+  //   // Setup FCM listeners
+  //   const unsubscribe = setupFCMListeners();
 
-    // Cleanup
-    return () => {
-      unsubscribe();
-    };
-  }, []);
+  //   // Cleanup
+  //   return () => {
+  //     unsubscribe();
+  //   };
+  // }, []);
 
   return (
     <Provider store={store}>
-      <SafeAreaProvider>
+      {/* <SafeAreaProvider> */}
+      <SafeAreaView style={{flex: 1}}>
         <Navigation />
-      </SafeAreaProvider>
+      {/* </SafeAreaProvider> */}
+      </SafeAreaView>
     </Provider>
   );
 };
