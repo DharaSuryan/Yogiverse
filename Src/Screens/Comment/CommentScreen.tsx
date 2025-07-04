@@ -40,7 +40,7 @@ interface RouteParams {
   username?: string;
   profile_picture?: string;
   caption?: string;
-  id?:any
+  id?: number;
 }
 
 const { width, height } = Dimensions.get('window');
@@ -48,7 +48,7 @@ const { width, height } = Dimensions.get('window');
 const CommentScreen = () => {
   const route = useRoute();
   const navigation = useNavigation<any>();
-  const { content_type, object_id, media_url, username, profile_picture, caption,id } = route.params as RouteParams;
+  const { content_type, object_id, media_url, username, profile_picture, caption } = route.params as RouteParams;
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -162,7 +162,7 @@ const CommentScreen = () => {
       console.log("here comes ....",content_type,object_id);
       
      let like =  await axios.post(`https://pashuahar.com/like-toggle/`, {
-        content_type, object_id:id
+        content_type, object_id
       }, {
         headers: {
           'Authorization': `Bearer ${authToken}`

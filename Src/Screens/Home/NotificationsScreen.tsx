@@ -138,7 +138,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
       // Optionally update notification state here
     } catch (e) {
       console.log("eororo",e);
-      
+      fetchNotifications()
       Alert.alert('Error', 'Failed to approve follow request.');
     }
   };
@@ -163,6 +163,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
       // Optionally update notification state here
     } catch (e) {
       Alert.alert('Error', 'Failed to reject follow request.');
+      fetchNotifications()
     }
   };
 

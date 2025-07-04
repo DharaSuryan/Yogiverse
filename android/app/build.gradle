@@ -82,7 +82,7 @@ android {
         applicationId "com.yogiverse"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 6
+        versionCode 7
         versionName "3.0"
         missingDimensionStrategy 'react-native-camera', 'general'
         vectorDrawables.useSupportLibrary = true

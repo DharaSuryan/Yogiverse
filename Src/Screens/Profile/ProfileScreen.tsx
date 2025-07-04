@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, {useEffect, useState, useRef} from 'react';
 import {
   View,
   Text,
@@ -19,11 +19,11 @@ import Video from 'react-native-video';
 import Post from '../../Component/Post';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { getProfile, getUserPosts, getUserReels } from '../../Api/Api';
- import { Image as Compressor } from 'react-native-compressor';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
+import {getProfile, getUserPosts, getUserReels} from '../../Api/Api';
+//  import { Image as Compressor } from 'react-native-compressor';
 
-const { width } = Dimensions.get('window');
+const {width} = Dimensions.get('window');
 const NUM_COLUMNS = 3;
 const ITEM_SIZE = width / NUM_COLUMNS;
 
@@ -46,7 +46,9 @@ interface Post {
 }
 
 const ProfileScreen = () => {
-  const [activeTab, setActiveTab] = useState<'posts' | 'reels' | 'saved'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'reels' | 'saved'>(
+    'posts',
+  );
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState({
     username: '',
@@ -55,10 +57,14 @@ const ProfileScreen = () => {
     profileImage: 'https://picsum.photos/200',
     postsCount: 0,
     followersCount: 0,
-    followingCount: 0
+    followingCount: 0,
+    id:''
   });
-  const [data , setData] = useState('')
+  const [userId,setUserId]= useState();
+console.log("profile s state",profile.id);
+
   // Real data from API
+  const [data , setData] = useState('')
   const [posts, setPosts] = useState<Post[]>([]);
   const [savedPosts, setSavedPosts] = useState<Post[]>([]); // For saved tab
   const [collections, setCollections] = useState<any[]>([]); // For collections data
@@ -73,11 +79,15 @@ const ProfileScreen = () => {
   const fullscreenFlatListRef = useRef<FlatList>(null);
 
   // Individual video controls state
-  const [videoStates, setVideoStates] = useState<{ [key: string]: { isPlaying: boolean; isMuted: boolean } }>({});
-  const [videoRefs, setVideoRefs] = useState<{ [key: string]: any }>({});
+  const [videoStates, setVideoStates] = useState<{
+    [key: string]: {isPlaying: boolean; isMuted: boolean};
+  }>({});
+  const [videoRefs, setVideoRefs] = useState<{[key: string]: any}>({});
 
   // Post functionality state
-  const [postStates, setPostStates] = useState<{ [key: string]: { isLiked: boolean; likesCount: number; likeLoading: boolean } }>({});
+  const [postStates, setPostStates] = useState<{
+    [key: string]: {isLiked: boolean; likesCount: number; likeLoading: boolean};
+  }>({});
   const [optionsVisible, setOptionsVisible] = useState(false);
   const [selectedPost, setSelectedPost] = useState<any>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -88,14 +98,16 @@ const ProfileScreen = () => {
   const [editLoading, setEditLoading] = useState(false);
 
   // Collection creation state
-  const [createCollectionModalVisible, setCreateCollectionModalVisible] = useState(false);
+  const [createCollectionModalVisible, setCreateCollectionModalVisible] =
+    useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [createCollectionLoading, setCreateCollectionLoading] = useState(false);
 
   // Fullscreen media state
-  const [postMediaIndices, setPostMediaIndices] = useState<{ [postId: string]: number }>({});
-  const [userId,setUserId]= useState();
-  console.log("profile s state",profile.id);
+  const [postMediaIndices, setPostMediaIndices] = useState<{
+    [postId: string]: number;
+  }>({});
+
   // Simple swipe-to-close using ScrollView drag
   const dragOffsetY = useRef(0);
   const handleScroll = (event: any) => {
@@ -108,43 +120,54 @@ const ProfileScreen = () => {
   };
 
   // FlatList viewability config for reels autoplay
-  const viewabilityConfig = { viewAreaCoveragePercentThreshold: 80 };
-  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: any }) => {
-    if (viewableItems && viewableItems.length > 0) {
-      const newIndex = viewableItems[0].index ?? 0;
-      setCurrentFullscreenIndex(newIndex);
-      
-      // Handle video playback based on currently visible item
-      if (fullscreenVisible) {
-        const currentItem = filteredPosts[newIndex];
-        if (currentItem && currentItem.type === 'reel') {
-          // Get the current media index for this post
-          const mediaItems = currentItem.allMedia || [currentItem.uri];
-          const currentMediaIndex = postMediaIndices[currentItem.id] || 0;
-          const videoId = mediaItems.length > 1 ? `${currentItem.id}-${currentMediaIndex}` : currentItem.id;
-          
-          pauseAllVideosExcept(videoId);
-          playCurrentVideo(videoId);
+  const viewabilityConfig = {viewAreaCoveragePercentThreshold: 80};
+  const onViewableItemsChanged = useRef(
+    ({viewableItems}: {viewableItems: any}) => {
+      if (viewableItems && viewableItems.length > 0) {
+        const newIndex = viewableItems[0].index ?? 0;
+        setCurrentFullscreenIndex(newIndex);
+
+        // Handle video playback based on currently visible item
+        if (fullscreenVisible) {
+          const currentItem = filteredPosts[newIndex];
+          if (currentItem && currentItem.type === 'reel') {
+            // Get the current media index for this post
+            const mediaItems = currentItem.allMedia || [currentItem.uri];
+            const currentMediaIndex = postMediaIndices[currentItem.id] || 0;
+            const videoId =
+              mediaItems.length > 1
+                ? `${currentItem.id}-${currentMediaIndex}`
+                : currentItem.id;
+
+            pauseAllVideosExcept(videoId);
+            playCurrentVideo(videoId);
+          }
         }
       }
-    }
-  }).current;
+    },
+  ).current;
 
   useEffect(() => {
     if (fullscreenVisible && fullscreenFlatListRef.current) {
       setTimeout(() => {
-        fullscreenFlatListRef.current?.scrollToIndex({ index: selectedIndex, animated: false });
+        fullscreenFlatListRef.current?.scrollToIndex({
+          index: selectedIndex,
+          animated: false,
+        });
         setCurrentFullscreenIndex(selectedIndex);
         setShouldPauseAllVideos(false);
-        
+
         // Play the selected video and pause others
         const selectedItem = filteredPosts[selectedIndex];
         if (selectedItem && selectedItem.type === 'reel') {
           // Get the current media index for this post
           const mediaItems = selectedItem.allMedia || [selectedItem.uri];
           const currentMediaIndex = postMediaIndices[selectedItem.id] || 0;
-          const videoId = mediaItems.length > 1 ? `${selectedItem.id}-${currentMediaIndex}` : selectedItem.id;
-          
+          const videoId =
+            mediaItems.length > 1
+              ? `${selectedItem.id}-${currentMediaIndex}`
+              : selectedItem.id;
+
           pauseAllVideosExcept(videoId);
           playCurrentVideo(videoId);
         }
@@ -159,11 +182,11 @@ const ProfileScreen = () => {
       setPostMediaIndices({}); // Reset all post media indices when closing fullscreen
       // Pause all videos when modal closes
       setVideoStates(prev => {
-        const newStates = { ...prev };
+        const newStates = {...prev};
         Object.keys(newStates).forEach(itemId => {
           newStates[itemId] = {
             ...newStates[itemId],
-            isPlaying: false
+            isPlaying: false,
           };
         });
         return newStates;
@@ -192,53 +215,67 @@ const ProfileScreen = () => {
 
   const handleLike = async (post: any) => {
     const postId = post.id;
-    const currentState = postStates[postId] || { isLiked: false, likesCount: post.likes, likeLoading: false };
-    
+    const currentState = postStates[postId] || {
+      isLiked: false,
+      likesCount: post.likes,
+      likeLoading: false,
+    };
+
     if (currentState.likeLoading) return;
-    
+
     setPostStates(prev => ({
       ...prev,
-      [postId]: { ...currentState, likeLoading: true }
+      [postId]: {...currentState, likeLoading: true},
     }));
 
     try {
       const authToken = await AsyncStorage.getItem('accessToken');
       const headers = {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${authToken}`
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
       };
-      
-      await axios.post('https://pashuahar.com/like-toggle/', {
-        content_type: post.type === "reel" ? "reel" : "post",
-        object_id: post.id,
-      }, { headers});
-      
+
+      await axios.post(
+        'https://pashuahar.com/like-toggle/',
+        {
+          content_type: post.type === 'reel' ? 'reel' : 'post',
+          object_id: post.id,
+        },
+        {headers},
+      );
+
       // Update the post state
       setPostStates(prev => ({
         ...prev,
         [postId]: {
           isLiked: !currentState.isLiked,
-          likesCount: currentState.isLiked ? currentState.likesCount - 1 : currentState.likesCount + 1,
-          likeLoading: false
-        }
+          likesCount: currentState.isLiked
+            ? currentState.likesCount - 1
+            : currentState.likesCount + 1,
+          likeLoading: false,
+        },
       }));
 
       // Also update the posts array
-      setPosts(prevPosts => 
-        prevPosts.map(p => 
-          p.id === postId 
-            ? { ...p, likes: currentState.isLiked ? p.likes - 1 : p.likes + 1, isLiked: !currentState.isLiked }
-            : p
-        )
+      setPosts(prevPosts =>
+        prevPosts.map(p =>
+          p.id === postId
+            ? {
+                ...p,
+                likes: currentState.isLiked ? p.likes - 1 : p.likes + 1,
+                isLiked: !currentState.isLiked,
+              }
+            : p,
+        ),
       );
     } catch (error) {
       console.error('Error toggling like:', error);
       Alert.alert('Error', 'Failed to update like.');
-      
+
       // Revert the state on error
       setPostStates(prev => ({
         ...prev,
-        [postId]: { ...currentState, likeLoading: false }
+        [postId]: {...currentState, likeLoading: false},
       }));
     }
   };
@@ -246,7 +283,7 @@ const ProfileScreen = () => {
   const handleComment = (post: any) => {
     // Close fullscreen modal before navigating to comment screen
     setFullscreenVisible(false);
-    
+
     // Small delay to ensure modal is closed before navigation
     setTimeout(() => {
       navigation.navigate('CommentScreen', {
@@ -267,34 +304,42 @@ const ProfileScreen = () => {
     try {
       const authToken = await AsyncStorage.getItem('accessToken');
       const headers = {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${authToken}`
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
       };
-      
+
       const postId = selectedPost.id;
       let deleteUrl = '';
-      
+
       // Use different API endpoints based on post type
       if (selectedPost.type === 'reel') {
         deleteUrl = `https://pashuahar.com/reels/${postId}/`;
       } else {
         deleteUrl = `https://pashuahar.com/posts/${postId}/`;
       }
-      
-      await axios.delete(deleteUrl, { headers });
-      
+
+      await axios.delete(deleteUrl, {headers});
+
       // Remove from posts array
       setPosts(prevPosts => prevPosts.filter(p => p.id !== postId));
-      
+
       // Also remove from saved posts if it's there
       setSavedPosts(prevSaved => prevSaved.filter(p => p.id !== postId));
-      
+
       setOptionsVisible(false);
       setSelectedPost(null);
-      Alert.alert('Deleted', `${selectedPost.type === 'reel' ? 'Reel' : 'Post'} deleted successfully.`);
+      Alert.alert(
+        'Deleted',
+        `${
+          selectedPost.type === 'reel' ? 'Reel' : 'Post'
+        } deleted successfully.`,
+      );
     } catch (err) {
       console.error('Error deleting post:', err);
-      Alert.alert('Error', `Failed to delete ${selectedPost?.type === 'reel' ? 'reel' : 'post'}.`);
+      Alert.alert(
+        'Error',
+        `Failed to delete ${selectedPost?.type === 'reel' ? 'reel' : 'post'}.`,
+      );
     } finally {
       setDeleteLoading(false);
     }
@@ -302,7 +347,7 @@ const ProfileScreen = () => {
 
   const handleEdit = () => {
     if (!selectedPost) return;
-    
+
     // Set the current caption for editing
     setEditCaption(selectedPost.caption || '');
     setEditModalVisible(true);
@@ -311,54 +356,62 @@ const ProfileScreen = () => {
 
   const handleEditSubmit = async () => {
     if (!selectedPost) return;
-    
+
     setEditLoading(true);
     try {
       const authToken = await AsyncStorage.getItem('accessToken');
       const headers = {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${authToken}`
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
       };
-      
+
       const postId = selectedPost.id;
       let editUrl = '';
-      
+
       // Use different API endpoints based on post type
       if (selectedPost.type === 'reel') {
         editUrl = `https://pashuahar.com/reels/${postId}/`;
       } else {
         editUrl = `https://pashuahar.com/posts/${postId}/`;
       }
-      
-      await axios.patch(editUrl, {
-        caption: editCaption
-      }, { headers });
-      
+
+      await axios.patch(
+        editUrl,
+        {
+          caption: editCaption,
+        },
+        {headers},
+      );
+
       // Update the post in the posts array
-      setPosts(prevPosts => 
-        prevPosts.map(p => 
-          p.id === postId 
-            ? { ...p, caption: editCaption }
-            : p
-        )
+      setPosts(prevPosts =>
+        prevPosts.map(p =>
+          p.id === postId ? {...p, caption: editCaption} : p,
+        ),
       );
-      
+
       // Also update in saved posts if it's there
-      setSavedPosts(prevSaved => 
-        prevSaved.map(p => 
-          p.id === postId 
-            ? { ...p, caption: editCaption }
-            : p
-        )
+      setSavedPosts(prevSaved =>
+        prevSaved.map(p =>
+          p.id === postId ? {...p, caption: editCaption} : p,
+        ),
       );
-      
+
       setEditModalVisible(false);
       setEditCaption('');
       setSelectedPost(null);
-      Alert.alert('Success', `${selectedPost.type === 'reel' ? 'Reel' : 'Post'} updated successfully.`);
+      Alert.alert(
+        'Success',
+        `${
+          selectedPost.type === 'reel' ? 'Reel' : 'Post'
+        } updated successfully.`,
+      );
     } catch (err) {
       console.error('Error updating post:', err);
-      Alert.alert('Error', `Failed to update ${selectedPost?.type === 'reel' ? 'reel' : 'post'}.`);
+      Alert.alert(
+        'Error',
+        `Failed to update ${selectedPost?.type === 'reel' ? 'reel' : 'post'}.`,
+      );
     } finally {
       setEditLoading(false);
     }
@@ -372,8 +425,8 @@ const ProfileScreen = () => {
       ...prev,
       [itemId]: {
         ...prev[itemId],
-        isMuted: !prev[itemId]?.isMuted
-      }
+        isMuted: !prev[itemId]?.isMuted,
+      },
     }));
   };
 
@@ -382,8 +435,8 @@ const ProfileScreen = () => {
       ...prev,
       [itemId]: {
         ...prev[itemId],
-        isPlaying: !prev[itemId]?.isPlaying
-      }
+        isPlaying: !prev[itemId]?.isPlaying,
+      },
     }));
   };
 
@@ -391,17 +444,17 @@ const ProfileScreen = () => {
     if (videoRef && !videoRefs[itemId]) {
       setVideoRefs(prev => ({
         ...prev,
-        [itemId]: videoRef
+        [itemId]: videoRef,
       }));
-      
+
       // Initialize video state if not exists
       if (!videoStates[itemId]) {
         setVideoStates(prev => ({
           ...prev,
           [itemId]: {
             isPlaying: false,
-            isMuted: true
-          }
+            isMuted: true,
+          },
         }));
       }
     }
@@ -409,22 +462,24 @@ const ProfileScreen = () => {
 
   // Initialize video states for all videos
   const initializeVideoStates = (mediaItems: Post[]) => {
-    const newVideoStates: { [key: string]: { isPlaying: boolean; isMuted: boolean } } = {};
+    const newVideoStates: {
+      [key: string]: {isPlaying: boolean; isMuted: boolean};
+    } = {};
     mediaItems.forEach(item => {
       if (item.type === 'reel') {
         // Initialize for single video
         newVideoStates[item.id] = {
           isPlaying: false,
-          isMuted: true
+          isMuted: true,
         };
-        
+
         // Initialize for multiple media items if they exist
         if (item.allMedia && item.allMedia.length > 1) {
           item.allMedia.forEach((_, index) => {
             const mediaId = `${item.id}-${index}`;
             newVideoStates[mediaId] = {
               isPlaying: false,
-              isMuted: true
+              isMuted: true,
             };
           });
         }
@@ -436,12 +491,12 @@ const ProfileScreen = () => {
   // Pause all videos except the current one
   const pauseAllVideosExcept = (currentItemId: string) => {
     setVideoStates(prev => {
-      const newStates = { ...prev };
+      const newStates = {...prev};
       Object.keys(newStates).forEach(itemId => {
         if (itemId !== currentItemId) {
           newStates[itemId] = {
             ...newStates[itemId],
-            isPlaying: false
+            isPlaying: false,
           };
         }
       });
@@ -455,8 +510,8 @@ const ProfileScreen = () => {
       ...prev,
       [itemId]: {
         ...prev[itemId],
-        isPlaying: true
-      }
+        isPlaying: true,
+      },
     }));
   };
 
@@ -468,8 +523,8 @@ const ProfileScreen = () => {
         ...prev,
         [itemId]: {
           ...prev[itemId],
-          isPlaying: true
-        }
+          isPlaying: true,
+        },
       }));
     }
   };
@@ -480,39 +535,44 @@ const ProfileScreen = () => {
         ...prev,
         [itemId]: {
           ...prev[itemId],
-          isPlaying: false
-        }
+          isPlaying: false,
+        },
       }));
     }
   };
 
   // Compress image function
-  const compressImage = async (imageUri: string): Promise<string> => {
-    try {
-      const result = await Compressor.compress(imageUri, {
-        quality: 0.8,
-        maxWidth: 800,
-        maxHeight: 800,
-      });
-      return result;
-    } catch (error) {
-      console.error('Image compression failed:', error);
-      return imageUri; // Return original if compression fails
-    }
-  };
+  // const compressImage = async (imageUri: string): Promise<string> => {
+  //   try {
+  //     const result = await Compressor.compress(imageUri, {
+  //       quality: 0.8,
+  //       maxWidth: 800,
+  //       maxHeight: 800,
+  //     });
+  //     return result;
+  //   } catch (error) {
+  //     console.error('Image compression failed:', error);
+  //     return imageUri; // Return original if compression fails
+  //   }
+  // };
 
   // Process media data with compression and multiple media detection
-  const processMediaData = async (mediaData: any[], type: 'image' | 'reel'): Promise<Post[]> => {
+  const processMediaData = async (
+    mediaData: any[],
+    type: 'image' | 'reel',
+  ): Promise<Post[]> => {
     const processedPosts: Post[] = [];
-    
+
     for (const item of mediaData) {
       try {
         let mediaFiles: string[] = [];
-        
+
         if (type === 'image') {
           // For posts, check if there are multiple media files
           if (item.media && Array.isArray(item.media)) {
-            mediaFiles = item.media.map((media: any) => media.media_file).filter(Boolean);
+            mediaFiles = item.media
+              .map((media: any) => media.media_file)
+              .filter(Boolean);
           } else if (item.media_file) {
             mediaFiles = [item.media_file];
           }
@@ -527,14 +587,14 @@ const ProfileScreen = () => {
           // Compress the first image for thumbnail (only for images, not videos)
           let compressedUri = mediaFiles[0];
           if (type === 'image') {
-             compressedUri = await compressImage(mediaFiles[0]);
+            //  compressedUri = await compressImage(mediaFiles[0]);
           }
 
           const post: Post = {
             id: item.id?.toString() || '',
             type: type,
             uri: mediaFiles[0], // Original URI for fullscreen
-            compressedUri:compressedUri, // Compressed URI for grid
+            compressedUri: mediaFiles[0], // Compressed URI for grid
             likes: item.like_count || 0,
             comments: item.comment_count || 0,
             caption: item.caption || '',
@@ -542,16 +602,16 @@ const ProfileScreen = () => {
             createdAt: item.created_at || '',
             collection_id: item.collection_id || 1,
             mediaCount: mediaFiles.length > 1 ? mediaFiles.length : undefined,
-            allMedia: mediaFiles
+            allMedia: mediaFiles,
           };
-          
+
           processedPosts.push(post);
         }
       } catch (error) {
         console.error('Error processing media item:', error);
       }
     }
-    
+
     return processedPosts;
   };
 
@@ -560,10 +620,12 @@ const ProfileScreen = () => {
     try {
       const authToken = await AsyncStorage.getItem('accessToken');
       const headers = {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${authToken}`
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
       };
-      const res = await axios.get('https://pashuahar.com/follower/followers', { headers });
+      const res = await axios.get('https://pashuahar.com/follower/followers', {
+        headers,
+      });
       // Assume response: { data: { count: number } }
       return res.data?.data?.count || 0;
     } catch (err) {
@@ -575,10 +637,12 @@ const ProfileScreen = () => {
     try {
       const authToken = await AsyncStorage.getItem('accessToken');
       const headers = {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${authToken}`
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
       };
-      const res = await axios.get('https://pashuahar.com/follower/following', { headers });
+      const res = await axios.get('https://pashuahar.com/follower/following', {
+        headers,
+      });
       // Assume response: { data: { count: number } }
       return res.data?.data?.count || 0;
     } catch (err) {
@@ -592,85 +656,73 @@ const ProfileScreen = () => {
   }, []);
 
   const fetchData = async () => {
-    setLoading(true);
     try {
-      // Replace with your actual API endpoint for profile (update as needed)
-      const authToken = await AsyncStorage.getItem('accessToken');
-      const headers = {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      };
-      const response = await axios.get('https://pashuahar.com/profile/', { headers });
-      const data = response.data.data;
-      console.log('profileResponse', data);
-      setData(data)
-      // Set profile info
-      setProfile({
-        username: data.profile.username,
-        fullName: `${data.profile.first_name || ''} ${data.profile.last_name || ''}`.trim(),
-        bio: data.profile.bio || '',
-        profileImage: data.profile.profile_picture || 'https://picsum.photos/200',
-        postsCount: data.post_reels_count || 0,
-        followersCount: data.followers_count || 0,
-        followingCount: data.following_count || 0,
-      });
+      // Fetch profile data
+      const profileResponse = await getProfile();
+      console.log('profileResponse', profileResponse.data?.data);
+        setData(profileResponse?.data?.data)
+      let followersCount = 0;
+      let followingCount = 0;
+      // Fetch followers/following counts in parallel
+      [followersCount, followingCount] = await Promise.all([
+        fetchFollowersCount(),
+        fetchFollowingCount(),
+      ]);
+      console.log('followersCount', followersCount);
 
-      // Helper to process posts/reels
-      const processProfileMedia = async (items: any[], type: 'image' | 'reel'): Promise<Post[]> => {
-        const processed: Post[] = [];
-        for (const item of items) {
-          if (type === 'image') {
-            // Posts: handle media array (images/videos)
-            const mediaFiles = item.media || [];
-            const allMedia = mediaFiles.map((m: any) => m.media_file);
-            let compressedUri = allMedia[0];
-            if (mediaFiles.length > 0 && !mediaFiles[0].is_video) {
-              compressedUri = await compressImage(allMedia[0]);
-            }
-            processed.push({
-              id: item.id.toString(),
-              type: 'image',
-              uri: allMedia[0],
-              compressedUri,
-              likes: item.like_count,
-              comments: item.comment_count,
-              caption: item.caption,
-              location: item.location,
-              createdAt: item.created_at,
-              mediaCount: allMedia.length,
-              allMedia,
-              isLiked: item.is_liked || false,
-            });
-          } else if (type === 'reel') {
-            // Reels: use ONLY video_file key, never media array
-            const videoUrl = item.video_file;
-            processed.push({
-              id: item.id.toString(),
-              type: 'reel',
-              uri: videoUrl,
-              compressedUri: videoUrl, // No compression for video
-              likes: item.like_count,
-              comments: item.comment_count,
-              caption: item.caption,
-              location: item.location,
-              createdAt: item.created_at,
-              mediaCount: 1,
-              allMedia: [videoUrl],
-              isLiked: item.is_liked || false,
-            });
-          }
-        }
-        return processed;
-      };
+      if (profileResponse.data) {
+        const profileData = profileResponse.data.data?.profile;
+        // console.log("profileDataprofileData",profileData);
 
-      // Process posts and reels
-      const processedPosts = await processProfileMedia(data.posts || [], 'image');
-      const processedReels = await processProfileMedia(data.reels || [], 'reel');
-      setPosts([...processedPosts, ...processedReels]);
+        setProfile({
+          username: profileData.username || 'jk',
+          fullName:
+            `${profileData.first_name || ''} ${
+              profileData.last_name || ''
+            }`.trim() || 'Jay Chhaniyara',
+          bio: profileData.bio || 'Its Boy Jk',
+          profileImage:
+            profileData.profile_picture || 'https://picsum.photos/200',
+          postsCount: profileData.posts_count || 7,
+          followersCount,
+          followingCount,
+          id:profileData.user
+        });
+        // setUserId()
+      }
 
-      // Initialize video and post states
-      initializeVideoStates([...processedPosts, ...processedReels]);
-      initializePostStates([...processedPosts, ...processedReels]);
+      // Fetch posts data
+      const postsResponse = await getUserPosts();
+      // console.log("postsResponse",postsResponse?.data?.data?.results);
+
+      // Fetch reels data
+      const reelsResponse = await getUserReels();
+      // console.log("reelsResponse",reelsResponse.data.data.results);
+
+      let allMedia: Post[] = [];
+
+      // Transform posts data with compression and multiple media detection
+      if (postsResponse.data) {
+        const postsData = postsResponse.data.data.results;
+        const processedPosts = await processMediaData(postsData, 'image');
+        allMedia = [...allMedia, ...processedPosts];
+      }
+
+      // Transform reels data with compression and multiple media detection
+      if (reelsResponse.data) {
+        const reelsData = reelsResponse.data.data.results;
+        const processedReels = await processMediaData(reelsData, 'reel');
+        allMedia = [...allMedia, ...processedReels];
+      }
+
+      console.log('allMedia........', allMedia);
+      setPosts(allMedia);
+
+      // Initialize video states for all reels
+      initializeVideoStates(allMedia);
+
+      // Initialize post states when posts are loaded
+      initializePostStates(allMedia);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -685,16 +737,18 @@ const ProfileScreen = () => {
     try {
       const authToken = await AsyncStorage.getItem('accessToken');
       const headers = {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${authToken}`
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
       };
-      const res = await axios.get('https://pashuahar.com/collections', { headers });
-      console.log("collections",res.data);
-      
+      const res = await axios.get('https://pashuahar.com/collections', {
+        headers,
+      });
+      console.log('collections', res.data);
+
       // Store collections data
       const collectionsData = res.data?.data || [];
       setCollections(collectionsData);
-      
+
       // Transform collections to show as saved items
       const processedCollections = collectionsData.map((collection: any) => ({
         id: collection.id.toString(),
@@ -708,12 +762,11 @@ const ProfileScreen = () => {
         createdAt: collection.created_at,
         collection_id: collection.id,
         isCollection: true,
-        collectionName: collection.name
+        collectionName: collection.name,
       }));
       setSavedPosts(processedCollections);
-      
     } catch (err) {
-      console.log("errerrerr",err);
+      console.log('errerrerr', err);
       setSavedError('Failed to load collections');
     } finally {
       setSavedLoading(false);
@@ -725,21 +778,25 @@ const ProfileScreen = () => {
     try {
       const authToken = await AsyncStorage.getItem('accessToken');
       const headers = {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${authToken}`
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
       };
-      const res = await axios.post('https://pashuahar.com/collections/', {
-        name: name
-      }, { headers });
-      
-      console.log("Created collection", res.data);
-      
+      const res = await axios.post(
+        'https://pashuahar.com/collections/',
+        {
+          name: name,
+        },
+        {headers},
+      );
+
+      console.log('Created collection', res.data);
+
       // Refresh collections after creating
       fetchSavedPosts();
-      
+
       return res.data;
     } catch (err) {
-      console.error("Error creating collection:", err);
+      console.error('Error creating collection:', err);
       Alert.alert('Error', 'Failed to create collection');
       throw err;
     }
@@ -750,14 +807,17 @@ const ProfileScreen = () => {
     try {
       const authToken = await AsyncStorage.getItem('accessToken');
       const headers = {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${authToken}`
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
       };
-      const res = await axios.get(`https://pashuahar.com/collections/${collectionId}`, { headers });
-      console.log("Collection details", res.data);
+      const res = await axios.get(
+        `https://pashuahar.com/collections/${collectionId}`,
+        {headers},
+      );
+      console.log('Collection details', res.data);
       return res.data;
     } catch (err) {
-      console.error("Error fetching collection details:", err);
+      console.error('Error fetching collection details:', err);
       Alert.alert('Error', 'Failed to load collection details');
       throw err;
     }
@@ -776,7 +836,7 @@ const ProfileScreen = () => {
       if (activeTab === 'saved') {
         fetchSavedPosts();
       }
-    }, [activeTab])
+    }, [activeTab]),
   );
 
   // Reset fullscreen modal state when returning from comment screen
@@ -788,22 +848,28 @@ const ProfileScreen = () => {
         setCurrentFullscreenIndex(0);
         setShouldPauseAllVideos(false);
       }
-    }, [])
+    }, []),
   );
 
   // Use correct posts for the current tab
-  const filteredPosts = activeTab === 'saved' ? savedPosts : posts.filter(post => {
-    if (activeTab === 'posts') return post.type === 'image';
-    if (activeTab === 'reels') return post.type === 'reel';
-    return true;
-  });
+  const filteredPosts =
+    activeTab === 'saved'
+      ? savedPosts
+      : posts.filter(post => {
+          if (activeTab === 'posts') return post.type === 'image';
+          if (activeTab === 'reels') return post.type === 'reel';
+          return true;
+        });
 
-  const renderPostItem = ({ item, index }: { item: any, index: number }) => {
+  const renderPostItem = ({item, index}: {item: any; index: number}) => {
     const isReel = item.type === 'reel';
     const isCollection = item.isCollection;
     const shouldShowVideoControls = isReel && activeTab === 'reels';
-    const videoState = videoStates[item.id] || { isPlaying: false, isMuted: true };
-    
+    const videoState = videoStates[item.id] || {
+      isPlaying: false,
+      isMuted: true,
+    };
+
     return (
       <TouchableOpacity
         style={styles.postItem}
@@ -812,63 +878,60 @@ const ProfileScreen = () => {
             // Navigate to collection details
             navigation.navigate('CollectionDetailScreen', {
               collectionId: item.collection_id,
-              collectionName: item.collectionName
+              collectionName: item.collectionName,
             });
           } else {
             setSelectedIndex(index);
             setFullscreenVisible(true);
           }
         }}
-        activeOpacity={0.9}
-      >
+        activeOpacity={0.9}>
         {/* Main media display - use compressed image for better performance */}
         {!isReel ? (
-          <Image 
-            source={{ uri: item.compressedUri || item.uri }} 
-            style={styles.postImage} 
+          <Image
+            source={{uri: item.compressedUri || item.uri}}
+            style={styles.postImage}
           />
         ) : (
           <View style={styles.videoContainer}>
-            <Video 
-              ref={(ref) => handleVideoRef(ref, item.id)}
-              source={{ uri: item.uri }} 
-              style={styles.postImage} 
+            <Video
+              ref={ref => handleVideoRef(ref, item.id)}
+              source={{uri: item.uri}}
+              style={styles.postImage}
               muted={videoState.isMuted}
-              repeat 
-              resizeMode="cover" 
+              repeat
+              resizeMode="cover"
               paused={!videoState.isPlaying || shouldPauseAllVideos}
               onLoad={() => setVideoLoading(false)}
               onError={() => setVideoLoading(false)}
             />
-            
+
             {/* Video controls overlay - only show when on reels tab */}
             {shouldShowVideoControls && (
               <View style={styles.videoControls}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.videoControlButton}
-                  onPress={(e) => {
+                  onPress={e => {
                     e.stopPropagation();
                     togglePlayPause(item.id);
-                  }}
-                >
-                  <Ionicons 
-                    name={videoState.isPlaying ? "pause" : "play"} 
-                    size={20} 
-                    color="#fff" 
+                  }}>
+                  <Ionicons
+                    name={videoState.isPlaying ? 'pause' : 'play'}
+                    size={20}
+                    color="#fff"
                   />
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   style={styles.videoControlButton}
-                  onPress={(e) => {
+                  onPress={e => {
                     e.stopPropagation();
                     toggleMute(item.id);
-                  }}
-                >
-                  <Ionicons 
-                    name={videoState.isMuted ? "volume-mute" : "volume-high"} 
-                    size={20} 
-                    color="#fff" 
+                  }}>
+                  <Ionicons
+                    name={videoState.isMuted ? 'volume-mute' : 'volume-high'}
+                    size={20}
+                    color="#fff"
                   />
                 </TouchableOpacity>
               </View>
@@ -894,12 +957,11 @@ const ProfileScreen = () => {
 
         {/* Top-right options icon */}
         <TouchableOpacity
-          style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
-          onPress={(e) => {
+          style={{position: 'absolute', top: 8, right: 8, zIndex: 2}}
+          onPress={e => {
             e.stopPropagation();
             handleOptions(item);
-          }}
-        >
+          }}>
           <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
         </TouchableOpacity>
 
@@ -931,23 +993,25 @@ const ProfileScreen = () => {
       </View>
       <TouchableOpacity
         style={styles.statItem}
-        onPress={() => navigation.navigate('FollowersFollowingScreen', {
-          type: 'followers',
-          userId: '1',
-          username: profile.username,
-        })}
-      >
+        onPress={() =>
+          navigation.navigate('FollowersFollowingScreen', {
+            type: 'followers',
+            userId: '1',
+            username: profile.username,
+          })
+        }>
         <Text style={styles.statNumber}>{profile.followersCount}</Text>
         <Text style={styles.statLabel}>Followers</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.statItem}
-        onPress={() => navigation.navigate('FollowersFollowingScreen', {
-          type: 'following',
-          userId: '1',
-          username: profile.username,
-        })}
-      >
+        onPress={() =>
+          navigation.navigate('FollowersFollowingScreen', {
+            type: 'following',
+            userId: '1',
+            username: profile.username,
+          })
+        }>
         <Text style={styles.statNumber}>{profile.followingCount}</Text>
         <Text style={styles.statLabel}>Following</Text>
       </TouchableOpacity>
@@ -956,7 +1020,7 @@ const ProfileScreen = () => {
 
   const renderProfileHeader = () => (
     <View style={styles.profileHeader}>
-      <Image source={{ uri: profile.profileImage }} style={styles.profileImage} />
+      <Image source={{uri: profile.profileImage}} style={styles.profileImage} />
       {renderStats()}
     </View>
   );
@@ -973,199 +1037,290 @@ const ProfileScreen = () => {
     <View style={styles.tabBar}>
       <TouchableOpacity
         style={[styles.tabButton, activeTab === 'posts' && styles.activeTab]}
-        onPress={() => setActiveTab('posts')}
-      >
-        <Ionicons name="grid-outline" size={24} color={activeTab === 'posts' ? '#000' : '#888'} />
+        onPress={() => setActiveTab('posts')}>
+        <Ionicons
+          name="grid-outline"
+          size={24}
+          color={activeTab === 'posts' ? '#000' : '#888'}
+        />
       </TouchableOpacity>
       <TouchableOpacity
         style={[styles.tabButton, activeTab === 'reels' && styles.activeTab]}
-        onPress={() => setActiveTab('reels')}
-      >
-        <Ionicons name="play-outline" size={24} color={activeTab === 'reels' ? '#000' : '#888'} />
+        onPress={() => setActiveTab('reels')}>
+        <Ionicons
+          name="play-outline"
+          size={24}
+          color={activeTab === 'reels' ? '#000' : '#888'}
+        />
       </TouchableOpacity>
       <TouchableOpacity
         style={[styles.tabButton, activeTab === 'saved' && styles.activeTab]}
-        onPress={() => setActiveTab('saved')}
-      >
-        <Ionicons name="bookmark-outline" size={24} color={activeTab === 'saved' ? '#000' : '#888'} />
+        onPress={() => setActiveTab('saved')}>
+        <Ionicons
+          name="bookmark-outline"
+          size={24}
+          color={activeTab === 'saved' ? '#000' : '#888'}
+        />
       </TouchableOpacity>
     </View>
   );
 
-  const renderFullscreenItem = ({ item, index }: { item: any, index: number }) => {
+  const renderFullscreenItem = ({item, index}: {item: any; index: number}) => {
     const windowHeight = Dimensions.get('window').height;
     const windowWidth = Dimensions.get('window').width;
     const isCurrentVideo = currentFullscreenIndex === index;
     const isReel = item.type === 'reel';
-    const postState = postStates[item.id] || { isLiked: false, likesCount: item.likes, likeLoading: false };
-    
+    const postState = postStates[item.id] || {
+      isLiked: false,
+      likesCount: item.likes,
+      likeLoading: false,
+    };
+
     // Get all media items for this post
     const mediaItems = item.allMedia || [item.uri];
     const currentMediaIndexForPost = postMediaIndices[item.id] || 0;
     const currentMedia = mediaItems[currentMediaIndexForPost];
-    const isVideo = currentMedia && (currentMedia.includes('.mp4') || currentMedia.includes('.mov') || currentMedia.includes('.avi'));
-    
+    const isVideo =
+      currentMedia &&
+      (currentMedia.includes('.mp4') ||
+        currentMedia.includes('.mov') ||
+        currentMedia.includes('.avi'));
+
     // Get the correct video state for the current media item
-    const videoId = mediaItems.length > 1 ? `${item.id}-${currentMediaIndexForPost}` : item.id;
-    const videoState = videoStates[videoId] || { isPlaying: false, isMuted: true };
+    const videoId =
+      mediaItems.length > 1
+        ? `${item.id}-${currentMediaIndexForPost}`
+        : item.id;
+    const videoState = videoStates[videoId] || {
+      isPlaying: false,
+      isMuted: true,
+    };
 
     return (
-      <View style={{ flex: 1, backgroundColor: '#000' }}>
+      <View style={{flex: 1, backgroundColor: '#000'}}>
         {/* Top bar */}
         {/* <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 40, paddingBottom: 10, paddingHorizontal: 10, backgroundColor: '#111', justifyContent: 'space-between' }}>
           <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>Posts</Text>
         </View> */}
-
+       
         {/* User info */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingBottom: 8, justifyContent: 'space-between' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Image source={{ uri: profile.profileImage }} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }} />
-            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 15 }}>{profile.username}</Text>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 14,
+            paddingBottom: 8,
+            justifyContent: 'space-between',
+          }}>
+          <View style={{flexDirection: 'row', alignItems: 'center'}}>
+            <Image
+              source={{uri: profile.profileImage}}
+              style={{width: 36, height: 36, borderRadius: 18, marginRight: 10}}
+            />
+            <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 15}}>
+              {profile.username}
+            </Text>
           </View>
-          
+
           {/* Options button for fullscreen */}
           <TouchableOpacity
             onPress={() => handleOptions(item)}
-            style={{ padding: 8 }}
-          >
+            style={{padding: 8}}>
             <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
 
         {/* Main media with horizontal scroll for multiple items */}
-        <View style={{ width: windowWidth, height: windowHeight * 0.5, alignSelf: 'center', backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+        <View
+          style={{
+            width: windowWidth,
+            height: windowHeight * 0.5,
+            alignSelf: 'center',
+            backgroundColor: '#000',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}>
           {mediaItems.length > 1 ? (
             <FlatList
               data={mediaItems}
               horizontal
               pagingEnabled
               showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={(event) => {
-                const newIndex = Math.round(event.nativeEvent.contentOffset.x / windowWidth);
+              onMomentumScrollEnd={event => {
+                const newIndex = Math.round(
+                  event.nativeEvent.contentOffset.x / windowWidth,
+                );
                 setPostMediaIndices(prev => ({
                   ...prev,
-                  [item.id]: newIndex
+                  [item.id]: newIndex,
                 }));
               }}
-              renderItem={({ item: mediaItem, index: mediaIndex }) => (
-                <View style={{ width: windowWidth, height: windowHeight * 0.5 }}>
+              renderItem={({item: mediaItem, index: mediaIndex}) => (
+                <View style={{width: windowWidth, height: windowHeight * 0.5}}>
                   {isVideo ? (
-                    <View style={{ width: windowWidth, height: windowHeight * 0.5 }}>
+                    <View
+                      style={{width: windowWidth, height: windowHeight * 0.5}}>
                       {videoLoading && (
-                        <ActivityIndicator 
-                          size="large" 
-                          color="#fff" 
-                          style={{ position: 'absolute', alignSelf: 'center', top: '45%' }} 
+                        <ActivityIndicator
+                          size="large"
+                          color="#fff"
+                          style={{
+                            position: 'absolute',
+                            alignSelf: 'center',
+                            top: '45%',
+                          }}
                         />
                       )}
                       <Video
-                        ref={(ref) => handleVideoRef(ref, `${item.id}-${mediaIndex}`)}
-                        source={{ uri: mediaItem }}
-                        style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
-                        muted={videoStates[`${item.id}-${mediaIndex}`]?.isMuted || true}
+                        ref={ref =>
+                          handleVideoRef(ref, `${item.id}-${mediaIndex}`)
+                        }
+                        source={{uri: mediaItem}}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          backgroundColor: '#000',
+                        }}
+                        muted={
+                          videoStates[`${item.id}-${mediaIndex}`]?.isMuted ||
+                          true
+                        }
                         repeat
                         resizeMode="cover"
-                        paused={!videoStates[`${item.id}-${mediaIndex}`]?.isPlaying || !isCurrentVideo}
+                        paused={
+                          !videoStates[`${item.id}-${mediaIndex}`]?.isPlaying ||
+                          !isCurrentVideo
+                        }
                         onLoadStart={() => setVideoLoading(true)}
                         onLoad={() => setVideoLoading(false)}
                         onError={() => setVideoLoading(false)}
                       />
-                      
+
                       {/* Video controls for fullscreen */}
                       <View style={styles.fullscreenVideoControls}>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           style={styles.fullscreenControlButton}
-                          onPress={() => togglePlayPause(`${item.id}-${mediaIndex}`)}
-                        >
-                          <Ionicons 
-                            name={videoStates[`${item.id}-${mediaIndex}`]?.isPlaying ? "pause" : "play"} 
-                            size={24} 
-                            color="#fff" 
+                          onPress={() =>
+                            togglePlayPause(`${item.id}-${mediaIndex}`)
+                          }>
+                          <Ionicons
+                            name={
+                              videoStates[`${item.id}-${mediaIndex}`]?.isPlaying
+                                ? 'pause'
+                                : 'play'
+                            }
+                            size={24}
+                            color="#fff"
                           />
                         </TouchableOpacity>
-                        
-                        <TouchableOpacity 
+
+                        <TouchableOpacity
                           style={styles.fullscreenControlButton}
-                          onPress={() => toggleMute(`${item.id}-${mediaIndex}`)}
-                        >
-                          <Ionicons 
-                            name={videoStates[`${item.id}-${mediaIndex}`]?.isMuted ? "volume-mute" : "volume-high"} 
-                            size={24} 
-                            color="#fff" 
+                          onPress={() =>
+                            toggleMute(`${item.id}-${mediaIndex}`)
+                          }>
+                          <Ionicons
+                            name={
+                              videoStates[`${item.id}-${mediaIndex}`]?.isMuted
+                                ? 'volume-mute'
+                                : 'volume-high'
+                            }
+                            size={24}
+                            color="#fff"
                           />
                         </TouchableOpacity>
                       </View>
                     </View>
                   ) : (
                     <Image
-                      source={{ uri: mediaItem }}
-                      style={{ width: windowWidth, height: windowHeight * 0.5, resizeMode: 'cover', backgroundColor: '#000' }}
+                      source={{uri: mediaItem}}
+                      style={{
+                        width: windowWidth,
+                        height: windowHeight * 0.5,
+                        resizeMode: 'cover',
+                        backgroundColor: '#000',
+                      }}
                     />
                   )}
                 </View>
               )}
-              keyExtractor={(mediaItem, mediaIndex) => `${item.id}-${mediaIndex}`}
+              keyExtractor={(mediaItem, mediaIndex) =>
+                `${item.id}-${mediaIndex}`
+              }
             />
-          ) : (
-            // Single media item
-            isVideo ? (
-              <View style={{ width: windowWidth, height: windowHeight * 0.5 }}>
-                {videoLoading && (
-                  <ActivityIndicator 
-                    size="large" 
-                    color="#fff" 
-                    style={{ position: 'absolute', alignSelf: 'center', top: '45%' }} 
-                  />
-                )}
-                <Video
-                  ref={(ref) => handleVideoRef(ref, item.id)}
-                  source={{ uri: currentMedia }}
-                  style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
-                  muted={videoState.isMuted}
-                  repeat
-                  resizeMode="cover"
-                  paused={!videoState.isPlaying || !isCurrentVideo}
-                  onLoadStart={() => setVideoLoading(true)}
-                  onLoad={() => setVideoLoading(false)}
-                  onError={() => setVideoLoading(false)}
+          ) : // Single media item
+          isVideo ? (
+            <View style={{width: windowWidth, height: windowHeight * 0.5}}>
+              {videoLoading && (
+                <ActivityIndicator
+                  size="large"
+                  color="#fff"
+                  style={{
+                    position: 'absolute',
+                    alignSelf: 'center',
+                    top: '45%',
+                  }}
                 />
-                
-                {/* Video controls for fullscreen single video */}
-                <View style={styles.fullscreenVideoControls}>
-                  <TouchableOpacity 
-                    style={styles.fullscreenControlButton}
-                    onPress={() => togglePlayPause(item.id)}
-                  >
-                    <Ionicons 
-                      name={videoState.isPlaying ? "pause" : "play"} 
-                      size={24} 
-                      color="#fff" 
-                    />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={styles.fullscreenControlButton}
-                    onPress={() => toggleMute(item.id)}
-                  >
-                    <Ionicons 
-                      name={videoState.isMuted ? "volume-mute" : "volume-high"} 
-                      size={24} 
-                      color="#fff" 
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <Image
-                source={{ uri: currentMedia }}
-                style={{ width: windowWidth, height: windowHeight * 0.5, resizeMode: 'cover', backgroundColor: '#000' }}
+              )}
+              <Video
+                ref={ref => handleVideoRef(ref, item.id)}
+                source={{uri: currentMedia}}
+                style={{width: '100%', height: '100%', backgroundColor: '#000'}}
+                muted={videoState.isMuted}
+                repeat
+                resizeMode="cover"
+                paused={!videoState.isPlaying || !isCurrentVideo}
+                onLoadStart={() => setVideoLoading(true)}
+                onLoad={() => setVideoLoading(false)}
+                onError={() => setVideoLoading(false)}
               />
-            )
+
+              {/* Video controls for fullscreen single video */}
+              <View style={styles.fullscreenVideoControls}>
+                <TouchableOpacity
+                  style={styles.fullscreenControlButton}
+                  onPress={() => togglePlayPause(item.id)}>
+                  <Ionicons
+                    name={videoState.isPlaying ? 'pause' : 'play'}
+                    size={24}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.fullscreenControlButton}
+                  onPress={() => toggleMute(item.id)}>
+                  <Ionicons
+                    name={videoState.isMuted ? 'volume-mute' : 'volume-high'}
+                    size={24}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <Image
+              source={{uri: currentMedia}}
+              style={{
+                width: windowWidth,
+                height: windowHeight * 0.5,
+                resizeMode: 'cover',
+                backgroundColor: '#000',
+              }}
+            />
           )}
-          
+
           {/* Media indicator dots for multiple items */}
           {mediaItems.length > 1 && (
-            <View style={{ position: 'absolute', bottom: 20, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center' }}>
+            <View
+              style={{
+                position: 'absolute',
+                bottom: 20,
+                left: 0,
+                right: 0,
+                flexDirection: 'row',
+                justifyContent: 'center',
+              }}>
               {mediaItems.map((_: string, dotIndex: number) => (
                 <View
                   key={dotIndex}
@@ -1173,7 +1328,10 @@ const ProfileScreen = () => {
                     width: 8,
                     height: 8,
                     borderRadius: 4,
-                    backgroundColor: dotIndex === currentMediaIndexForPost ? '#fff' : 'rgba(255,255,255,0.5)',
+                    backgroundColor:
+                      dotIndex === currentMediaIndexForPost
+                        ? '#fff'
+                        : 'rgba(255,255,255,0.5)',
                     marginHorizontal: 4,
                   }}
                 />
@@ -1183,31 +1341,79 @@ const ProfileScreen = () => {
         </View>
 
         {/* Like/comment counts row (interactive) */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, marginTop: 12, marginBottom: 2 }}>
-          <TouchableOpacity onPress={() => handleLike(item)} disabled={postState.likeLoading} style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 14,
+            marginTop: 12,
+            marginBottom: 2,
+          }}>
+          <TouchableOpacity
+            onPress={() => handleLike(item)}
+            disabled={postState.likeLoading}
+            style={{flexDirection: 'row', alignItems: 'center'}}>
             {postState.likeLoading ? (
               <ActivityIndicator size={20} color="#FF3B30" />
             ) : (
-              <Ionicons name={postState.isLiked ? 'heart' : 'heart-outline'} size={22} color={postState.isLiked ? '#FF3B30' : '#fff'} />
+              <Ionicons
+                name={postState.isLiked ? 'heart' : 'heart-outline'}
+                size={22}
+                color={postState.isLiked ? '#FF3B30' : '#fff'}
+              />
             )}
-            <Text style={{ color: '#fff', fontSize: 15, marginLeft: 6, marginRight: 18 }}>{postState.likesCount || item.likes}</Text>
+            <Text
+              style={{
+                color: '#fff',
+                fontSize: 15,
+                marginLeft: 6,
+                marginRight: 18,
+              }}>
+              {postState.likesCount || item.likes}
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => handleComment(item)} style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={() => handleComment(item)}
+            style={{flexDirection: 'row', alignItems: 'center'}}>
             <Ionicons name="chatbubble-outline" size={20} color="#fff" />
-            <Text style={{ color: '#fff', fontSize: 15, marginLeft: 6 }}>{item.comments}</Text>
+            <Text style={{color: '#fff', fontSize: 15, marginLeft: 6}}>
+              {item.comments}
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Username, caption, emojis */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, marginBottom: 2, flexWrap: 'wrap' }}>
-          <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 14 }}>{profile.username}</Text>
-          {item.caption ? <Text style={{ color: '#fff', fontSize: 14, marginLeft: 6 }}>{item.caption}</Text> : null}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 14,
+            marginBottom: 2,
+            flexWrap: 'wrap',
+          }}>
+          <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 14}}>
+            {profile.username}
+          </Text>
+          {item.caption ? (
+            <Text style={{color: '#fff', fontSize: 14, marginLeft: 6}}>
+              {item.caption}
+            </Text>
+          ) : null}
         </View>
 
         {/* Date */}
         {item.createdAt && (
-          <Text style={{ color: '#aaa', fontSize: 13, paddingHorizontal: 14, marginTop: 2 }}>
-            {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          <Text
+            style={{
+              color: '#aaa',
+              fontSize: 13,
+              paddingHorizontal: 14,
+              marginTop: 2,
+            }}>
+            {new Date(item.createdAt).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+            })}
           </Text>
         )}
       </View>
@@ -1216,12 +1422,18 @@ const ProfileScreen = () => {
 
   // Initialize post states when posts are loaded
   const initializePostStates = (mediaItems: Post[]) => {
-    const newPostStates: { [key: string]: { isLiked: boolean; likesCount: number; likeLoading: boolean } } = {};
+    const newPostStates: {
+      [key: string]: {
+        isLiked: boolean;
+        likesCount: number;
+        likeLoading: boolean;
+      };
+    } = {};
     mediaItems.forEach(item => {
       newPostStates[item.id] = {
         isLiked: item.isLiked || false,
         likesCount: item.likes,
-        likeLoading: false
+        likeLoading: false,
       };
     });
     setPostStates(newPostStates);
@@ -1229,7 +1441,7 @@ const ProfileScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-     <View style={styles.header}>
+       <View style={styles.header}>
       <TouchableOpacity onPress={() => navigation.navigate('Menu')}>
         <Ionicons name="menu-outline" size={24} color="#bea063" />
       </TouchableOpacity>
@@ -1241,18 +1453,19 @@ const ProfileScreen = () => {
         visible={fullscreenVisible}
         animationType="slide"
         onRequestClose={() => setFullscreenVisible(false)}
-        transparent={false}
-      >
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+        transparent={false}>
+        <SafeAreaView style={{flex: 1, backgroundColor: '#000'}}>
           <TouchableOpacity
-            style={{ position: 'absolute', top: 40, right: 20, zIndex: 1 }}
-            onPress={() => setFullscreenVisible(false)}
-          >
+            style={{position: 'absolute', top: 40, right: 20, zIndex: 1}}
+            onPress={() => setFullscreenVisible(false)}>
             <Ionicons name="close" size={30} color="#fff" />
           </TouchableOpacity>
           {filteredPosts.length === 0 ? (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ color: '#fff', fontSize: 18 }}>No posts to display</Text>
+            <View
+              style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+              <Text style={{color: '#fff', fontSize: 18}}>
+                No posts to display
+              </Text>
             </View>
           ) : (
             <FlatList
@@ -1266,7 +1479,11 @@ const ProfileScreen = () => {
                 const mediaHeight = Dimensions.get('window').height * 0.5;
                 const contentHeight = 150; // Approximate height for user info, likes, comments, caption
                 const totalItemHeight = mediaHeight + contentHeight;
-                return { length: totalItemHeight, offset: totalItemHeight * index, index };
+                return {
+                  length: totalItemHeight,
+                  offset: totalItemHeight * index,
+                  index,
+                };
               }}
               showsVerticalScrollIndicator={false}
               viewabilityConfig={viewabilityConfig}
@@ -1278,12 +1495,14 @@ const ProfileScreen = () => {
         </SafeAreaView>
       </Modal>
       {/* Main Profile Content */}
-      <ScrollView>
+      <ScrollView> 
         {renderProfileHeader()}
         {renderBio()}
-        
+
         <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.editButton}  onPress={() => navigation.navigate('EditProfile',{data : data})}>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => navigation.navigate('EditProfile',{data : data})}>
             <Text style={styles.editButtonText}>Edit Profile</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.shareButton}>
@@ -1307,12 +1526,15 @@ const ProfileScreen = () => {
           <View style={styles.emptyStateContainer}>
             <Ionicons name="bookmark-outline" size={48} color="#666" />
             <Text style={styles.emptyStateText}>No collections yet</Text>
-            <Text style={styles.emptyStateSubtext}>Create your first collection to save posts</Text>
-            <TouchableOpacity 
+            <Text style={styles.emptyStateSubtext}>
+              Create your first collection to save posts
+            </Text>
+            <TouchableOpacity
               style={styles.createCollectionButton}
-              onPress={() => setCreateCollectionModalVisible(true)}
-            >
-              <Text style={styles.createCollectionButtonText}>Create Collection</Text>
+              onPress={() => setCreateCollectionModalVisible(true)}>
+              <Text style={styles.createCollectionButtonText}>
+                Create Collection
+              </Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -1328,10 +1550,9 @@ const ProfileScreen = () => {
 
         {/* Create Collection Button for Saved Tab */}
         {activeTab === 'saved' && filteredPosts.length > 0 && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.floatingCreateButton}
-            onPress={() => setCreateCollectionModalVisible(true)}
-          >
+            onPress={() => setCreateCollectionModalVisible(true)}>
             <Ionicons name="add" size={24} color="#fff" />
           </TouchableOpacity>
         )}
@@ -1341,20 +1562,43 @@ const ProfileScreen = () => {
         visible={optionsVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setOptionsVisible(false)}
-      >
+        onRequestClose={() => setOptionsVisible(false)}>
         <TouchableOpacity
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
           activeOpacity={1}
-          onPressOut={() => setOptionsVisible(false)}
-        >
-          <View style={{ backgroundColor: '#fff', borderRadius: 10, padding: 20, minWidth: 180 }}>
-            <TouchableOpacity onPress={handleEdit} style={{ paddingVertical: 10 }}>
-              <Text style={{ fontSize: 16 }}>Edit</Text>
+          onPressOut={() => setOptionsVisible(false)}>
+          <View
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 10,
+              padding: 20,
+              minWidth: 180,
+            }}>
+            <TouchableOpacity
+              onPress={handleEdit}
+              style={{paddingVertical: 10}}>
+              <Text style={{fontSize: 16}}>Edit</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleDelete} style={{ paddingVertical: 10, flexDirection: 'row', alignItems: 'center' }}>
-              {deleteLoading ? <ActivityIndicator size={18} color="#E74C3C" style={{ marginRight: 8 }} /> : null}
-              <Text style={{ fontSize: 16, color: '#E74C3C' }}>Delete</Text>
+            <TouchableOpacity
+              onPress={handleDelete}
+              style={{
+                paddingVertical: 10,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}>
+              {deleteLoading ? (
+                <ActivityIndicator
+                  size={18}
+                  color="#E74C3C"
+                  style={{marginRight: 8}}
+                />
+              ) : null}
+              <Text style={{fontSize: 16, color: '#E74C3C'}}>Delete</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -1365,18 +1609,33 @@ const ProfileScreen = () => {
         visible={createCollectionModalVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setCreateCollectionModalVisible(false)}
-      >
+        onRequestClose={() => setCreateCollectionModalVisible(false)}>
         <TouchableOpacity
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
           activeOpacity={1}
-          onPressOut={() => setCreateCollectionModalVisible(false)}
-        >
-          <View style={{ backgroundColor: '#fff', borderRadius: 10, padding: 20, minWidth: 300 }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' }}>
+          onPressOut={() => setCreateCollectionModalVisible(false)}>
+          <View
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 10,
+              padding: 20,
+              minWidth: 300,
+            }}>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: 'bold',
+                marginBottom: 20,
+                textAlign: 'center',
+              }}>
               Create New Collection
             </Text>
-            
+
             <TextInput
               style={{
                 borderWidth: 1,
@@ -1384,40 +1643,40 @@ const ProfileScreen = () => {
                 borderRadius: 5,
                 padding: 12,
                 marginBottom: 20,
-                fontSize: 16
+                fontSize: 16,
               }}
               placeholder="Collection name"
               value={newCollectionName}
               onChangeText={setNewCollectionName}
               autoFocus
             />
-            
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <TouchableOpacity 
-                style={{ 
-                  flex: 1, 
-                  padding: 12, 
-                  marginRight: 10, 
-                  borderWidth: 1, 
-                  borderColor: '#ddd', 
+
+            <View
+              style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  marginRight: 10,
+                  borderWidth: 1,
+                  borderColor: '#ddd',
                   borderRadius: 5,
-                  alignItems: 'center'
+                  alignItems: 'center',
                 }}
                 onPress={() => {
                   setCreateCollectionModalVisible(false);
                   setNewCollectionName('');
-                }}
-              >
-                <Text style={{ fontSize: 16 }}>Cancel</Text>
+                }}>
+                <Text style={{fontSize: 16}}>Cancel</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={{ 
-                  flex: 1, 
-                  padding: 12, 
-                  backgroundColor: '#000', 
+
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  backgroundColor: '#000',
                   borderRadius: 5,
-                  alignItems: 'center'
+                  alignItems: 'center',
                 }}
                 onPress={async () => {
                   if (newCollectionName.trim()) {
@@ -1435,12 +1694,11 @@ const ProfileScreen = () => {
                     Alert.alert('Error', 'Please enter a collection name');
                   }
                 }}
-                disabled={createCollectionLoading}
-              >
+                disabled={createCollectionLoading}>
                 {createCollectionLoading ? (
                   <ActivityIndicator size={20} color="#fff" />
                 ) : (
-                  <Text style={{ fontSize: 16, color: '#fff' }}>Create</Text>
+                  <Text style={{fontSize: 16, color: '#fff'}}>Create</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -1453,18 +1711,33 @@ const ProfileScreen = () => {
         visible={editModalVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setEditModalVisible(false)}
-      >
+        onRequestClose={() => setEditModalVisible(false)}>
         <TouchableOpacity
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
           activeOpacity={1}
-          onPressOut={() => setEditModalVisible(false)}
-        >
-          <View style={{ backgroundColor: '#fff', borderRadius: 10, padding: 20, minWidth: 300 }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' }}>
+          onPressOut={() => setEditModalVisible(false)}>
+          <View
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 10,
+              padding: 20,
+              minWidth: 300,
+            }}>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: 'bold',
+                marginBottom: 20,
+                textAlign: 'center',
+              }}>
               Edit {selectedPost?.type === 'reel' ? 'Reel' : 'Post'}
             </Text>
-            
+
             <TextInput
               style={{
                 borderWidth: 1,
@@ -1474,7 +1747,7 @@ const ProfileScreen = () => {
                 marginBottom: 20,
                 fontSize: 16,
                 minHeight: 100,
-                textAlignVertical: 'top'
+                textAlignVertical: 'top',
               }}
               placeholder="Enter caption..."
               value={editCaption}
@@ -1482,42 +1755,41 @@ const ProfileScreen = () => {
               multiline
               autoFocus
             />
-            
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <TouchableOpacity 
-                style={{ 
-                  flex: 1, 
-                  padding: 12, 
-                  marginRight: 10, 
-                  borderWidth: 1, 
-                  borderColor: '#ddd', 
+
+            <View
+              style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  marginRight: 10,
+                  borderWidth: 1,
+                  borderColor: '#ddd',
                   borderRadius: 5,
-                  alignItems: 'center'
+                  alignItems: 'center',
                 }}
                 onPress={() => {
                   setEditModalVisible(false);
                   setEditCaption('');
                   setSelectedPost(null);
-                }}
-              >
-                <Text style={{ fontSize: 16 }}>Cancel</Text>
+                }}>
+                <Text style={{fontSize: 16}}>Cancel</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={{ 
-                  flex: 1, 
-                  padding: 12, 
-                  backgroundColor: '#000', 
+
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  backgroundColor: '#000',
                   borderRadius: 5,
-                  alignItems: 'center'
+                  alignItems: 'center',
                 }}
                 onPress={handleEditSubmit}
-                disabled={editLoading}
-              >
+                disabled={editLoading}>
                 {editLoading ? (
                   <ActivityIndicator size={20} color="#fff" />
                 ) : (
-                  <Text style={{ fontSize: 16, color: '#fff' }}>Update</Text>
+                  <Text style={{fontSize: 16, color: '#fff'}}>Update</Text>
                 )}
               </TouchableOpacity>
             </View>

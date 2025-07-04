@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStories } from '../../Api/Api';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../Navigation/types';
+import Video from 'react-native-video';
 
 // Add dummyStories fallback at the top
 const dummyStories: (Partial<Story> | any)[] = [
@@ -251,7 +252,7 @@ export default function HomeScreen() {
         <View style={[
           styles.storyAvatar,
           styles.avatarPlaceholder,
-          { borderColor: viewedStories.has(story.id) ? '#999' : '#E1306C' }
+          { borderColor: viewedStories.has(story.id) ? '#999' : '#bea063' }
         ]}>
           <Text style={styles.avatarInitials}>{getUserInitials(username)}</Text>
         </View>
@@ -264,7 +265,7 @@ export default function HomeScreen() {
         source={{ uri: avatar }} 
         style={[
           styles.storyAvatar,
-          { borderColor: viewedStories.has(story.id) ? '#999' : '#E1306C' }
+          { borderColor: viewedStories.has(story.id) ? '#999' : '#bea063' }
         ]} 
         onError={() => {
           console.log('Profile image failed to load for:', username);
@@ -275,22 +276,38 @@ export default function HomeScreen() {
   };
 
   const renderPost = ({ item }: { item: any }) => {
-    console.log("here comes items .....",item?.data?.media);
-    
-    // New API: item.data = post, item.profile = user
     const post = item.data || {};
     const profile = item.profile || {};
-    // For carousel, pass the whole media array
-    let userAvatar = '';
-    if (profile.profile_picture) {
-      userAvatar = profile.profile_picture.startsWith('http')
-        ? profile.profile_picture
-        : `https://pashuahar.com/${profile.profile_picture}`;
+
+    if (item.type === 'reel') {
+      // Prepare media array for Post component
+      const media = post.video_file
+        ? [{ media_file: post.video_file, is_video: true }]
+        : [];
+
+      return (
+        <Post
+          id={post.id?.toString()}
+          username={profile.username || ''}
+          media={media}
+          caption={post.caption || ''}
+          likes={post.like_count || 0}
+          userAvatar={profile.profile_picture}
+          isLiked={item.is_like || false}
+          contentType={post.type || 'reel'}
+          navigation={navigation}
+          allowComments={post.allow_comments !== false}
+          commentCount={post.comment_count || 0}
+          hideLikeCount={post.hide_like_count || false}
+          location={post.location || ''}
+          createdAt={post.created_at || ''}
+          profile={profile}
+          item={item}
+        />
+      );
     }
-    // Use placeholder if no profile picture or if it's null/empty
-    if (!userAvatar || userAvatar === 'null' || userAvatar === '') {
-      userAvatar = Image.resolveAssetSource(require('../../Assets/yoga.jpg')).uri;
-    }
+
+    // Default: render Post
     return (
       <Post
         id={post.id?.toString()}
@@ -298,8 +315,8 @@ export default function HomeScreen() {
         media={post.media || []}
         caption={post.caption || ''}
         likes={post.like_count || 0}
-        userAvatar={userAvatar}
-        isLiked={post.is_liked || false}
+        userAvatar={profile.profile_picture}
+        isLiked={item.is_like || false}
         contentType={post.type || 'post'}
         navigation={navigation}
         allowComments={post.allow_comments !== false}
@@ -368,7 +385,7 @@ export default function HomeScreen() {
                     {/* Story preview overlay */}
                     <View style={[
                       styles.storyPreviewOverlay,
-                      { borderColor: viewedStories.has(story.id) ? '#999' : '#E1306C' }
+                      { borderColor: viewedStories.has(story.id) ? '#999' : '#bea063' }
                     ]}>
                       <View style={styles.storyPreviewInner} />
                     </View>
@@ -440,7 +457,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
-    backgroundColor: '#fafafa',
+    backgroundColor: 'transparent',
   },
   addStoryButton: {
     width: 70,
@@ -450,7 +467,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
-    borderColor: '#E1306C',
+    borderColor: '#bea063',
     borderWidth: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -478,7 +495,7 @@ const styles = StyleSheet.create({
     height: 70,
     borderRadius: 35,
     borderWidth: 3,
-    borderColor: '#E1306C',
+    borderColor: '#bea063',
     backgroundColor: '#f0f0f0',
   },
   videoIndicator: {
@@ -503,7 +520,7 @@ const styles = StyleSheet.create({
     borderRadius: 35,
     backgroundColor: 'rgba(0, 0, 0, 0.1)',
     borderWidth: 2,
-    borderColor: '#E1306C',
+    borderColor: '#bea063',
   },
   storyPreviewInner: {
     flex: 1,
