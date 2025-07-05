@@ -15,7 +15,7 @@ import Video from 'react-native-video';
 import { useNavigation, useRoute, CompositeNavigationProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { RootStackParamList, MainTabParamList, HomeStackParamList } from '../../Navigation/types';
+// import { RootStackParamList, MainTabParamList, HomeStackParamList } from '../../Navigation/types';
 
 const windowWidth = Dimensions.get('window').width;
 
@@ -72,11 +72,11 @@ const styles = StyleSheet.create({
   },
 });
 
-const PostScreen: React.FC<PostScreenProps> = ({ route }) => {
-  const navigation = useNavigation<CompositeNavigationProp<
-    NativeStackNavigationProp<RootStackParamList>,
-    NativeStackNavigationProp<HomeStackParamList>
-  >>();
+const PostScreen = ({ route, navigation }) => {
+  // const navigation = useNavigation<CompositeNavigationProp<
+  //   NativeStackNavigationProp<RootStackParamList>,
+  //   NativeStackNavigationProp<HomeStackParamList>
+  // >>();
   const { media } = route.params;
   const [caption, setCaption] = useState('');
 

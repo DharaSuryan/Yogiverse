@@ -36,7 +36,7 @@ const ProfilePostDetailScreen = () => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+        <TouchableOpacity onPress={() => navigation.navigate('MainTab', { screen: 'Profile' })}>
           <Icon name="arrow-back" size={24} color="#222" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Post</Text>

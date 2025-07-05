@@ -11,6 +11,7 @@ import {
   Dimensions,
   ActivityIndicator,
   Platform,
+  Alert,
 } from 'react-native';
 import { SearchStackParamList } from '../../Navigation/types';
 import { useNavigation } from '@react-navigation/native';
@@ -19,17 +20,17 @@ import { push } from '../../Component/Route';
 
 const imageSource = require('../../Assets/yoga.jpg');
 
-
-
 type SearchScreenNavigationProp = NativeStackNavigationProp<
   SearchStackParamList,
   'Search'
 >;
 
 const VenderList = () => {
-  const navigation = useNavigation<SearchScreenNavigationProp>();
+  const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
 
   const [categories, setCategories] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [selectedSubcategories, setSelectedSubcategories] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -54,24 +55,59 @@ const VenderList = () => {
     }
   };
 
-  const handleItemPress = (item: any) => {
-    console.log("here comes ....",item);
-    
 
-    if (item.first_name) {
-      // User result - navigate to UserProfile
-      navigation.navigate('UserProfile' as any, { userId: item.id.toString() });
-    } else {
-      // Category or other result - navigate to SubCateGoryDisplay
-      push('SubCateGoryDisplay' , { item });
-    }
-  };
+   const handleSelectCategory = (categoryId: number | undefined) => {
+      if (categoryId === undefined) return;
+      setSelectedCategory(categoryId);
+      setSelectedSubcategories([]); // Reset subcategory selection when main category changes
+    };
+
+    const handleSelectSubcategory = (subcategoryId: number) => {
+      setSelectedSubcategories(prev => {
+        if (prev.includes(subcategoryId)) {
+          return prev.filter(id => id !== subcategoryId);
+        } else {
+          return [...prev, subcategoryId];
+        }
+      });
+    };
+  
+    const handleItemPress = () => {
+      if (selectedCategory === null) {
+        Alert.alert('Selection Required', 'Please select a vendor.');
+        return;
+      }
+      
+      // Update the data object with main categories (same format)
+      const updatedData = {
+      
+        main_categories: [selectedCategory]
+      };
+      
+      console.log('Updated data with main categories:', updatedData);
+      
+      // Navigate to SubCategory with updated data object
+      navigation.navigate('VendorSubCategory', { category: updatedData });
+    };
+  
 
   const renderCategory = ({ item }: any) => {
+    const categoryId = item.id !== undefined ? item.id : item.categories;
+    const isSelected = selectedCategory === categoryId;
     return (
       <TouchableOpacity
-        style={styles.categoryCardNew}
-        onPress={() => handleItemPress(item)}
+        style={[
+          styles.categoryCardNew,
+          isSelected && {
+            borderColor: '#bea063',
+            backgroundColor: '#fff5e6',
+            shadowColor: '#bea063',
+            shadowOpacity: 0.3,
+            shadowRadius: 6,
+            elevation: 5,
+          }
+        ]}
+        onPress={() => handleSelectCategory(categoryId)}
         activeOpacity={0.8}
       >
         <View style={styles.categoryImageWrapperNew}>
@@ -87,6 +123,18 @@ const VenderList = () => {
         >
           {item.category_name}
         </Text>
+        {isSelected && (
+          <View style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            backgroundColor: '#bea063',
+            borderRadius: 10,
+            padding: 2,
+          }}>
+            <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
@@ -115,11 +163,91 @@ const VenderList = () => {
   //   );
   // };
  
+  const handleShowSubcategories = () => {
+    if (selectedCategory === null) {
+      Alert.alert('Selection Required', 'Please select a main category first.');
+      return;
+    }
+    
+    if (selectedSubcategories.length === 0) {
+      Alert.alert('Selection Required', 'Please select at least one subcategory.');
+      return;
+    }
+    
+    const selectedVendor = categories.find(cat =>
+      selectedCategory === (cat.id !== undefined ? cat.id : cat.categories)
+    );
+    if (!selectedVendor) {
+      Alert.alert('Selection Error', 'No valid vendor found for your selection.');
+      return;
+    }
+    
+    // Navigate directly to VenderDetail with selected data
+    const navigationParams = {
+      mainCategoryId: selectedCategory,
+      subcategoryIds: selectedSubcategories,
+      mainCategoryName: selectedVendor.category_name
+    };
+    
+    console.log('Navigation params:', navigationParams);
+    console.log('Main Category ID:', selectedCategory);
+    console.log('Selected Subcategory IDs:', selectedSubcategories);
+    
+    navigation.navigate('VenderDetail', navigationParams);
+  };
+
+  const renderSubcategory = ({ item }: any) => {
+    console.log('Subcategory item:', item);
+    const isSelected = selectedSubcategories.includes(item.id);
+    return (
+      <TouchableOpacity
+        style={[
+          styles.subcategoryCardNew,
+          isSelected && {
+            borderColor: '#bea063',
+            backgroundColor: '#fff5e6',
+            shadowColor: '#bea063',
+            shadowOpacity: 0.3,
+            shadowRadius: 6,
+            elevation: 5,
+          }
+        ]}
+        onPress={() => handleSelectSubcategory(item.id)}
+        activeOpacity={0.8}
+      >
+        <View style={styles.categoryImageWrapperNew}>
+          <Image
+            source={item.image || item.sub_category_image || item.category_image ? 
+              { uri: item.image || item.sub_category_image || item.category_image } : imageSource}
+            style={styles.categoryImageNew}
+          />
+        </View>
+        <Text
+          numberOfLines={2}
+          ellipsizeMode="tail"
+          style={styles.categoryTitleNew}
+        >
+          {item.name || item.sub_category_name || item.category_name || 'Subcategory'}
+        </Text>
+        {isSelected && (
+          <View style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            backgroundColor: '#bea063',
+            borderRadius: 10,
+            padding: 2,
+          }}>
+            <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       
-
-
       {loading ? (
         <ActivityIndicator size="large" color="#000" style={{ marginTop: 20 }} />
       ) : error ? (
@@ -142,6 +270,47 @@ const VenderList = () => {
             contentContainerStyle={{ paddingBottom: 20 }}
           />
           
+          {/* Subcategories Slider */}
+          {selectedCategory && (
+            <View style={styles.subcategorySection}>
+              <Text style={styles.subcategoryTitle}>
+                {categories.find(cat => 
+                  selectedCategory === (cat.id !== undefined ? cat.id : cat.categories)
+                )?.category_name || 'Select Subcategories:'}
+              </Text>
+              {(() => {
+                const selectedCat = categories.find(cat => 
+                  selectedCategory === (cat.id !== undefined ? cat.id : cat.categories)
+                );
+                console.log('Selected category subcategories:', selectedCat?.sub_categories);
+                return (
+                  <FlatList
+                    data={selectedCat?.sub_categories || []}
+                    keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+                    renderItem={renderSubcategory}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.subcategoryList}
+                  />
+                );
+              })()}
+            </View>
+          )}
+          
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#bea063',
+              margin: 16,
+              padding: 14,
+              borderRadius: 8,
+              alignItems: 'center',
+            }}
+            onPress={handleShowSubcategories}
+          >
+            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>
+              Show Vendors
+            </Text>
+          </TouchableOpacity>
         </>
       )}
     </ScrollView>
@@ -218,6 +387,25 @@ const styles = StyleSheet.create({
     minWidth: 0,
     maxWidth: '32%',
   },
+  subcategoryCardNew: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    marginLeft: 0,
+    marginTop: 0,
+    marginBottom: 0,
+    paddingVertical: 18,
+    paddingHorizontal: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 2,
+    width: 120,
+    height: 140,
+  },
   categoryImageWrapperNew: {
     width: 80,
     height: 80,
@@ -241,6 +429,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 2,
     lineHeight: 20,
+  },
+  subcategorySection: {
+    marginTop: 20,
+    paddingHorizontal: 16,
+  },
+  subcategoryTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
+  subcategoryList: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
   },
 })
 

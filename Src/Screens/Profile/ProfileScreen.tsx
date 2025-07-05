@@ -45,7 +45,7 @@ interface Post {
   allMedia?: string[]; // All media files for this post
 }
 
-const ProfileScreen = () => {
+const ProfileScreen = ({navigation}: any) => {
   const [activeTab, setActiveTab] = useState<'posts' | 'reels' | 'saved'>(
     'posts',
   );
@@ -58,13 +58,13 @@ const ProfileScreen = () => {
     postsCount: 0,
     followersCount: 0,
     followingCount: 0,
-    id:''
+    id: '',
   });
-  const [userId,setUserId]= useState();
-console.log("profile s state",profile.id);
+  const [userId, setUserId] = useState();
+  console.log('profile s state', profile.id);
 
   // Real data from API
-  const [data , setData] = useState('')
+  const [data, setData] = useState('');
   const [posts, setPosts] = useState<Post[]>([]);
   const [savedPosts, setSavedPosts] = useState<Post[]>([]); // For saved tab
   const [collections, setCollections] = useState<any[]>([]); // For collections data
@@ -356,7 +356,6 @@ console.log("profile s state",profile.id);
 
   const handleEditSubmit = async () => {
     if (!selectedPost) return;
-
     setEditLoading(true);
     try {
       const authToken = await AsyncStorage.getItem('accessToken');
@@ -417,7 +416,7 @@ console.log("profile s state",profile.id);
     }
   };
 
-  const navigation = useNavigation<any>();
+  // const navigation = useNavigation<any>();
 
   // Video control functions
   const toggleMute = (itemId: string) => {
@@ -660,7 +659,7 @@ console.log("profile s state",profile.id);
       // Fetch profile data
       const profileResponse = await getProfile();
       console.log('profileResponse', profileResponse.data?.data);
-        setData(profileResponse?.data?.data)
+      setData(profileResponse?.data?.data);
       let followersCount = 0;
       let followingCount = 0;
       // Fetch followers/following counts in parallel
@@ -675,18 +674,17 @@ console.log("profile s state",profile.id);
         // console.log("profileDataprofileData",profileData);
 
         setProfile({
-          username: profileData.username || 'jk',
-          fullName:
-            `${profileData.first_name || ''} ${
-              profileData.last_name || ''
-            }`.trim() || 'Jay Chhaniyara',
-          bio: profileData.bio || 'Its Boy Jk',
+          username: profileData?.username,
+          fullName: `${profileData?.first_name || ''} ${
+            profileData?.last_name || ''
+          }`.trim(),
+          bio: profileData.bio || '',
           profileImage:
             profileData.profile_picture || 'https://picsum.photos/200',
           postsCount: profileData.posts_count || 7,
           followersCount,
           followingCount,
-          id:profileData.user
+          id: profileData.user,
         });
         // setUserId()
       }
@@ -881,8 +879,13 @@ console.log("profile s state",profile.id);
               collectionName: item.collectionName,
             });
           } else {
-            setSelectedIndex(index);
-            setFullscreenVisible(true);
+            // Navigate to ProfilePostDetailScreen
+            navigation.navigate('ProfilePostDetailScreen', {
+              postId: item.id,
+              post: item,
+              postIndex: index,
+              posts: filteredPosts,
+            });
           }
         }}
         activeOpacity={0.9}>
@@ -918,7 +921,7 @@ console.log("profile s state",profile.id);
                   <Ionicons
                     name={videoState.isPlaying ? 'pause' : 'play'}
                     size={20}
-                    color="#fff"
+                    color="#bea063"
                   />
                 </TouchableOpacity>
 
@@ -931,7 +934,7 @@ console.log("profile s state",profile.id);
                   <Ionicons
                     name={videoState.isMuted ? 'volume-mute' : 'volume-high'}
                     size={20}
-                    color="#fff"
+                    color="#bea063"
                   />
                 </TouchableOpacity>
               </View>
@@ -942,7 +945,7 @@ console.log("profile s state",profile.id);
         {/* Collection indicator */}
         {isCollection && (
           <View style={styles.collectionIndicator}>
-            <Ionicons name="folder-outline" size={16} color="#fff" />
+            <Ionicons name="folder-outline" size={16} color="#bea063" />
             <Text style={styles.collectionText}>{item.collectionName}</Text>
           </View>
         )}
@@ -950,7 +953,7 @@ console.log("profile s state",profile.id);
         {/* Multiple media indicator */}
         {item.mediaCount && item.mediaCount > 1 && (
           <View style={styles.multipleMediaIndicator}>
-            <Ionicons name="copy-outline" size={16} color="#fff" />
+            <Ionicons name="copy-outline" size={16} color="#bea063" />
             <Text style={styles.multipleMediaText}>{item.mediaCount}</Text>
           </View>
         )}
@@ -962,7 +965,7 @@ console.log("profile s state",profile.id);
             e.stopPropagation();
             handleOptions(item);
           }}>
-          <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
+          <Ionicons name="ellipsis-vertical" size={20} color="#bea063" />
         </TouchableOpacity>
 
         {/* Like/comment counts overlay */}
@@ -1041,7 +1044,7 @@ console.log("profile s state",profile.id);
         <Ionicons
           name="grid-outline"
           size={24}
-          color={activeTab === 'posts' ? '#000' : '#888'}
+          color={activeTab === 'posts' ? '#bea063' : '#888'}
         />
       </TouchableOpacity>
       <TouchableOpacity
@@ -1050,7 +1053,7 @@ console.log("profile s state",profile.id);
         <Ionicons
           name="play-outline"
           size={24}
-          color={activeTab === 'reels' ? '#000' : '#888'}
+          color={activeTab === 'reels' ? '#bea063' : '#888'}
         />
       </TouchableOpacity>
       <TouchableOpacity
@@ -1059,7 +1062,7 @@ console.log("profile s state",profile.id);
         <Ionicons
           name="bookmark-outline"
           size={24}
-          color={activeTab === 'saved' ? '#000' : '#888'}
+          color={activeTab === 'saved' ? '#bea063' : '#888'}
         />
       </TouchableOpacity>
     </View>
@@ -1102,7 +1105,6 @@ console.log("profile s state",profile.id);
         {/* <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 40, paddingBottom: 10, paddingHorizontal: 10, backgroundColor: '#111', justifyContent: 'space-between' }}>
           <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>Posts</Text>
         </View> */}
-       
         {/* User info */}
         <View
           style={{
@@ -1359,7 +1361,7 @@ console.log("profile s state",profile.id);
               <Ionicons
                 name={postState.isLiked ? 'heart' : 'heart-outline'}
                 size={22}
-                color={postState.isLiked ? '#FF3B30' : '#fff'}
+                color={postState.isLiked ? '#bea063' : '#fff'}
               />
             )}
             <Text
@@ -1441,13 +1443,37 @@ console.log("profile s state",profile.id);
 
   return (
     <SafeAreaView style={styles.container}>
-       <View style={styles.header}>
+      {/* <View style={styles.header}>
+    
+      <Text style={styles.headerTitle}>{profile?.username}</Text>
       <TouchableOpacity onPress={() => navigation.navigate('Menu')}>
         <Ionicons name="menu-outline" size={24} color="#bea063" />
       </TouchableOpacity>
-      <Text style={styles.headerTitle}>{profile?.username}</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Menu')}>
+        <Ionicons name="menu-outline" size={24} color="#bea063" />
+      </TouchableOpacity>
       <View style={{width: 24}} />
-    </View>
+    </View> */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>{profile?.username}</Text>
+        <View style={{flexDirection: 'row', alignItems: 'center',gap:8}}>
+          <TouchableOpacity
+            onPress={() => {
+              /* Add your plus icon action here */
+            }}>
+            <Ionicons name="add" size={28} color="#bea063" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('Menu')}>
+            <Ionicons
+              name="menu-outline"
+              size={24}
+              color="#bea063"
+              style={{marginRight: 18}}
+            />
+          </TouchableOpacity>         
+        </View>
+      </View>
+
       {/* Fullscreen Modal */}
       <Modal
         visible={fullscreenVisible}
@@ -1495,19 +1521,19 @@ console.log("profile s state",profile.id);
         </SafeAreaView>
       </Modal>
       {/* Main Profile Content */}
-      <ScrollView> 
+      <ScrollView>
         {renderProfileHeader()}
         {renderBio()}
 
         <View style={styles.actionButtons}>
           <TouchableOpacity
             style={styles.editButton}
-            onPress={() => navigation.navigate('EditProfile',{data : data})}>
+            onPress={() => navigation.navigate('EditProfile', {data: data})}>
             <Text style={styles.editButtonText}>Edit Profile</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.shareButton}>
+          {/* <TouchableOpacity style={styles.shareButton}>
             <Ionicons name="share-outline" size={20} color="#000" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
 
         {renderTabBar()}
@@ -1809,7 +1835,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 15,
+    // paddingHorizontal: 15,
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#bea063',
@@ -1818,7 +1844,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#bea063',
-    textAlign: 'center',
+    // textAlign: 'center',
+    left:10,
     flex: 1,
   },
   profileHeader: {
@@ -1872,16 +1899,18 @@ const styles = StyleSheet.create({
   },
   editButton: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#ddd',
+   borderWidth: 1,
+    borderColor: '#bea063',
     borderRadius: 5,
     padding: 8,
     alignItems: 'center',
     marginRight: 10,
+    backgroundColor:'#bea063'
   },
   editButtonText: {
     fontSize: 14,
     fontWeight: '600',
+    color:'white'
   },
   shareButton: {
     width: 40,
@@ -1905,7 +1934,7 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     borderBottomWidth: 2,
-    borderBottomColor: '#000',
+    borderBottomColor: '#bea063',
   },
   postsGrid: {
     padding: 1,

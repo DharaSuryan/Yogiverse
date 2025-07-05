@@ -75,10 +75,10 @@ const ACCOUNT_CENTER_DATA = {
     lastPasswordChange: '2024-05-15',
   }
 };
-type MenuScreenProps = {
-  navigation: NativeStackNavigationProp<RootStackParamList>;
-};
-export default function MenuScreen({ navigation }: MenuScreenProps) {
+// type MenuScreenProps = {
+//   navigation: NativeStackNavigationProp<RootStackParamList>;
+// };
+export default function MenuScreen({ navigation }) {
   const [accountCenterModal, setAccountCenterModal] = useState(false);
   const [twoFA, setTwoFA] = useState(ACCOUNT_CENTER_DATA.security.twoFactorEnabled);
   const [loading, setLoading] = useState(false);
@@ -107,26 +107,29 @@ export default function MenuScreen({ navigation }: MenuScreenProps) {
 
               if (res.status === 200) {
                 // 2. Clear AsyncStorage
-                await AsyncStorage.clear();
+                // await AsyncStorage.clear();
 
                 // 3. Reset Redux store (dispatch logout action)
                 dispatch({ type: 'AUTH_LOGOUT' }); // Adjust this according to your Redux action type
 
                 // 4. Reset to Auth stack
-                setTimeout(() => {
-                  navigation.dispatch(
-                  CommonActions.reset({
-                    index: 0,
-                    routes: [{
-                      name: 'Auth',
-                      params: {
-                        screen: 'Login'
-                      }
-                    }]
-                  })
-                );
+                // setTimeout(() => {
+                //   navigation.dispatch(
+                //   CommonActions.reset({
+                //     index: 0,
+                //     routes: [{
+                //       name: 'Auth',
+                //       params: {
+                //         screen: 'Login'
+                //       }
+                //     }]
+                //   })
+                // );
 
-                }, 300);
+                // }, 300);
+
+                navigation.navigate('Auth')
+
                 
 
                 // // Ensure navigation is complete

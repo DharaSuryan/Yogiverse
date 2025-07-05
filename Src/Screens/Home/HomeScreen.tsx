@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import axios from 'axios';
@@ -13,112 +13,112 @@ import { RootStackParamList } from '../../Navigation/types';
 import Video from 'react-native-video';
 
 // Add dummyStories fallback at the top
-const dummyStories: (Partial<Story> | any)[] = [
-  { id: 'add', type: 'add' },
-  { 
-    id: '1', 
-    userId: '1',
-    username: 'Your Story', 
-    userProfilePicture: 'https://via.placeholder.com/150/FF0000/FFFFFF?text=Your+Story',
-    mediaUrl: 'https://via.placeholder.com/400/FF0000/FFFFFF?text=Test+Image',
-    imageUrl: 'https://via.placeholder.com/400/FF0000/FFFFFF?text=Test+Image',
-    type: 'image',
-    timestamp: new Date().toISOString(),
-    duration: 5000,
-    viewers: [],
-    isViewed: false,
-    createdAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    user: {
-      username: 'Your Story',
-      email: 'your@story.com',
-      isVerified: false
-    }
-  },
-  { 
-    id: '2', 
-    userId: '2',
-    username: 'Jane Doe', 
-    userProfilePicture: 'https://via.placeholder.com/150/00FF00/FFFFFF?text=Jane',
-    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    imageUrl: 'https://via.placeholder.com/400/00FF00/FFFFFF?text=Video+Thumb',
-    type: 'video',
-    timestamp: new Date().toISOString(),
-    duration: 5000,
-    viewers: [],
-    isViewed: false,
-    createdAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    user: {
-      username: 'Jane Doe',
-      email: 'jane@example.com',
-      isVerified: false
-    }
-  },
-  { 
-    id: '3', 
-    userId: '3',
-    username: 'John Smith', 
-    userProfilePicture: 'https://via.placeholder.com/150/0000FF/FFFFFF?text=John',
-    mediaUrl: 'https://via.placeholder.com/400/0000FF/FFFFFF?text=Another+Image',
-    imageUrl: 'https://via.placeholder.com/400/0000FF/FFFFFF?text=Another+Image',
-    type: 'image',
-    timestamp: new Date().toISOString(),
-    duration: 5000,
-    viewers: [],
-    isViewed: false,
-    createdAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    user: {
-      username: 'John Smith',
-      email: 'john@example.com',
-      isVerified: false
-    }
-  },
-  { 
-    id: '4', 
-    userId: '4',
-    username: 'Alice', 
-    userProfilePicture: 'https://via.placeholder.com/150/FFFF00/000000?text=Alice',
-    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    imageUrl: 'https://via.placeholder.com/400/FFFF00/000000?text=Video+Thumb+2',
-    type: 'video',
-    timestamp: new Date().toISOString(),
-    duration: 5000,
-    viewers: [],
-    isViewed: false,
-    createdAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    user: {
-      username: 'Alice',
-      email: 'alice@example.com',
-      isVerified: false
-    }
-  },
-  { 
-    id: '5', 
-    userId: '5',
-    username: 'Bob', 
-    userProfilePicture: 'https://via.placeholder.com/150/FF00FF/FFFFFF?text=Bob',
-    mediaUrl: 'https://via.placeholder.com/400/FF00FF/FFFFFF?text=Bob+Image',
-    imageUrl: 'https://via.placeholder.com/400/FF00FF/FFFFFF?text=Bob+Image',
-    type: 'image',
-    timestamp: new Date().toISOString(),
-    duration: 5000,
-    viewers: [],
-    isViewed: false,
-    createdAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    user: {
-      username: 'Bob',
-      email: 'bob@example.com',
-      isVerified: false
-    }
-  },
-];
+// const dummyStories: (Partial<Story> | any)[] = [
+//   { id: 'add', type: 'add' },
+//   { 
+//     id: '1', 
+//     userId: '1',
+//     username: 'Your Story', 
+//     userProfilePicture: 'https://via.placeholder.com/150/FF0000/FFFFFF?text=Your+Story',
+//     mediaUrl: 'https://via.placeholder.com/400/FF0000/FFFFFF?text=Test+Image',
+//     imageUrl: 'https://via.placeholder.com/400/FF0000/FFFFFF?text=Test+Image',
+//     type: 'image',
+//     timestamp: new Date().toISOString(),
+//     duration: 5000,
+//     viewers: [],
+//     isViewed: false,
+//     createdAt: new Date().toISOString(),
+//     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+//     user: {
+//       username: 'Your Story',
+//       email: 'your@story.com',
+//       isVerified: false
+//     }
+//   },
+//   { 
+//     id: '2', 
+//     userId: '2',
+//     username: 'Jane Doe', 
+//     userProfilePicture: 'https://via.placeholder.com/150/00FF00/FFFFFF?text=Jane',
+//     mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+//     imageUrl: 'https://via.placeholder.com/400/00FF00/FFFFFF?text=Video+Thumb',
+//     type: 'video',
+//     timestamp: new Date().toISOString(),
+//     duration: 5000,
+//     viewers: [],
+//     isViewed: false,
+//     createdAt: new Date().toISOString(),
+//     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+//     user: {
+//       username: 'Jane Doe',
+//       email: 'jane@example.com',
+//       isVerified: false
+//     }
+//   },
+//   { 
+//     id: '3', 
+//     userId: '3',
+//     username: 'John Smith', 
+//     userProfilePicture: 'https://via.placeholder.com/150/0000FF/FFFFFF?text=John',
+//     mediaUrl: 'https://via.placeholder.com/400/0000FF/FFFFFF?text=Another+Image',
+//     imageUrl: 'https://via.placeholder.com/400/0000FF/FFFFFF?text=Another+Image',
+//     type: 'image',
+//     timestamp: new Date().toISOString(),
+//     duration: 5000,
+//     viewers: [],
+//     isViewed: false,
+//     createdAt: new Date().toISOString(),
+//     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+//     user: {
+//       username: 'John Smith',
+//       email: 'john@example.com',
+//       isVerified: false
+//     }
+//   },
+//   { 
+//     id: '4', 
+//     userId: '4',
+//     username: 'Alice', 
+//     userProfilePicture: 'https://via.placeholder.com/150/FFFF00/000000?text=Alice',
+//     mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+//     imageUrl: 'https://via.placeholder.com/400/FFFF00/000000?text=Video+Thumb+2',
+//     type: 'video',
+//     timestamp: new Date().toISOString(),
+//     duration: 5000,
+//     viewers: [],
+//     isViewed: false,
+//     createdAt: new Date().toISOString(),
+//     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+//     user: {
+//       username: 'Alice',
+//       email: 'alice@example.com',
+//       isVerified: false
+//     }
+//   },
+//   { 
+//     id: '5', 
+//     userId: '5',
+//     username: 'Bob', 
+//     userProfilePicture: 'https://via.placeholder.com/150/FF00FF/FFFFFF?text=Bob',
+//     mediaUrl: 'https://via.placeholder.com/400/FF00FF/FFFFFF?text=Bob+Image',
+//     imageUrl: 'https://via.placeholder.com/400/FF00FF/FFFFFF?text=Bob+Image',
+//     type: 'image',
+//     timestamp: new Date().toISOString(),
+//     duration: 5000,
+//     viewers: [],
+//     isViewed: false,
+//     createdAt: new Date().toISOString(),
+//     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+//     user: {
+//       username: 'Bob',
+//       email: 'bob@example.com',
+//       isVerified: false
+//     }
+//   },
+// ];
 
-export default function HomeScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+export default function HomeScreen( {navigation}:any) {
+  // const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [selectedPost, setSelectedPost] = useState<PostType | null>(null);
   const [posts, setPosts] = useState<PostType[]>([]);
@@ -334,7 +334,7 @@ export default function HomeScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Image source={require('../../Assets/Logo.png')} style={{ width: 100, height: 30 }} resizeMode='contain' />
+        <Text style={styles.headerTitle}>Yogiverse</Text>
         <View style={styles.headerIcons}>
           <TouchableOpacity onPress={() => navigation.navigate('Notifications' as never)}>
             {React.createElement(Icon as any, { name: "heart-outline", size: 24, color: "#bea063", style: styles.icon })}
@@ -345,63 +345,58 @@ export default function HomeScreen() {
         </View>
       </View>
 
+<ScrollView>
       {/* Stories Section */}
       {storiesLoading ? (
         <ActivityIndicator size="small" style={{ marginVertical: 20 }} />
       ) : storiesError ? (
         <Text style={{ color: 'red', textAlign: 'center', marginVertical: 20 }}>{storiesError}</Text>
       ) : (
-        <FlatList
-          data={[{ id: 'add', type: 'add' }, ...stories]}
+        <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) => item.id}
           contentContainerStyle={styles.storyList}
-          renderItem={({ item }) => {
-            console.log("here comes item .....",item);
-            if ('type' in item && item.type === 'add') {
-              return (
-                <TouchableOpacity style={styles.addStoryButton} onPress={() => navigation.navigate('StoryCreation')}>
-                  {React.createElement(Icon as any, { name: "add", size: 30, color: "#fff" })}
-                  <Text style={styles.addStoryText}>Add Story</Text>
-                </TouchableOpacity>
-              );
-            } else {
-              const story = item as Story;
-              // fallback for dummy data avatar
-              const avatar = story.userProfilePicture || require('../../Assets/yoga.jpg');
-              const isVideo = story.type === 'video' || story.mediaUrl?.toLowerCase().endsWith('.mp4');
-              
-              return (
-                <TouchableOpacity style={styles.storyItem} onPress={() => handleStoryPress(story)}>
-                  <View style={styles.storyAvatarContainer}>
-                    {renderUserAvatar(story)}
-                    {/* Story type indicator */}
-                    {isVideo && (
-                      <View style={styles.videoIndicator}>
-                        {React.createElement(Icon as any, { name: "videocam", size: 12, color: "#fff" })}
-                      </View>
-                    )}
-                    {/* Story preview overlay */}
-                    <View style={[
-                      styles.storyPreviewOverlay,
-                      { borderColor: viewedStories.has(story.id) ? '#999' : '#bea063' }
-                    ]}>
-                      <View style={styles.storyPreviewInner} />
+        >
+          {/* Add Story Button */}
+          <TouchableOpacity style={styles.addStoryButton} onPress={() => navigation.navigate('StoryCreation')}>
+            {React.createElement(Icon as any, { name: "add", size: 30, color: "#fff" })}
+            <Text style={styles.addStoryText}>Add Story</Text>
+          </TouchableOpacity>
+          
+          {/* Stories */}
+          {stories.map((story) => {
+            console.log("here comes story .....", story);
+            const isVideo = story.type === 'video' || story.mediaUrl?.toLowerCase().endsWith('.mp4');
+            
+            return (
+              <TouchableOpacity key={story.id} style={styles.storyItem} onPress={() => handleStoryPress(story)}>
+                <View style={styles.storyAvatarContainer}>
+                  {renderUserAvatar(story)}
+                  {/* Story type indicator */}
+                  {isVideo && (
+                    <View style={styles.videoIndicator}>
+                      {React.createElement(Icon as any, { name: "videocam", size: 12, color: "#fff" })}
                     </View>
-                  </View>
-                  <Text style={styles.storyUsername} numberOfLines={1}>{story.username}</Text>
-                  {/* Story caption preview */}
-                  {story.caption && (
-                    <Text style={styles.storyCaption} numberOfLines={1}>
-                      {story.caption}
-                    </Text>
                   )}
-                </TouchableOpacity>
-              );
-            }
-          }}
-        />
+                  {/* Story preview overlay */}
+                  <View style={[
+                    styles.storyPreviewOverlay,
+                    { borderColor: viewedStories.has(story.id) ? '#999' : '#bea063' }
+                  ]}>
+                    <View style={styles.storyPreviewInner} />
+                  </View>
+                </View>
+                <Text style={styles.storyUsername} numberOfLines={1}>{story.username}</Text>
+                {/* Story caption preview */}
+                {story.caption && (
+                  <Text style={styles.storyCaption} numberOfLines={1}>
+                    {story.caption}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       )}
 
       {/* Posts Section */}
@@ -419,7 +414,7 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
-
+</ScrollView>
       <ShareModal
         visible={shareModalVisible}
         onClose={() => setShareModalVisible(false)}
@@ -438,13 +433,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 15,
-    // borderBottomWidth: 1,
-    // borderBottomColor: '#bea063',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#dbdbdb',
+    backgroundColor: '#fff',
   },
-  logo: {
-    fontSize: 22,
+  headerTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
+    color: '#bea063',
   },
   headerIcons: {
     flexDirection: 'row',
@@ -453,48 +451,43 @@ const styles = StyleSheet.create({
     marginLeft: 15,
   },
   storyList: {
-    paddingVertical: 15,
+    paddingVertical: 10,
     paddingHorizontal: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    backgroundColor: 'transparent',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#dbdbdb',
+    backgroundColor: '#fff',
   },
   addStoryButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#0095F6',
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#fafafa',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
-    borderColor: '#bea063',
-    borderWidth: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginRight: 12,
+    borderColor: '#dbdbdb',
+    borderWidth: 1,
   },
   addStoryText: {
-    color: '#fff',
+    color: '#262626',
     fontSize: 10,
     fontWeight: '600',
     marginTop: 2,
   },
   storyItem: {
     alignItems: 'center',
-    marginRight: 15,
-    width: 70,
+    marginRight: 12,
+    width: 62,
   },
   storyAvatarContainer: {
     position: 'relative',
     marginBottom: 5,
   },
   storyAvatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 3,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    borderWidth: 2,
     borderColor: '#bea063',
     backgroundColor: '#f0f0f0',
   },
@@ -517,31 +510,30 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 35,
+    borderRadius: 31,
     backgroundColor: 'rgba(0, 0, 0, 0.1)',
     borderWidth: 2,
     borderColor: '#bea063',
   },
   storyPreviewInner: {
     flex: 1,
-    borderRadius: 33,
+    borderRadius: 29,
     backgroundColor: 'transparent',
   },
   storyUsername: {
-    fontSize: 11,
-    marginTop: 3,
-    color: '#333',
-    fontWeight: '500',
+    fontSize: 10,
+    marginTop: 4,
+    color: '#262626',
+    fontWeight: '400',
     textAlign: 'center',
     width: '100%',
   },
   storyCaption: {
     fontSize: 9,
-    color: '#666',
-    marginTop: 2,
+    color: '#8e8e93',
+    marginTop: 1,
     textAlign: 'center',
     width: '100%',
-    fontStyle: 'italic',
   },
   avatarPlaceholder: {
     backgroundColor: '#f0f0f0',

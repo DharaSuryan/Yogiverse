@@ -43,7 +43,7 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
       console.log("response",response);
       
       if (response.status === 200 && response.data) {
-        console.log("Login response", response);
+        console.log("Login response", response.data);
         
         // Store tokens and user data using Promise.all for better performance
         await Promise.all([
@@ -95,7 +95,7 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
           <Image source={require('../../Assets/LogoLogin.png')} style={styles.logo} resizeMode="contain" />
         </View>
         <Formik
-          initialValues={{ username: '', password: '' }}
+          initialValues={{ username: 'dhara2__', password: 'Dhara12345' }}
           validationSchema={LoginSchema}
           onSubmit={handleLogin}
         >

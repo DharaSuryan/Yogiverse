@@ -1,6 +1,6 @@
 // Src/Screens/Vendor/VendorDetailScreen.tsx
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,49 +17,21 @@ import {
   FlatList,
   Button,
   findNodeHandle,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+const Ionicons = require('react-native-vector-icons/Ionicons').default;
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { VendorStackParamList } from '../../Navigation/types'; // Adjust path as needed
-import { vendorDetail } from '../../Api/Api';
+// import { VendorStackParamList } from '../../Navigation/types'; // Adjust path as needed
+import { vendorDetail, vendorList } from '../../Api/Api';
 
 // Get screen dimensions for responsive styling
 const { width, height } = Dimensions.get('window');
 
 // --- INTERFACES FOR DUMMY DATA ---
-interface Product {
-  id: string;
-  name: string;
-  price: string;
-  image: any; // For require() or string URL
-}
 
-interface Review {
-  id: string;
-  user: string;
-  rating: number;
-  comment: string;
-  timestamp: string;
-}
 
-interface Vendor {
-  id: string;
-  name: string;
-  category: string;
-  rating: number;
-  reviewCount: number;
-  coverImage: any;
-  logo: any;
-  description: string;
-  address: string;
-  phone: string;
-  email: string;
-  products: Product[];
-  reviews: Review[];
-  galleryImages: any[];
-}
 
 // --- DUMMY DATA (REPLACE WITH YOUR API FETCH) ---
 // IMPORTANT: You'll need to create these assets in your Src/Assets folder
@@ -72,306 +44,203 @@ interface Vendor {
 // - product_soap.jpg
 // - gallery_1.jpg, gallery_2.jpg, gallery_3.jpg, gallery_4.jpg
 
-const dummyVendor: Vendor = {
-  id: 'v1',
-  name: 'Yogi Organics',
-  category: 'Organic Food & Wellness',
-  rating: 4.8,
-  reviewCount: 245,
-  coverImage: require('../../Assets/yoga.jpg'),
-  logo: require('../../Assets/yoga.jpg'),
-  description: 'Yogi Organics brings you the purest organic produce and wellness products directly from sustainable farms. Our mission is to promote health and well-being through nature\'s finest offerings, harvested with care and delivered with love. We believe in harmony with nature and provide products that nourish both body and soul.',
-  address: '123 Wellness Lane, Yoga City, YV 10001',
-  phone: '+91 98765 43210',
-  email: 'info@yogiorganics.com',
-  products: [
-    { id: 'p1', name: 'Organic Ghee (500ml)', price: '₹ 450', image: require('../../Assets/yoga.jpg'), },
-    { id: 'p2', name: 'Herbal Tea Blend', price: '₹ 220', image: require('../../Assets/yoga.jpg'), },
-    { id: 'p3', name: 'Natural Honey (250g)', price: '₹ 300', image: require('../../Assets/yoga.jpg'),},
-    { id: 'p4', name: 'Handmade Soap Set', price: '₹ 500', image: require('../../Assets/yoga.jpg'), },
-  ],
-  reviews: [
-    { id: 'r1', user: 'Aarav Sharma', rating: 5, comment: 'Excellent quality ghee, truly organic!', timestamp: '2 days ago' },
-    { id: 'r2', user: 'Priya Singh', rating: 4, comment: 'Love the herbal tea, very soothing.', timestamp: '1 week ago' },
-    { id: 'r3', user: 'Rahul Kumar', rating: 5, comment: 'Fast delivery and fresh products. Highly recommend.', timestamp: '3 weeks ago' },
-  ],
-  galleryImages: [
-   require('../../Assets/yoga.jpg'),
-    require('../../Assets/yoga.jpg'),
-    require('../../Assets/yoga.jpg'),
-  ],
-};
 
 // --- SCREEN COMPONENT ---
-type VendorDetailScreenRouteProp = RouteProp<VendorStackParamList, 'VenderDetail'>;
 
-type VendorDetailScreenNavigationProp = NativeStackNavigationProp<VendorStackParamList, 'VenderDetail'>;
-const VendorDetailScreen: React.FC = () => {
-
-  const scrollViewRef = useRef<ScrollView>(null);
-  const navigation = useNavigation<VendorDetailScreenNavigationProp>();
-  const route = useRoute<VendorDetailScreenRouteProp>();
-  const isMounted = useRef(false); // Added isMounted ref
-  const [vendor, setVendor] = useState([])
-
-  const [vendorData, setVendorData] = useState<Vendor | null>(null);
+const VendorDetailScreen = ({navigation}:any) => {
+  const route = useRoute();
+  
+  const [vendors, setVendors] = useState<any[]>([]);
+  const [filteredVendors, setFilteredVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Add cleanup on unmount
+
+  // Get the selected categories from navigation params
+  const { mainCategoryId, subcategoryIds, mainCategoryName } = route.params as any;
+  console.log("Navigation params received:", route.params);
+  console.log("mainCategoryId:", mainCategoryId);
+  console.log("subcategoryIds:", subcategoryIds);
+
   useEffect(() => {
-    isMounted.current = true; // Set to true when mounted
-    return () => {
-      isMounted.current = false; // Set to false when unmounted
-      // Cleanup any subscriptions or listeners here
-    };
+    fetchVendors();
   }, []);
-console.log("route",route.params);
 
-
-  const handleGoBack = () => {
-    try {
-      // Introduce a small delay to allow native views to settle
-      setTimeout(() => {
-        if (navigation.canGoBack()) {
-          navigation.goBack();
-        } else {
-          // Fallback navigation if can't go back
-          navigation.navigate('Vendor');
-        }
-      }, 100); // 100ms delay
-    } catch (error) {
-      console.log('Navigation error:', error);
-      // Fallback navigation, also with a delay
-      setTimeout(() => {
+  // Back handler for mobile back button
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        // Navigate back to VenderList screen
         navigation.navigate('Vendor');
-      }, 100); // 100ms delay
-    }
-  };
-console.log("route.params.vendorId",route.params.vendorId);
+        return true;
+      };
 
-    useEffect(() => {
-  
-      fetchVendor();
-    }, []);
-    const fetchVendor = async () => {
-      try {
-  
-        const response = await vendorDetail(route.params.vendorId);
-        console.log("vendor Detail", response.data);
-  
-        setVendor(response.data);
-      } catch (error: any) {
-        setError('Something went wrong while loading profile.');
-      } finally {
-        setLoading(false);
+      BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+    }, [navigation])
+  );
+
+  const fetchVendors = async () => {
+    try {
+      setLoading(true);
+      
+      // Build query parameters for the API
+      // const queryParams = new URLSearchParams();
+      
+      // if (mainCategoryIds && mainCategoryIds.length > 0) {
+      //   queryParams.append('main_category', mainCategoryIds[0].toString());
+      // }
+      
+      // if (selectedSubcategoryIds && selectedSubcategoryIds.length > 0) {
+      //   queryParams.append('subcategory', selectedSubcategoryIds[0].toString());
+      // }
+      
+      // Use the correct parameter names from navigation
+      const mainCategory = mainCategoryId;
+      const subcategory = subcategoryIds && subcategoryIds.length > 0 ? subcategoryIds[0] : null;
+      
+      const url = `https://pashuahar.com/vendor_list/?main_category=${mainCategory}&subcategory=${subcategory}`;
+      console.log('Calling API:', url);
+      
+      const response = await fetch(url);
+      console.log("vender detail",response);
+      
+      const data = await response.json();
+      
+      if (data.status === true && data.vendors) {
+        console.log('Vendors from API:', data.vendors);
+        setVendors(data.vendors);
+        setFilteredVendors(data.vendors);
+      } else {
+        setError('Failed to fetch vendors');
       }
-    };
-  // States for vendor data (replace with actual fetch)
- 
-
-  // Refs for scroll positions for "jump to section" functionality
-  const aboutRef = useRef<View>(null);
-  const productsRef = useRef<View>(null);
-  const reviewsRef = useRef<View>(null);
-  const galleryRef = useRef<View>(null);
-
-  const sections = [
-    { name: 'About', ref: aboutRef },
-    { name: 'Products', ref: productsRef },
-    { name: 'Reviews', ref: reviewsRef },
-    { name: 'Gallery', ref: galleryRef },
-  ];
-
-  // Simulate fetching vendor data based on ID from route params
-  useEffect(() => {
-    // const fetchVendor = async () => {
-    //   try {
-    //     setLoading(true);
-    //     // In a real app, you'd fetch data using route.params?.vendorId
-    //     // const response = await api.get(`/vendors/${route.params?.vendorId}`);
-    //     // setVendorData(response.data);
-        
-    //     // Using dummy data for demonstration
-    //     setTimeout(() => {
-    //       if (!isMounted.current) return; // Prevent state update if component unmounted
-    //       setVendorData(dummyVendor);
-    //       setLoading(false);
-    //     }, 1000); // Simulate network delay
-    //   } catch (err) {
-    //     if (!isMounted.current) return; // Prevent state update if component unmounted
-    //     setError('Failed to load vendor details.');
-    //     setLoading(false);
-    //   }
-    // };
-    // fetchVendor();
-  }, [route.params?.vendorId]); // Re-fetch if vendorId changes
-
- 
-
-  const renderStars = (rating: number) => {
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-      stars.push(
-        <Ionicons
-          key={i}
-          name={i <= rating ? 'star' : 'star-outline'}
-          size={16}
-          color="#FFD700"
-          style={styles.starIcon}
-        />
-      );
+    } catch (error) {
+      console.error('Error fetching vendors:', error);
+      setError('Something went wrong while loading vendors');
+    } finally {
+      setLoading(false);
     }
-    return <View style={styles.starsContainer}>{stars}</View>;
   };
 
-  const handleContactVendor = () => {
-    Alert.alert('Contact Vendor', `You can call ${vendorData?.phone} or email ${vendorData?.email}`);
-    // In a real app, implement linking to phone dialer or email client
+  const filterVendorsByCategories = (allVendors: any[]) => {
+    if (!subcategoryIds || !mainCategoryId) {
+      setFilteredVendors(allVendors);
+      return;
+    }
+
+    // Filter vendors based on main categories and subcategories
+    const filtered = allVendors.filter((vendor: any) => {
+      // Check if vendor belongs to the selected main category
+      const hasMainCategory = vendor.category_id === mainCategoryId || 
+                             vendor.main_category_id === mainCategoryId;
+      
+      // Check if vendor has any of the selected subcategories
+      const hasSubcategory = vendor.sub_categories && 
+                            vendor.sub_categories.some((sub: any) => 
+                              subcategoryIds.includes(sub.id)
+                            );
+      
+      return hasMainCategory || hasSubcategory;
+    });
+
+    console.log('Filtered vendors:', filtered);
+    setFilteredVendors(filtered);
+  };
+
+  const handleVendorPress = (vendor: any) => {
+    // Navigate to individual vendor detail
+    const userId = vendor.profile?.user || vendor.user?.id;
+    console.log('Navigating to UserProfile with userId:', userId);
+    (navigation as any).navigate('UserProfile', { userId: userId });
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0095f6" />
-        <Text style={styles.loadingText}>Loading vendor details...</Text>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#bea063" />
+          <Text style={styles.loadingText}>Loading vendors...</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
-  if (error || !vendorData) {
+  if (error) {
     return (
-      <SafeAreaView style={styles.errorContainer}>
-        <Text style={styles.errorText}>{error || 'Vendor data not available.'}</Text>
-        <Button title="Go Back" onPress={() => navigation.goBack()} />
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchVendors}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Fixed Header */}
-      <View style={styles.fixedHeader}>
+      {/* Header */}
+      <View style={styles.headerContainer}>
         <TouchableOpacity 
-          onPress={handleGoBack}
-          style={styles.backButton}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.backButton} 
+          onPress={() => {
+            // Navigate back to VenderList screen
+            (navigation as any).navigate('Vendor');
+          }}
         >
-          <Text>
-            <Ionicons name="arrow-back" size={26} color="#fff" />
-          </Text>
+          <Ionicons name="arrow-back" size={24} color="#bea063" />
         </TouchableOpacity>
-        <Text style={styles.fixedHeaderTitle}>{vendorData?.name || ''}</Text>
-        <View style={styles.backButton} /> {/* Placeholder for balance */}
+        <Text style={styles.headerTitle}>Yogi's</Text>
+        <View style={styles.placeholder} />
       </View>
 
-      {/* Scrollable Content */}
-      <ScrollView ref={scrollViewRef} showsVerticalScrollIndicator={false}>
-        {/* Hero Section */}
-        <Image source={vendorData.coverImage} style={styles.coverImage} resizeMode="cover" />
-        <View style={styles.heroOverlay}>
-          <Image source={vendorData.logo} style={styles.vendorLogo} />
-          <Text style={styles.vendorName}>{vendorData.name}</Text>
-          <Text style={styles.vendorCategory}>{vendorData.category}</Text>
-          <View style={styles.ratingRow}>
-            {renderStars(vendorData.rating)}
-            <Text style={styles.reviewCountText}> ({vendorData.reviewCount} reviews)</Text>
-          </View>
-        </View>
-
-        {/* Section Navigation (Jump Links) */}
-        {/* <View style={styles.sectionNavContainer}>
-          {sections.map((section) => (
-            <TouchableOpacity
-              key={section.name}
-              onPress={() => scrollToSection(section.ref)}
-              style={styles.sectionNavLink}
+      {/* Vendor Grid */}
+      <FlatList
+        data={filteredVendors}
+        keyExtractor={(item) => item.user?.id?.toString() || item.id?.toString()}
+        numColumns={3}
+        renderItem={({ item }) => {
+          const username = item.user?.username || item.profile?.username || 'Unknown';
+          const profilePicture = item.profile?.profile_picture;
+          const firstName = item.user?.first_name || item.profile?.first_name || '';
+          const lastName = item.user?.last_name || item.profile?.last_name || '';
+          
+          // Create initials from first and last name
+          const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+          
+          return (
+            <TouchableOpacity 
+              style={styles.vendorGridCard}
+              onPress={() => handleVendorPress(item)}
             >
-              <Text style={styles.sectionNavText}>{section.name}</Text>
-            </TouchableOpacity>
-          ))}
-        </View> */}
-
-        {/* --- Content Sections --- */}
-
-        {/* About Section */}
-        <View ref={aboutRef} style={styles.section}>
-          <Text style={styles.sectionTitle}>About {vendorData.name}</Text>
-          <Text style={styles.descriptionText}>{vendorData.description}</Text>
-          <View style={styles.contactInfo}>
-            <Ionicons name="location-outline" size={18} color="#555" />
-            <Text style={styles.contactText}>{vendorData.address}</Text>
-          </View>
-          <View style={styles.contactInfo}>
-            <Ionicons name="call-outline" size={18} color="#555" />
-            <Text style={styles.contactText}>{vendorData.phone}</Text>
-          </View>
-          <View style={styles.contactInfo}>
-            <Ionicons name="mail-outline" size={18} color="#555" />
-            <Text style={styles.contactText}>{vendorData.email}</Text>
-          </View>
-        </View>
-
-        {/* Products Section */}
-        <View ref={productsRef} style={styles.section}>
-          <Text style={styles.sectionTitle}>Our Products</Text>
-          <FlatList
-            data={vendorData.products}
-            keyExtractor={(item) => item.id}
-            numColumns={2} // Two columns for a grid layout
-            scrollEnabled={false} // Prevent inner scrolling
-            columnWrapperStyle={styles.productColumnWrapper}
-            removeClippedSubviews={false}
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.productCard}>
-                <Image source={item.image} style={styles.productImage} resizeMode="cover" />
-                <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.productPrice}>{item.price}</Text>
-              </TouchableOpacity>
-            )}
-          />
-        </View>
-
-        {/* Reviews Section */}
-        <View ref={reviewsRef} style={styles.section}>
-          <Text style={styles.sectionTitle}>Customer Reviews ({vendorData.reviewCount})</Text>
-          {vendorData.reviews.map((review) => (
-            <View key={review.id} style={styles.reviewItem}>
-              <View style={styles.reviewHeader}>
-                <Text style={styles.reviewUser}>{review.user}</Text>
-                {renderStars(review.rating)}
+              <View style={styles.vendorImageContainer}>
+                {profilePicture ? (
+                  <Image 
+                    source={{ uri: profilePicture }} 
+                    style={styles.vendorGridImage}
+                    defaultSource={require('../../Assets/Role.png')}
+                  />
+                ) : (
+                  <View style={styles.vendorInitialsContainer}>
+                    <Text style={styles.vendorInitials}>{initials}</Text>
+                  </View>
+                )}
               </View>
-              <Text style={styles.reviewComment}>{review.comment}</Text>
-              <Text style={styles.reviewTimestamp}>{review.timestamp}</Text>
-            </View>
-          ))}
-        </View>
+              <Text style={styles.vendorGridName} numberOfLines={2}>
+                {username}
+              </Text>
+            </TouchableOpacity>
+          );
+        }}
+        contentContainerStyle={styles.gridContainer}
+        showsVerticalScrollIndicator={false}
+      />
 
-        {/* Gallery Section */}
-        <View ref={galleryRef} style={styles.section}>
-          <Text style={styles.sectionTitle}>Gallery</Text>
-          <FlatList
-            data={vendorData.galleryImages}
-            keyExtractor={(item, index) => `gallery-${index}`}
-            numColumns={3} // Three columns for a gallery grid
-            scrollEnabled={false}
-            columnWrapperStyle={styles.galleryColumnWrapper}
-            removeClippedSubviews={false}
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.galleryImageContainer}>
-                <Image source={item} style={styles.galleryImage} resizeMode="cover" />
-              </TouchableOpacity>
-            )}
-            contentContainerStyle={styles.galleryGrid}
-          />
+      {filteredVendors.length === 0 && !loading && (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No vendors found for selected categories</Text>
         </View>
-        <View style={{ height: 80 }} />{/* Padding for FAB */}
-      </ScrollView>
-
-      {/* Floating Action Button (FAB) */}
-      {/* <TouchableOpacity style={styles.fab} onPress={handleContactVendor}>
-        <Ionicons name="chatbubble-ellipses-outline" size={28} color="#fff" />
-        <Text style={styles.fabText}>Contact Vendor</Text>
-      </TouchableOpacity> */}
+      )}
     </SafeAreaView>
   );
 };
@@ -690,6 +559,139 @@ const styles = StyleSheet.create({
   },
   galleryGrid: {
     justifyContent: 'space-between',
+  },
+  // New styles for vendor list
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  placeholder: {
+    width: 40,
+  },
+  retryButton: {
+    backgroundColor: '#bea063',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  listContainer: {
+    padding: 16,
+  },
+  vendorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  vendorImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 16,
+  },
+  vendorInfo: {
+    flex: 1,
+  },
+  vendorName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  vendorCategory: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  vendorLocation: {
+    fontSize: 12,
+    color: '#999',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  // Grid styles for 3-column layout
+  gridContainer: {
+    padding: 16,
+  },
+  vendorGridCard: {
+    flex: 1,
+    margin: 8,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    minWidth: (width - 80) / 3, // Account for margins and padding
+  },
+  vendorImageContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  vendorGridImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+  vendorInitialsContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#bea063',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  vendorInitials: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  vendorGridName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });
 
