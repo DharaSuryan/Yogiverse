@@ -90,7 +90,6 @@ const Post: React.FC<PostProps> = ({
   const [saveLoading, setSaveLoading] = useState(false);
   const [collectionsLoading, setCollectionsLoading] = useState(false);
   const [savingToCollectionId, setSavingToCollectionId] = useState<number | null>(null);
-  const [paused, setPaused] = useState(true);
   const navigations = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const getMediaUri = (item: any) => {
@@ -134,6 +133,8 @@ console.log("id.....", item?.profile?.id , id);
   };
 
   const handleComment = () => {
+    console.log("items ......",item , contentType);
+    return
     // Navigate to CommentScreen with correct params
     navigations.navigate('CommentScreen', {
       content_type: contentType === 'reel' ? 'reel' : 'post',
@@ -189,9 +190,6 @@ console.log("id.....", item?.profile?.id , id);
   };
 
   const handleCollectionPress = async (collection: Collection) => {
-    console.log("isdrmoDetailsisdrmoDetails",item?.profile?.id ,isdrmoDetails);
-    // return
-    
     setSavingToCollectionId(collection.id);
     setSaveLoading(true);
     try {
@@ -205,8 +203,7 @@ console.log("id.....", item?.profile?.id , id);
       const payload = {
         collection: collection.id,
         content_type: contentType === 'reel' ? 'reel' : 'post',
-        object_id: id,
-        // object_id:  item?.profile?.id && !isdrmoDetails ? item?.profile?.id : id,
+        object_id: item?.profile?.id ? item?.profile?.id : id,
       };
       
       console.log('Saving post to collection:', payload);
@@ -294,7 +291,7 @@ console.log("id.....", item?.profile?.id , id);
           />
         ) : (
           <View style={styles.placeholderImage}>
-            {React.createElement(Icon as any, { name: 'bookmark-outline', size: 20, color: '#999' })}
+            {React.createElement(Icon as any, { name: "bookmark-outline", size: 20, color: "#999" })}
           </View>
         )}
       </View>
@@ -344,63 +341,100 @@ console.log("id.....", item?.profile?.id , id);
           </View>
         </View>
         <TouchableOpacity onPress={handleOptions}>
-          <>
-            {/* @ts-ignore */}
-            {React.createElement(Icon as any, { name: 'ellipsis-vertical', size: 20, color: '#000' })}
-          </>
+          {React.createElement(Icon as any, { name: "ellipsis-vertical", size: 20, color: "#000" })}
         </TouchableOpacity>
       </View>
 
       {media.length > 0 ? (
         <SectionList
-          horizontal
-          pagingEnabled
-          sections={sections}
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(_, idx) => idx.toString()}
-          contentContainerStyle={{ flexDirection: 'row' }}
-          onMomentumScrollEnd={e => {
-            const index = Math.round(
-              e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width
-            );
-            setActiveIndex(index);
-            setPaused(true);
-          }}
-          renderItem={({ item, index }) => {
-            const uri = getMediaUri(item);
-            const isActive = index === activeIndex;
-            if (item.is_video && uri) {
-              return (
-                <TouchableOpacity
-                  activeOpacity={0.9}
-                  onPress={() => isActive && setPaused(p => !p)}
-                  style={styles.postImage}
-                >
-                  <Video
-                    source={{ uri }}
-                    style={styles.postImage}
-                    resizeMode="cover"
-                    paused={!isActive || paused}
-                    repeat
-                  />
-                  {(paused || !isActive) && (
-                    <View style={{ position: 'absolute', top: '45%', left: '45%' }}>
-                      {React.createElement(Icon as any, { name: 'play-circle', size: 48, color: '#fff' })}
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            }
+        horizontal
+        pagingEnabled
+        sections={sections}
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(_, idx) => idx.toString()}
+        contentContainerStyle={{ flexDirection: 'row' }}
+        onMomentumScrollEnd={e => {
+          const index = Math.round(
+            e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width
+          );
+          setActiveIndex(index);
+        }}
+        renderItem={({ item, index }) => {
+          const uri = getMediaUri(item);
+          const isActive = index === activeIndex;
+      
+          if (item.is_video && uri) {
             return (
-              <Image
-                source={uri ? { uri } : fallbackPostImage}
-                style={styles.postImage}
-                onError={() => setShowFallbackPostImage(true)}
-              />
+              <View style={styles.postImage}>
+                <Video
+                  source={{ uri }}
+                  style={styles.postImage}
+                  resizeMode="cover"
+                  paused={!isActive}
+                  repeat
+                />
+                {!isActive && (
+                  <View style={{ position: 'absolute', top: '45%', left: '45%' }}>
+                    {React.createElement(Icon as any, { name: "play-circle", size: 48, color: "#fff" })}
+                  </View>
+                )}
+              </View>
             );
-          }}
-          renderSectionHeader={() => null}
-        />
+          }
+      
+          return (
+            <Image
+              source={uri ? { uri } : fallbackPostImage}
+              style={styles.postImage}
+              onError={() => setShowFallbackPostImage(true)}
+            />
+          );
+        }}
+        renderSectionHeader={() => null}
+      />
+        // <FlatList
+        //   data={media}
+        //   horizontal
+        //   pagingEnabled
+        //   showsHorizontalScrollIndicator={false}
+        //   keyExtractor={(_, idx) => idx.toString()}
+        //   onMomentumScrollEnd={e => {
+        //     const index = Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width);
+        //     setActiveIndex(index);
+        //   }}
+        //   renderItem={({ item, index }) => {
+        //     const uri = getMediaUri(item);
+        //     if (item.is_video && uri) {
+        //       const isActive = index === activeIndex;
+        //       return (
+        //         <View style={styles.postImage}>
+        //           <Video
+        //             source={{ uri }}
+        //             style={styles.postImage}
+        //             resizeMode="cover"
+        //             paused={!isActive}
+        //             repeat
+        //           />
+        //           {!isActive && (
+        //             <View style={{ position: 'absolute', top: '45%', left: '45%' }}>
+        //               <>
+        //                 {/* @ts-ignore */}
+        //                 <Icon name="play-circle" size={48} color="#fff" />
+        //               </>
+        //             </View>
+        //           )}
+        //         </View>
+        //       );
+        //     }
+        //     return (
+        //       <Image
+        //         source={uri ? { uri } : fallbackPostImage}
+        //         style={styles.postImage}
+        //         onError={() => setShowFallbackPostImage(true)}
+        //       />
+        //     );
+        //   }}
+        // />
       ) : null}
       {/* Pagination dots */}
       {media.length > 1 && (
@@ -420,37 +454,28 @@ console.log("id.....", item?.profile?.id , id);
         </View>
       )}
 
-      <View style={[styles.actions, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}> 
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity onPress={handleLike} disabled={likeLoading}>
-            {likeLoading ? (
-              <ActivityIndicator size={20} color="#FF3B30" />
-            ) : (
-              <>
-                {React.createElement(Icon as any, {
-                  name: isLiked ? 'heart' : 'heart-outline',
-                  size: 28,
-                  color: '#bea063',
-                })}
-              </>
-            )}
-          </TouchableOpacity>
-          {allowComments && (
-            <TouchableOpacity style={styles.actionButton} onPress={handleComment}>
-              <>
-                {React.createElement(Icon as any, { name: 'chatbubble-outline', size: 24, color: '#bea063' })}
-              </>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
+      <View style={styles.actions}>
+        <TouchableOpacity onPress={handleLike} disabled={likeLoading}>
+          {likeLoading ? (
+            <ActivityIndicator size={20} color="#bea063" />
+          ) : (
             <>
-              {React.createElement(Icon as any, { name: 'paper-plane-outline', size: 24, color: '#bea063' })}
+              {React.createElement(Icon as any, { name: isLiked ? 'heart' : 'heart-outline', size: 28, color: isLiked ? '#bea063' : '#bea063' })}
             </>
+          )}
+        </TouchableOpacity>
+        {allowComments && (
+          <TouchableOpacity style={styles.actionButton} onPress={handleComment}>
+            {React.createElement(Icon as any, { name: "chatbubble-outline", size: 24, color: "#bea063" })}
           </TouchableOpacity>
-        </View>
+        )}
+        <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
+          {React.createElement(Icon as any, { name: "paper-plane-outline", size: 24, color: "#bea063" })}
+        </TouchableOpacity>
+        {/* Save icon on the right */}
         {!isdrmoDetails ? (
-          <TouchableOpacity style={styles.actionButton} onPress={handleSave}>
-            {React.createElement(Icon as any, { name: 'bookmark-outline', size: 24, color: '#bea063' })}
+          <TouchableOpacity style={{position:'absolute',right:10}} onPress={handleSave}>
+            {React.createElement(Icon as any, { name: "bookmark-outline", size: 24, color: "#bea063" })}
           </TouchableOpacity>
         ) : null}
       </View>
@@ -466,8 +491,29 @@ console.log("id.....", item?.profile?.id , id);
           <View style={styles.saveModalContent}>
             <View style={styles.saveModalHeader}>
               <Text style={styles.saveModalTitle}>Save to Collection</Text>
+              <TouchableOpacity
+                onPress={handleCreateCollection}
+                style={{
+                  position: 'absolute',
+                  right: 48,
+                  top: 16,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: '#bea063',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 2,
+                  elevation: 3,
+                }}
+              >
+                {React.createElement(Icon as any, { name: "add", size: 22, color: "#fff" })}
+              </TouchableOpacity>
               <TouchableOpacity onPress={() => setSaveModalVisible(false)}>
-                {React.createElement(Icon as any, { name: 'close', size: 24, color: '#000' })}
+                {React.createElement(Icon as any, { name: "close", size: 24, color: "#000" })}
               </TouchableOpacity>
             </View>
             
@@ -477,7 +523,7 @@ console.log("id.....", item?.profile?.id , id);
               </View>
             ) : collections.length === 0 ? (
               <View style={styles.emptyCollectionsContainer}>
-                {React.createElement(Icon as any, { name: 'bookmark-outline', size: 60, color: '#ccc' })}
+                {React.createElement(Icon as any, { name: "bookmark-outline", size: 60, color: "#ccc" })}
                 <Text style={styles.emptyCollectionsTitle}>No Collections Yet</Text>
                 <Text style={styles.emptyCollectionsSubtitle}>
                   Create a collection to save your favorite posts
@@ -505,7 +551,7 @@ console.log("id.....", item?.profile?.id , id);
       </Modal>
 
       {/* Options Modal */}
-      <Modal
+      {/* <Modal
         visible={optionsVisible}
         transparent
         animationType="fade"
@@ -526,7 +572,7 @@ console.log("id.....", item?.profile?.id , id);
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
-      </Modal>
+      </Modal> */}
 
       <View style={styles.likesContainer}>
         {!hideLikeCount && <Text style={styles.likes}>{likesCount} likes</Text>}

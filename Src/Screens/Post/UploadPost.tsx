@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,9 @@ import {
   Alert,
   Switch,
   Modal,
+  Dimensions,
+  FlatList,
+  AppState,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'react-native-image-picker';
@@ -21,21 +24,43 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getFCMToken } from 'Src/Utils/NotificationConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { postPosts, postStories } from '../../Api/Api';
+import LocationPicker, { LocationOption } from '../../Components/LocationPicker';
+import PostPreviewScreen from './PostPreviewScreen';
+import { reset } from 'Src/Component/Route';
+import MediaEditModal from './MediaEditModal';
 
 // Helper for story API
 const STORY_API_URL = 'https://pashuahar.com/stories';
+
+// VideoPauseContext for global video control
+const VideoPauseContext = React.createContext({ pauseAll: false, setPauseAll: (_: boolean) => {} });
 
 // Fix props type for navigation/route
 // @ts-ignore
 const UploadPost = ({ navigation, route }) => {
   const isFromStory = route?.params?.isFromStory ?route?.params?.isFromStory : false;
-  const [selectedMedia, setSelectedMedia] = useState<string | null>(null);
+  const [selectedMedia, setSelectedMedia] = useState<{ uri: string; type: string; name: string }[]>([]);
   const [mediaMeta, setMediaMeta] = useState({ type: '', name: '' });
   const [caption, setCaption] = useState('');
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isHighlighted, setIsHighlighted] = useState(false);
   const [showCameraOptions, setShowCameraOptions] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<LocationOption | null>(null);
+  const [zoomScales, setZoomScales] = useState<{ [uri: string]: number }>({});
+  const [selectedFilters, setSelectedFilters] = useState<{ [uri: string]: string }>({});
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [isDraft, setIsDraft] = useState(false);
+  const [allowComments, setAllowComments] = useState(false);
+  const [hideLikeCount, setHideLikeCount] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editImage, setEditImage] = useState<string | null>(null);
+  const [editResult, setEditResult] = useState<{ uri: string } | null>(null); // { uri }
+  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [wizardMode, setWizardMode] = useState(false);
+  const [wizardIndex, setWizardIndex] = useState(0);
+  const [forcePauseVideos, setForcePauseVideos] = useState(false);
+  const { setPauseAll } = useContext(VideoPauseContext);
 
   // Open gallery on mount if isFromStory
   useEffect(() => {
@@ -44,6 +69,12 @@ const UploadPost = ({ navigation, route }) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Pause/mute all videos globally when this screen mounts
+  useEffect(() => {
+    setPauseAll(true);
+    return () => setPauseAll(false);
+  }, [setPauseAll]);
 
   // Handle camera capture (photo or video)
   const handleCameraCapture = (mediaType: 'photo' | 'video') => {
@@ -67,7 +98,14 @@ const UploadPost = ({ navigation, route }) => {
           console.error('Camera error:', response.errorMessage);
           Alert.alert('Error', response.errorMessage);
         } else if (response.assets && response.assets.length > 0) {
-          setSelectedMedia(response.assets[0].uri ?? null);
+          setSelectedMedia(response.assets
+            .filter(asset => asset.uri)
+            .map(asset => ({
+              uri: asset.uri as string,
+              type: asset.type || 'image/jpeg',
+              name: asset.fileName || (asset.type?.startsWith('video') ? 'camera_video.mp4' : 'camera_photo.jpg'),
+            }))
+          );
           setMediaMeta({
             type: response.assets[0].type || 'image/jpeg',
             name: response.assets[0].fileName || (response.assets[0].type?.startsWith('video') ? 'camera_video.mp4' : 'camera_photo.jpg'),
@@ -91,29 +129,82 @@ const UploadPost = ({ navigation, route }) => {
         includeBase64: false,
         maxHeight: 2000,
         maxWidth: 2000,
+        selectionLimit: 10, // allow up to 10 images
       },
       (response) => {
-        console.log("response ----->>>",response)
-
         if (response.didCancel) {
           // User cancelled
         } else if (response.errorCode) {
           Alert.alert('Error', response.errorMessage);
         } else if (response.assets && response.assets.length > 0) {
-          setSelectedMedia(response.assets[0].uri ?? null);
-          // navigation.navigate("PostPreviewScreen",{images:response.assets[0].uri})
-                setMediaMeta({
-                  type: response.assets[0].type || 'image/jpeg',
-                  name: response.assets[0].fileName || (response.assets[0].type?.startsWith('video') ? 'story.mp4' : 'story.jpg'),
-                });
+          const newMedia = response.assets
+            .filter(asset => asset.uri)
+            .map(asset => ({
+              uri: asset.uri as string,
+              type: asset.type || 'image/jpeg',
+              name: asset.fileName || (asset.type?.startsWith('video') ? 'camera_video.mp4' : 'camera_photo.jpg'),
+            }));
+          setSelectedMedia(newMedia);
+          if (newMedia.length > 1) {
+            setWizardMode(true);
+            setWizardIndex(0);
+            setEditIndex(0);
+            setEditImage(newMedia[0].uri);
+            setShowEditModal(true);
+          } else if (newMedia.length === 1) {
+            setEditIndex(0);
+            setEditImage(newMedia[0].uri);
+            setShowEditModal(true);
+          }
         }
       }
     );
   };
 
+  // Handler for when editing is done
+  const handleEditApply = (result: { uri: string }) => {
+    setShowEditModal(false);
+    setEditResult(result);
+    setForcePauseVideos(true);
+    if (editIndex !== null && editIndex >= 0 && editIndex < selectedMedia.length) {
+      const updatedMedia = [...selectedMedia];
+      updatedMedia[editIndex] = {
+        ...updatedMedia[editIndex],
+        uri: result.uri,
+      };
+      setSelectedMedia(updatedMedia);
+      if (wizardMode) {
+        if (editIndex + 1 < updatedMedia.length) {
+          setTimeout(() => {
+            setEditIndex(editIndex + 1);
+            setEditImage(updatedMedia[editIndex + 1].uri);
+            setShowEditModal(true);
+            setWizardIndex(editIndex + 1);
+          }, 300);
+        } else {
+          setWizardMode(false);
+          setWizardIndex(0);
+          setEditIndex(null);
+        }
+      } else {
+        setEditIndex(null);
+      }
+    }
+  };
+  const handleEditCancel = () => {
+    setShowEditModal(false);
+    setEditImage(null);
+    setEditIndex(null);
+    setForcePauseVideos(true);
+    if (wizardMode) {
+      setWizardMode(false);
+      setWizardIndex(0);
+    }
+  };
+
   // Share handler for both story and post
   const handleShare = async () => {
-    if (!selectedMedia || !caption.trim()) return;
+    if (!selectedMedia.length || !caption.trim()) return;
     setUploading(true);
     setError(null);
     try {
@@ -123,53 +214,56 @@ const UploadPost = ({ navigation, route }) => {
         try {
           formData.append('caption', caption);
           formData.append('is_highlighted', isHighlighted ? 'true' : 'false');
-          
-          // Add media_metadata for stories (same as posts)
-          const isVideo = mediaMeta.type.startsWith('video');
-          formData.append('media_metadata', JSON.stringify([{ is_video: isVideo }]));
-          
-          formData.append('media_file', {
-            uri: selectedMedia,
-            type: mediaMeta.type,
-            name: mediaMeta.name,
+          // Build media_metadata array dynamically
+          const mediaMetadata = selectedMedia.map(item => ({
+            is_video: item.type && item.type.startsWith('video'),
+          }));
+          formData.append('media_metadata', JSON.stringify(mediaMetadata));
+          selectedMedia.forEach((item) => {
+            formData.append('media_files', {
+              uri: item.uri,
+              type: item.type,
+              name: item.name,
+            });
           });
-
           console.log('Story FormData:', JSON.stringify(formData));
           await postStories({ formData });
            Alert.alert('Success', 'Your story has been uploaded!');
            navigation.goBack();
-      
         } catch (err) {
           console.log("Error",err);
           throw err;
         }
       } else {
         // Post upload logic (existing)
-        
-        
         try {
           formData.append('caption', caption);
-          
-          formData.append('is_draft', 'false');
-          
-          formData.append('allow_comments', 'false');
-          
-          formData.append('hide_like_count', 'false');
-          
+          formData.append('is_draft', isDraft ? 'true' : 'false');
+          formData.append('allow_comments', allowComments ? 'true' : 'false');
+          formData.append('hide_like_count', hideLikeCount ? 'true' : 'false');
           const isVideo = mediaMeta.type.startsWith('video');
-          
-          formData.append('media_metadata', JSON.stringify([{ is_video: isVideo }]));
-          formData.append('location', 'india');
-          
-          formData.append('media_files', {
-            uri: selectedMedia,
-            type: mediaMeta.type,
-            name: mediaMeta.name,
+          formData.append('media_metadata', JSON.stringify(selectedMedia.map(item => ({
+            is_video: item.type && item.type.startsWith('video'),
+          }))));
+          if (selectedLocation) {
+            formData.append('location', selectedLocation.display_name);
+          } else {
+            formData.append('location', '');
+          }
+          selectedMedia.forEach((item) => {
+            formData.append('media_files', {
+              uri: item.uri,
+              type: item.type,
+              name: item.name,
+            });
           });
           console.log("forma data ----->>>",JSON.stringify(formData))
           await postPosts({ formData });
            Alert.alert('Success', 'Your Post has been uploaded!');
-          navigation.goBack();
+          navigation.reset({
+              index: 0,
+              routes: [{ name: 'MainTab' }],
+            });
         } catch (err) {
           console.log('Error', err);
           throw err;
@@ -183,9 +277,19 @@ const UploadPost = ({ navigation, route }) => {
     }
   };
 
+  // Replace handleShare with navigation to PostPreviewScreen
+  const handlePreview = () => {
+    navigation.navigate('PostPreview', {
+      media: selectedMedia,
+      caption,
+      location: selectedLocation,
+      onPost: handleShare, // call handleShare on final post
+    });
+  };
+
   // Render media preview
   const renderMediaPreview = () => {
-    if (!selectedMedia) {
+    if (!selectedMedia.length) {
       return (
         <View style={styles.placeholderContainer}>
           <Text style={styles.placeholderText}>Select an image or video to create your {isFromStory ? 'story' : 'post'}</Text>
@@ -193,33 +297,32 @@ const UploadPost = ({ navigation, route }) => {
       );
     }
 
-    if (mediaMeta.type.startsWith('video')) {
-      return (
-        <View style={styles.videoContainer}>
-          <Video
-            source={{ uri: selectedMedia }}
-            style={styles.videoPreview}
-            resizeMode="cover"
-            repeat
-            paused={false}
-            controls={true}
-            onError={(error) => console.log('Video error:', error)}
-            onLoad={() => console.log('Video loaded successfully')}
-          />
-          <View style={styles.videoOverlay}>
-            <Text style={styles.videoLabel}>Video: {mediaMeta.name}</Text>
-          </View>
-        </View>
-      );
-    }
-
     return (
-      <Image 
-        source={{ uri: selectedMedia }} 
-        style={styles.previewImage}
-        resizeMode="cover"
-        onLoad={() => console.log('Image loaded successfully')}
-        onError={(error) => console.log('Image error:', error)}
+      <FlatList
+        data={selectedMedia}
+        horizontal
+        keyExtractor={(item, idx) => item.uri + idx}
+        renderItem={({ item, index }) => (
+          <TouchableOpacity onPress={() => { setEditIndex(index); setEditImage(item.uri); setShowEditModal(true); setForcePauseVideos(false); }}>
+            {item.type && item.type.startsWith('video') ? (
+              <Video
+                source={{ uri: item.uri }}
+                style={styles.previewImage}
+                paused={true} // Always paused for preview, never auto-play
+                muted={true}  // Always muted for preview, never auto-play sound
+                resizeMode="cover"
+              />
+            ) : (
+              <Image
+                source={{ uri: item.uri }}
+                style={styles.previewImage}
+                resizeMode="cover"
+              />
+            )}
+          </TouchableOpacity>
+        )}
+        contentContainerStyle={{ padding: 10 }}
+        showsHorizontalScrollIndicator={false}
       />
     );
   };
@@ -232,18 +335,18 @@ const UploadPost = ({ navigation, route }) => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{isFromStory ? 'New Story' : 'New Post'}</Text>
         <TouchableOpacity
-          onPress={handleShare}
-          disabled={!selectedMedia || !caption.trim() || uploading}
+          onPress={handlePreview}
+          disabled={!selectedMedia.length || !caption.trim() || uploading}
           style={[
             styles.shareButton,
-            (!selectedMedia || !caption.trim() || uploading) && styles.shareButtonDisabled,
+            (!selectedMedia.length || !caption.trim() || uploading) && styles.shareButtonDisabled,
           ]}>
           <Text
             style={[
               styles.shareButtonText,
-              (!selectedMedia || !caption.trim() || uploading) && styles.shareButtonTextDisabled,
+              (!selectedMedia.length || !caption.trim() || uploading) && styles.shareButtonTextDisabled,
             ]}>
-            {uploading ? 'Uploading...' : 'Share'}
+            {uploading ? 'Previewing...' : 'Preview'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -271,11 +374,19 @@ const UploadPost = ({ navigation, route }) => {
           <TextInput
             style={styles.captionInput}
             placeholder="Write a caption..."
+            placeholderTextColor="#888"
             value={caption}
             onChangeText={setCaption}
             multiline
             editable={!uploading}
           />
+        </View>
+        <View style={{paddingHorizontal: 15, marginBottom: 10}}>
+          <Text style={{fontSize: 16, marginBottom: 5}}>Add Location</Text>
+          <TouchableOpacity style={[styles.locationButton, { backgroundColor: '#fff', borderColor: '#ddd', borderWidth: 1, borderRadius: 8, padding: 10, marginTop: 10, marginBottom: 10 }]}
+            onPress={() => setShowLocationPicker(true)}>
+            <Text style={{ color: '#222' }}>{selectedLocation ? selectedLocation.display_name : 'Select Location'}</Text>
+          </TouchableOpacity>
         </View>
         {isFromStory && (
           <View style={{flexDirection:'row',alignItems:'center',paddingLeft:15,marginTop:10}}>
@@ -283,6 +394,35 @@ const UploadPost = ({ navigation, route }) => {
             <Switch value={isHighlighted} onValueChange={setIsHighlighted} disabled={uploading} />
           </View>
         )}
+       {isFromStory ? null : <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginVertical: 24 }}>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={{ color: '#888', marginBottom: 8 }}>Draft</Text>
+            <Switch
+              value={isDraft}
+              onValueChange={setIsDraft}
+              trackColor={{ false: '#ccc', true: '#bea063' }}
+              thumbColor={isDraft ? '#bea063' : '#fff'}
+            />
+          </View>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={{ color: '#888', marginBottom: 8 }}>Allow Comments</Text>
+            <Switch
+              value={allowComments}
+              onValueChange={setAllowComments}
+              trackColor={{ false: '#ccc', true: '#bea063' }}
+              thumbColor={allowComments ? '#bea063' : '#fff'}
+            />
+          </View>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={{ color: '#888', marginBottom: 8 }}>Hide Like Count</Text>
+            <Switch
+              value={hideLikeCount}
+              onValueChange={setHideLikeCount}
+              trackColor={{ false: '#ccc', true: '#bea063' }}
+              thumbColor={hideLikeCount ? '#bea063' : '#fff'}
+            />
+          </View>
+        </View>}
       </ScrollView>
 
       {/* Camera Options Modal */}
@@ -321,6 +461,27 @@ const UploadPost = ({ navigation, route }) => {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={showLocationPicker} animationType="slide" onRequestClose={() => setShowLocationPicker(false)}>
+        <LocationPicker
+          value={selectedLocation}
+          onChange={location => {
+            setSelectedLocation(location);
+            setShowLocationPicker(false);
+          }}
+        />
+      </Modal>
+
+      {/* Show MediaEditModal if needed */}
+      {showEditModal && editImage && (
+        <Modal visible={showEditModal} animationType="slide" transparent={false} onRequestClose={handleEditCancel}>
+          <MediaEditModal
+            uri={editImage}
+            onApply={handleEditApply}
+            onCancel={handleEditCancel}
+          />
+        </Modal>
+      )}
 
       {error && (
         <Text style={{ color: 'red', textAlign: 'center', marginTop: 10 }}>{error}</Text>
@@ -362,33 +523,17 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  previewContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
   previewImage: {
-    width: '100%',
-    height: 400,
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').width,
     resizeMode: 'cover',
-  },
-  videoContainer: {
-    width: '100%',
-    height: 400,
-    position: 'relative',
-    backgroundColor: '#000',
-  },
-  videoPreview: {
-    width: '100%',
-    height: 400,
-  },
-  videoOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 10,
-  },
-  videoLabel: {
-    color: '#fff',
-    fontSize: 14,
-    textAlign: 'center',
   },
   placeholderContainer: {
     height: 400,
@@ -463,6 +608,9 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: '#666',
     fontSize: 16,
+  },
+  locationButton: {
+    padding: 10,
   },
 });
 

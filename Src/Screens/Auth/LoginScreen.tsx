@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useBackHandler } from '../../Utils/BackHandler';
+import { saveAccount } from '../../Utils/accountManager';
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 0;
 
@@ -32,6 +33,7 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
   const dispatch = useDispatch();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const isAddingAccount = (navigation as any)?.getState?.()?.routes?.find((r: any) => r.name === 'LoginScreen')?.params?.isAddingAccount;
 
   // Add back handler
   useBackHandler();
@@ -45,13 +47,21 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
       if (response.status === 200 && response.data) {
         console.log("Login response", response.data);
         
-        // Store tokens and user data using Promise.all for better performance
-        await Promise.all([
-          AsyncStorage.setItem('accessToken', response?.data?.access_token),
-          AsyncStorage.setItem('refreshToken', response?.data?.refresh_token),
-          AsyncStorage.setItem('userData', JSON.stringify(response?.data?.user))
-        ]);
-        
+        if (!isAddingAccount) {
+          // Store tokens and user data using Promise.all for better performance
+          await Promise.all([
+            AsyncStorage.setItem('accessToken', response?.data?.access_token),
+            AsyncStorage.setItem('refreshToken', response?.data?.refresh_token),
+            AsyncStorage.setItem('userData', JSON.stringify(response?.data?.user))
+          ]);
+        }
+        // Save the account for multi-account support
+        await saveAccount({
+          username: response.data.user.username,
+          token: response.data.access_token,
+          profileImage: response.data.user.profile_picture || response.data.user.profileImage,
+        });
+
         // Update Redux state
         dispatch(
           loginSuccess({

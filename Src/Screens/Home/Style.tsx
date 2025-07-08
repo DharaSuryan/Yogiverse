@@ -267,7 +267,7 @@ inputRow: {
         fontSize: 13,
     },
     mentionText: {
-        color: '#0095F6',
+        color: '#bea063',
         fontWeight: '600',
     },
     commentAvatar: {

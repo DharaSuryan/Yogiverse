@@ -15,6 +15,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { SearchStackParamList } from '../../Navigation/types';
 import { useNavigation } from '@react-navigation/native';
+import WarpperComponent from './warppercomponets';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { navigate,push } from '../../Component/Route';
@@ -87,7 +88,8 @@ const SearchScreen = () => {
       console.log("here comes ....",query);
       
       const searchRes = await axios.get(`https://pashuahar.com/search?search=${query}`);
-      console.log("searchRes.data?.resultssearchRes.data?.results",searchRes.data?.data?.results);
+      // console.log("searchRes.data?.resultssearchRes.data?.results",searchRes.data?.data?.results);
+      console.log("datat....",searchRes.data?.data);
       
       setSearchResults(searchRes.data?.data?.results || []);
     } catch (err) {
@@ -126,8 +128,18 @@ const SearchScreen = () => {
     
 
     if (item.first_name) {
-      // User result - navigate to UserProfile
-      navigation.navigate('UserProfile' as any, { userId: item.id.toString() });
+      // User result - navigate to Profile tab (current user's profile)
+      navigation.navigate('UserProfile' as any, { userId: item.id.toString(),isFromSearch:true });
+      // navigate('MainTab', {
+      //   screen: 'ProfileTab',
+      //   params: {
+      //     screen: 'Profile',
+      //     params: {
+      //       userId: item.id.toString(),
+      //       isFromSearch: true
+      //     }
+      //   }
+      // });
     } else {
       // Category or other result - navigate to SubCateGoryDisplay
       push('SubCateGoryDisplay' , { item });
@@ -182,6 +194,8 @@ const SearchScreen = () => {
   //   );
   // };
   const renderSearchResult = ({ item }: any) => {
+    console.log("itesm....", item);
+    
     let displayName = '';
     let displayType = '';
     let avatarSource = null;
@@ -192,8 +206,8 @@ const SearchScreen = () => {
       displayName = `${item.first_name} ${item.last_name || ''}`;
       displayType = item.username;
       isUser = true;
-      avatarSource = item.profile_picture
-        ? { uri: item.profile_picture }
+      avatarSource = item?.profile_picture
+        ? { uri: item?.profile_picture }
         : require('../../Assets/yoga.jpg'); // fallback image
     } else if (item.caption) {
       // Post result
@@ -307,7 +321,8 @@ const SearchScreen = () => {
           ) : trendingError ? (
             <Text style={{ color: 'red', textAlign: 'center' }}>{trendingError}</Text>
           ) : trendingPosts.length > 0 && (
-            <View style={{ marginTop: 30, marginBottom: 10 }}> 
+            <View style={{ marginTop: 30, marginBottom: 10 }}>
+              <Text style={[styles.categoryTitle, { fontSize: 18, marginBottom: 10 }]}>Trending</Text>
               <FlatList
                 data={trendingPosts}
                 keyExtractor={(item) => item?.id?.toString() || Math.random().toString()}

@@ -19,7 +19,6 @@ const CreatePostScreen = () => {
   const [navigated, setNavigated] = useState(false);
 
   const handleUploadOptions = () => {
-    
     navigation.navigate('UploadOptions');
   };
 

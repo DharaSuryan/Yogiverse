@@ -4,9 +4,9 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import axios from 'axios';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { SearchStackParamList } from '../../Navigation/types';
-import Post from '../../Component/Post';
-import { goBack, navigate } from '../../Component/Route';
+import { SearchStackParamList } from '../Navigation/types';
+import Post from '../Component/Post';
+import { goBack, navigate } from '../Component/Route';
 // import { SearchStackParamList } from '../../Navigation/types';
 
 const screenWidth = Dimensions.get('window').width;
@@ -63,11 +63,11 @@ const TrendingDetailScreen = () => {
   // Prepare props for <Post />
   const profile = post.profile || {};
   let userAvatar = '';
-  if (profile.profile_picture) {
-    userAvatar = profile.profile_picture.startsWith('http')
-      ? profile.profile_picture
-      : `http://192.168.1.160:9001${profile.profile_picture}`;
-  }
+  // if (profile?.profile_picture) {
+  //   userAvatar = profile.profile_picture?.startsWith('http')
+  //     ? profile?.profile_picture
+  //     : `http://192.168.1.160:9001${profile.profile_picture}`;
+  // }
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: '#fff' }}>

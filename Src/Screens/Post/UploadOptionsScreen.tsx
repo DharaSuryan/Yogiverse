@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useNavigationState } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CreatePostStackParamList } from '../../Navigation/types';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -20,6 +20,7 @@ type UploadOptionsScreenNavigationProp = NativeStackNavigationProp<CreatePostSta
 const UploadOptionsScreen = () => {
   const navigation = useNavigation<UploadOptionsScreenNavigationProp>();
   const [navigating, setNavigating] = useState(false);
+  const routes = useNavigationState(state => state.routeNames);
 
   const options = [
     {
@@ -32,7 +33,14 @@ const UploadOptionsScreen = () => {
       title: 'Story',
       description: 'Share a photo or video to your story',
       icon: 'add-circle-outline',
-      onPress: () => navigation.navigate('UploadPost', { isFromStory: true }),
+      onPress: () => {
+        try {
+          navigation.navigate('StoryUpload');
+        } catch (e) {
+          // fallback for nested/tab navigation
+          navigation.navigate('CreatePostTab', { screen: 'StoryUpload' });
+        }
+      },
     },
     {
       title: 'Reel',
@@ -71,6 +79,14 @@ const UploadOptionsScreen = () => {
       }
     } finally {
       setTimeout(() => setNavigating(false), 500); // Give time for navigation to complete
+    }
+  };
+
+  const goToStoryUpload = () => {
+    if (routes && routes.includes('StoryUpload')) {
+      navigation.navigate('StoryUpload');
+    } else {
+      navigation.navigate('CreatePostTab', { screen: 'StoryUpload' });
     }
   };
 

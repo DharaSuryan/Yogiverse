@@ -18,6 +18,7 @@ import { Notification } from '../../Types';
 import { useFocusEffect } from '@react-navigation/native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { navigate } from '../../Component/Route';
 
 type NotificationsScreenProps = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'Notifications'>;
@@ -58,8 +59,10 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
         'Authorization': `Bearer ${authToken}`
       };
       const res = await axios.get('https://pashuahar.com/follower/notifications/', { headers });
-      setNotifications(res.data?.data?.results || []);
-      console.log("res.data?.data",res.data?.data?.results[0].user, res.data?.data?.results[0].data?.type);
+      const allNotifications = res.data?.data?.results || [];
+      const unreadNotifications = allNotifications
+      setNotifications(unreadNotifications);
+      console.log("res.data?.data",res.data?.data?.results, res.data?.data?.results[0].data?.type);
       
     } catch (err) {
       setError('Failed to load notifications');
@@ -67,7 +70,6 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
       setLoading(false);
     }
   };
-
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'like':
@@ -115,7 +117,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
   );
 
   const handleApprove = async (item: any) => {
-    console.log("itemitemitem",item?.user?.id , item);
+    console.log("itemitemitem",item?.user?.id , item?.id);
     // return
     
     try {
@@ -138,7 +140,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
       // Optionally update notification state here
     } catch (e) {
       console.log("eororo",e);
-      fetchNotifications()
+      fetchNotifications();
       Alert.alert('Error', 'Failed to approve follow request.');
     }
   };
@@ -162,8 +164,8 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
       Alert.alert('Success', 'Follow request rejected!');
       // Optionally update notification state here
     } catch (e) {
+      fetchNotifications();
       Alert.alert('Error', 'Failed to reject follow request.');
-      fetchNotifications()
     }
   };
 
@@ -194,7 +196,18 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
     }
     // Navigate to user profile or post
     if (user_id) {
-      navigation.navigate('UserProfile' as any, { userId: user_id });
+      navigation.navigate('UserProfile' as any, { userId: user_id?.toString(),isFromSearch:true });
+      // navigate('MainTab', {
+      //   screen: 'ProfileTab',
+      //   params: {
+      //     screen: 'Profile',
+      //     params: {
+      //       userId: user_id.toString(),
+      //       isFromSearch: true
+      //     }
+      //   }
+      // });
+      // navigation.navigate('UserProfile' as any, { userId: user_id });
     } else if (item.postId) {
       navigation.navigate('PostDetails', { postId: item.postId });
     }
@@ -203,8 +216,6 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
   const renderNotification = ({ item }: { item: any }) => {
     // Instagram-style notification row
     const isFollowRequest = item?.data?.type === 'follow_request';
-    // console.log("isFollowRequest",isFollowRequest.data);
-    
     const username = item.user?.username || '';
     const avatarUri = item.user && item.user.profile_picture
       ? item.user.profile_picture
@@ -225,7 +236,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
             {username ? ' ' : ''}{item.body}
           </Text>
           <Text style={styles.timestamp}>{formatTimeAgo(item.created_at)}</Text>
-          {isFollowRequest && (
+          {isFollowRequest && item.is_read === false && (
             <View style={{ flexDirection: 'row', marginTop: 8 }}>
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
@@ -272,6 +283,8 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
             renderItem={({ item }) => renderNotification({ item })}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContainer}
+            onRefresh={fetchNotifications}
+            refreshing={loading}
           />
         )}
       </View>

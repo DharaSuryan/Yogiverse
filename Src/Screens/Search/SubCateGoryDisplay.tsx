@@ -31,9 +31,9 @@ const NUM_COLUMNS = 2;
 const ITEM_MARGIN = 10;
 const ITEM_WIDTH = (width - ITEM_MARGIN * (NUM_COLUMNS + 1)) / NUM_COLUMNS;
 
-const SubCateGoryDisplay = () => {
+const SubCateGoryDisplay = ({navigation}:any) => {
   const route = useRoute();
-  const navigation = useNavigation();
+  // const navigation = useNavigation();
   const { item } = route.params as { item: any };
   const subCategories = item?.sub_categories || [];
   const imageSource = require('../../Assets/yoga.jpg');
@@ -76,7 +76,10 @@ const SubCateGoryDisplay = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() =>   navigation.navigate("Search")}>
+        <TouchableOpacity onPress={() => {
+
+         navigation.navigate('SearchTab')
+        }}>
           <Icon name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>

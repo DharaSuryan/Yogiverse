@@ -62,13 +62,13 @@ const ProfilePostDetailScreen = () => {
       {/* Action Buttons */}
       <View style={styles.actionsRow}>
         <TouchableOpacity onPress={handleLike}>
-          <Icon name={liked ? 'heart' : 'heart-outline'} size={28} color={liked ? '#e74c3c' : '#222'} />
+          <Icon name={liked ? 'heart' : 'heart-outline'} size={28} color={liked ? '#bea063' : '#bea063'} />
         </TouchableOpacity>
         <TouchableOpacity>
-          <Icon name="chatbubble-outline" size={28} color="#222" style={styles.actionIcon} />
+          <Icon name="chatbubble-outline" size={28} color="#bea063" style={styles.actionIcon} />
         </TouchableOpacity>
         <TouchableOpacity>
-          <Icon name="paper-plane-outline" size={28} color="#222" style={styles.actionIcon} />
+          <Icon name="paper-plane-outline" size={28} color="#bea063" style={styles.actionIcon} />
         </TouchableOpacity>
         <View style={{ flex: 1 }} />
         <TouchableOpacity onPress={handleSave}>

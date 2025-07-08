@@ -145,7 +145,9 @@ export const editProfile  = async (userId: number, formData: FormData): Promise<
 export const forgotPassword = async (email: string): Promise<ApiResponse> => {
   try {
     const url = '/reset-password/';
-    const response = await api.post(url, { email }, {
+    const response = await api.post(url, { email,
+      is_app:true
+     }, {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -319,6 +321,7 @@ export const postPosts  = async ({formData}:any): Promise<ApiResponse> => {
         'Authorization': `Bearer ${authToken}`
       },
     });
+       console.log("response post",response);
     return {
       data: response.data,
       status: response.status,
@@ -452,9 +455,35 @@ export const getStories = async (): Promise<ApiResponse> => {
     throw error;
   }
 };
+// post("/change-password/", {
+//             old_password: oldPassword,
+//             new_password: newPassword,
+//             confirm_password: confirm,
+//         }
+// export default api;
 
-export default api;
-
+// change-password
+export const changePassword  = async ({formData}:any): Promise<ApiResponse> => {
+  const authToken = await AsyncStorage.getItem('accessToken');
+  try {
+   const response = await axios.post(`${BASE_URL}/change-password/`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        'Authorization': `Bearer ${authToken}`
+      },
+    });
+    return {
+      data: response.data,
+      status: response.status,
+      message: 'Password Change Successful',
+      user: response.data.user,
+      token: response.data.token
+    };
+  } catch
+   (error) {
+    throw error;
+  }
+};
 type VendorListNavigationProp = NativeStackNavigationProp<VendorStackParamList, 'VendorList'>;
 
 export type VendorStackParamList = {

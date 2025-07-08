@@ -1,4 +1,3 @@
-// same imports as before
 import React, {useEffect, useState, useRef} from 'react';
 import {
   View,
@@ -11,704 +10,2116 @@ import {
   FlatList,
   Dimensions,
   ActivityIndicator,
+  Modal,
+  Alert,
+  TextInput,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+const Ionicons = require('react-native-vector-icons/Ionicons').default;
 import Video from 'react-native-video';
-import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {RootStackParamList} from '../../Navigation/types';
-import axios from 'axios';
 import Post from '../../Component/Post';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {Video as VideoCompressor} from 'react-native-compressor';
+import axios from 'axios';
+import {useNavigation, useFocusEffect, useRoute} from '@react-navigation/native';
+import {getProfile, getUserPosts, getUserReels} from '../../Api/Api';
+//  import { Image as Compressor } from 'react-native-compressor';
 
-const {width, height} = Dimensions.get('window');
-const numColumns = 3;
-const tileSize = width / numColumns;
+const {width} = Dimensions.get('window');
+const NUM_COLUMNS = 3;
+const ITEM_SIZE = width / NUM_COLUMNS;
 
-type UserProfileNavigationProp = NativeStackNavigationProp<RootStackParamList>;
-type UserProfileRouteProp = RouteProp<RootStackParamList, 'UserProfile'>;
+interface Post {
+  id: string;
+  type: 'image' | 'reel';
+  uri: string;
+  compressedUri?: string;
+  likes: number;
+  comments: number;
+  caption?: string;
+  location?: string;
+  createdAt?: string;
+  collection_id?: number;
+  mediaCount?: number; // Number of media files in this post
+  isLiked?: boolean;
+  isCollection?: boolean;
+  collectionName?: string;
+  allMedia?: string[]; // All media files for this post
+}
 
-export const UserProfileScreen = async () => {
-  const navigation = useNavigation<UserProfileNavigationProp>();
-  const route = useRoute<UserProfileRouteProp>();
-  const {userId} = route.params;
-
+const UserProfileScreen = () => {
   const [activeTab, setActiveTab] = useState<'posts' | 'reels' | 'saved'>(
     'posts',
   );
-  const [profile, setProfile] = useState<any>(null);
-  const [posts, setPosts] = useState<any[]>([]);
-  const [reels, setReels] = useState<any[]>([]);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [expandedCaptions, setExpandedCaptions] = useState<
-    Record<number, boolean>
-  >({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isVideoPaused, setIsVideoPaused] = useState(false);
-  const [isVideoMuted, setIsVideoMuted] = useState(true);
-  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
-  const [isFollowed, setIsFollowed] = useState(false);
-  const [followStatus, setFollowStatus] = useState('');
-  const [followLoading, setFollowLoading] = useState(false);
+  const [profile, setProfile] = useState({
+    username: '',
+    fullName: '',
+    bio: '',
+    profileImage: 'https://picsum.photos/200',
+    postsCount: 0,
+    followersCount: 0,
+    followingCount: 0,
+    id:''
+  });
+  const route = useRoute<any>();
+  let { userId } = route?.params || {};
+  let {isFromSearch} = route?.params || {};
+  console.log("isFromSearch",isFromSearch);
+  
+
+// console.log("profile s state",profile.id);
+
+  // Real data from API
+  const [data , setData] = useState('')
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [savedPosts, setSavedPosts] = useState<Post[]>([]); // For saved tab
+  const [collections, setCollections] = useState<any[]>([]); // For collections data
+  const [savedLoading, setSavedLoading] = useState(false);
+  const [savedError, setSavedError] = useState<string | null>(null);
+
+  const [fullscreenVisible, setFullscreenVisible] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [videoLoading, setVideoLoading] = useState(false);
+  const [currentFullscreenIndex, setCurrentFullscreenIndex] = useState(0);
+  const [shouldPauseAllVideos, setShouldPauseAllVideos] = useState(false);
+  const fullscreenFlatListRef = useRef<FlatList>(null);
+
+  // Individual video controls state
   const [videoStates, setVideoStates] = useState<{
-    [id: string]: {isPlaying: boolean; isMuted: boolean};
+    [key: string]: {isPlaying: boolean; isMuted: boolean};
   }>({});
-  const [videoLoading, setVideoLoading] = useState<{[id: string]: boolean}>({});
+  const [videoRefs, setVideoRefs] = useState<{[key: string]: any}>({});
 
-  const onViewableItemsChanged = useRef(({viewableItems}: any) => {
-    if (viewableItems && viewableItems.length > 0) {
-      setCurrentMediaIndex(viewableItems[0].index || 0);
+  // Post functionality state
+  const [postStates, setPostStates] = useState<{
+    [key: string]: {isLiked: boolean; likesCount: number; likeLoading: boolean};
+  }>({});
+  const [optionsVisible, setOptionsVisible] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<any>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Edit functionality state
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editCaption, setEditCaption] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+
+  // Collection creation state
+  const [createCollectionModalVisible, setCreateCollectionModalVisible] =
+    useState(false);
+  const [newCollectionName, setNewCollectionName] = useState('');
+  const [createCollectionLoading, setCreateCollectionLoading] = useState(false);
+
+  // Fullscreen media state
+  const [postMediaIndices, setPostMediaIndices] = useState<{
+    [postId: string]: number;
+  }>({});
+
+  // Simple swipe-to-close using ScrollView drag
+  const dragOffsetY = useRef(0);
+  const handleScroll = (event: any) => {
+    dragOffsetY.current = event.nativeEvent.contentOffset.y;
+  };
+  const handleScrollEndDrag = () => {
+    if (dragOffsetY.current < -100) {
+      setFullscreenVisible(false);
     }
-  }).current;
-
-  const flatListRef = useRef<FlatList>(null);
-
-  useEffect(() => {
-    console.log('userId', userId);
-
-    if (userId) {
-      fetchUserProfileData();
-    }
-  }, [userId]);
-  const authToken = await AsyncStorage.getItem('accessToken');
-  const headers = {
-    Accept: 'application/json',
-    Authorization: `Bearer ${authToken}`,
   };
 
-  const fetchUserProfileData = async () => {
+  // FlatList viewability config for reels autoplay
+  const viewabilityConfig = {viewAreaCoveragePercentThreshold: 80};
+  const onViewableItemsChanged = useRef(
+    ({viewableItems}: {viewableItems: any}) => {
+      if (viewableItems && viewableItems.length > 0) {
+        const newIndex = viewableItems[0].index ?? 0;
+        setCurrentFullscreenIndex(newIndex);
+
+        // Handle video playback based on currently visible item
+        if (fullscreenVisible) {
+          const currentItem = filteredPosts[newIndex];
+          if (currentItem && currentItem.type === 'reel') {
+            // Get the current media index for this post
+            const mediaItems = currentItem.allMedia || [currentItem.uri];
+            const currentMediaIndex = postMediaIndices[currentItem.id] || 0;
+            const videoId =
+              mediaItems.length > 1
+                ? `${currentItem.id}-${currentMediaIndex}`
+                : currentItem.id;
+
+            pauseAllVideosExcept(videoId);
+            playCurrentVideo(videoId);
+          }
+        }
+      }
+    },
+  ).current;
+
+  useEffect(() => {
+    if (fullscreenVisible && fullscreenFlatListRef.current) {
+      setTimeout(() => {
+        fullscreenFlatListRef.current?.scrollToIndex({
+          index: selectedIndex,
+          animated: false,
+        });
+        setCurrentFullscreenIndex(selectedIndex);
+        setShouldPauseAllVideos(false);
+
+        // Play the selected video and pause others
+        const selectedItem = filteredPosts[selectedIndex];
+        if (selectedItem && selectedItem.type === 'reel') {
+          // Get the current media index for this post
+          const mediaItems = selectedItem.allMedia || [selectedItem.uri];
+          const currentMediaIndex = postMediaIndices[selectedItem.id] || 0;
+          const videoId =
+            mediaItems.length > 1
+              ? `${selectedItem.id}-${currentMediaIndex}`
+              : selectedItem.id;
+
+          pauseAllVideosExcept(videoId);
+          playCurrentVideo(videoId);
+        }
+      }, 0);
+    }
+  }, [fullscreenVisible, selectedIndex]);
+
+  // Pause all videos when modal is closed
+  useEffect(() => {
+    if (!fullscreenVisible) {
+      setShouldPauseAllVideos(true);
+      setPostMediaIndices({}); // Reset all post media indices when closing fullscreen
+      // Pause all videos when modal closes
+      setVideoStates(prev => {
+        const newStates = {...prev};
+        Object.keys(newStates).forEach(itemId => {
+          newStates[itemId] = {
+            ...newStates[itemId],
+            isPlaying: false,
+          };
+        });
+        return newStates;
+      });
+    }
+  }, [fullscreenVisible]);
+
+  // Pause all videos when switching tabs - Fixed to prevent infinite loop
+  useEffect(() => {
+    if (activeTab !== 'reels') {
+      setShouldPauseAllVideos(true);
+    }
+  }, [activeTab]);
+
+  // Reset video controls when switching to reels tab
+  useEffect(() => {
+    if (activeTab === 'reels') {
+      setShouldPauseAllVideos(false);
+    }
+  }, [activeTab]);
+
+  const handleShare = (post: any) => {
+    // Implement your share logic here
+    Alert.alert('Share', 'Share functionality coming soon!');
+  };
+
+  const handleLike = async (post: any) => {
+    const postId = post.id;
+    const currentState = postStates[postId] || {
+      isLiked: false,
+      likesCount: post.likes,
+      likeLoading: false,
+    };
+
+    if (currentState.likeLoading) return;
+
+    setPostStates(prev => ({
+      ...prev,
+      [postId]: {...currentState, likeLoading: true},
+    }));
+
     try {
-      setLoading(true);
-      const response = await axios.get(
-        `https://pashuahar.com/user_profile/${userId}/`,
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+
+      await axios.post(
+        'https://pashuahar.com/like-toggle/',
+        {
+          content_type: post.type === 'reel' ? 'reel' : 'post',
+          object_id: post.id,
+        },
         {headers},
       );
-      const data = response.data?.data;
-      console.log('data.....', response.data?.data?.reels, 'userId', userId);
 
-      setProfile(data);
-      setPosts(data?.posts || []);
-      setReels(data?.reels || []);
-      setIsFollowed(data?.is_followed_by);
-      setFollowStatus(data?.follow_status);
+      // Update the post state
+      setPostStates(prev => ({
+        ...prev,
+        [postId]: {
+          isLiked: !currentState.isLiked,
+          likesCount: currentState.isLiked
+            ? currentState.likesCount - 1
+            : currentState.likesCount + 1,
+          likeLoading: false,
+        },
+      }));
+
+      // Also update the posts array
+      setPosts(prevPosts =>
+        prevPosts.map(p =>
+          p.id === postId
+            ? {
+                ...p,
+                likes: currentState.isLiked ? p.likes - 1 : p.likes + 1,
+                isLiked: !currentState.isLiked,
+              }
+            : p,
+        ),
+      );
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      Alert.alert('Error', 'Failed to update like.');
+
+      // Revert the state on error
+      setPostStates(prev => ({
+        ...prev,
+        [postId]: {...currentState, likeLoading: false},
+      }));
+    }
+  };
+
+  const handleComment = (post: any) => {
+    // Close fullscreen modal before navigating to comment screen
+    setFullscreenVisible(false);
+
+    // Small delay to ensure modal is closed before navigation
+    setTimeout(() => {
+      navigation.navigate('CommentScreen', {
+        content_type: post.type === 'reel' ? 'reel' : 'post',
+        object_id: post.id,
+      });
+    }, 100);
+  };
+
+  const handleOptions = (post: any) => {
+    setSelectedPost(post);
+    setOptionsVisible(true);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedPost) return;
+    setDeleteLoading(true);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+
+      const postId = selectedPost.id;
+      let deleteUrl = '';
+
+      // Use different API endpoints based on post type
+      if (selectedPost.type === 'reel') {
+        deleteUrl = `https://pashuahar.com/reels/${postId}/`;
+      } else {
+        deleteUrl = `https://pashuahar.com/posts/${postId}/`;
+      }
+
+      await axios.delete(deleteUrl, {headers});
+
+      // Remove from posts array
+      setPosts(prevPosts => prevPosts.filter(p => p.id !== postId));
+
+      // Also remove from saved posts if it's there
+      setSavedPosts(prevSaved => prevSaved.filter(p => p.id !== postId));
+
+      setOptionsVisible(false);
+      setSelectedPost(null);
+      Alert.alert(
+        'Deleted',
+        `${
+          selectedPost.type === 'reel' ? 'Reel' : 'Post'
+        } deleted successfully.`,
+      );
     } catch (err) {
-      console.error('Fetch error:', err);
-      setError('Failed to fetch profile');
+      console.error('Error deleting post:', err);
+      Alert.alert(
+        'Error',
+        `Failed to delete ${selectedPost?.type === 'reel' ? 'reel' : 'post'}.`,
+      );
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleEdit = () => {
+    if (!selectedPost) return;
+
+    // Set the current caption for editing
+    setEditCaption(selectedPost.caption || '');
+    setEditModalVisible(true);
+    setOptionsVisible(false);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!selectedPost) return;
+
+    setEditLoading(true);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+
+      const postId = selectedPost.id;
+      let editUrl = '';
+
+      // Use different API endpoints based on post type
+      if (selectedPost.type === 'reel') {
+        editUrl = `https://pashuahar.com/reels/${postId}/`;
+      } else {
+        editUrl = `https://pashuahar.com/posts/${postId}/`;
+      }
+
+      await axios.patch(
+        editUrl,
+        {
+          caption: editCaption,
+        },
+        {headers},
+      );
+
+      // Update the post in the posts array
+      setPosts(prevPosts =>
+        prevPosts.map(p =>
+          p.id === postId ? {...p, caption: editCaption} : p,
+        ),
+      );
+
+      // Also update in saved posts if it's there
+      setSavedPosts(prevSaved =>
+        prevSaved.map(p =>
+          p.id === postId ? {...p, caption: editCaption} : p,
+        ),
+      );
+
+      setEditModalVisible(false);
+      setEditCaption('');
+      setSelectedPost(null);
+      Alert.alert(
+        'Success',
+        `${
+          selectedPost.type === 'reel' ? 'Reel' : 'Post'
+        } updated successfully.`,
+      );
+    } catch (err) {
+      console.error('Error updating post:', err);
+      Alert.alert(
+        'Error',
+        `Failed to update ${selectedPost?.type === 'reel' ? 'reel' : 'post'}.`,
+      );
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const navigation = useNavigation<any>();
+
+  // Video control functions
+  const toggleMute = (itemId: string) => {
+    setVideoStates(prev => ({
+      ...prev,
+      [itemId]: {
+        ...prev[itemId],
+        isMuted: !prev[itemId]?.isMuted,
+      },
+    }));
+  };
+
+  const togglePlayPause = (itemId: string) => {
+    setVideoStates(prev => ({
+      ...prev,
+      [itemId]: {
+        ...prev[itemId],
+        isPlaying: !prev[itemId]?.isPlaying,
+      },
+    }));
+  };
+
+  const handleVideoRef = (videoRef: any, itemId: string) => {
+    if (videoRef && !videoRefs[itemId]) {
+      setVideoRefs(prev => ({
+        ...prev,
+        [itemId]: videoRef,
+      }));
+
+      // Initialize video state if not exists
+      if (!videoStates[itemId]) {
+        setVideoStates(prev => ({
+          ...prev,
+          [itemId]: {
+            isPlaying: false,
+            isMuted: true,
+          },
+        }));
+      }
+    }
+  };
+
+  // Initialize video states for all videos
+  const initializeVideoStates = (mediaItems: Post[]) => {
+    const newVideoStates: {
+      [key: string]: {isPlaying: boolean; isMuted: boolean};
+    } = {};
+    mediaItems.forEach(item => {
+      if (item.type === 'reel') {
+        // Initialize for single video
+        newVideoStates[item.id] = {
+          isPlaying: false,
+          isMuted: true,
+        };
+
+        // Initialize for multiple media items if they exist
+        if (item.allMedia && item.allMedia.length > 1) {
+          item.allMedia.forEach((_, index) => {
+            const mediaId = `${item.id}-${index}`;
+            newVideoStates[mediaId] = {
+              isPlaying: false,
+              isMuted: true,
+            };
+          });
+        }
+      }
+    });
+    setVideoStates(newVideoStates);
+  };
+
+  // Pause all videos except the current one
+  const pauseAllVideosExcept = (currentItemId: string) => {
+    setVideoStates(prev => {
+      const newStates = {...prev};
+      Object.keys(newStates).forEach(itemId => {
+        if (itemId !== currentItemId) {
+          newStates[itemId] = {
+            ...newStates[itemId],
+            isPlaying: false,
+          };
+        }
+      });
+      return newStates;
+    });
+  };
+
+  // Play only the current video in fullscreen
+  const playCurrentVideo = (itemId: string) => {
+    setVideoStates(prev => ({
+      ...prev,
+      [itemId]: {
+        ...prev[itemId],
+        isPlaying: true,
+      },
+    }));
+  };
+
+  const playVideo = (itemId: string) => {
+    const videoRef = videoRefs[itemId];
+    if (videoRef && !videoStates[itemId]?.isPlaying) {
+      videoRef.seek(0);
+      setVideoStates(prev => ({
+        ...prev,
+        [itemId]: {
+          ...prev[itemId],
+          isPlaying: true,
+        },
+      }));
+    }
+  };
+
+  const pauseVideo = (itemId: string) => {
+    if (videoStates[itemId]?.isPlaying) {
+      setVideoStates(prev => ({
+        ...prev,
+        [itemId]: {
+          ...prev[itemId],
+          isPlaying: false,
+        },
+      }));
+    }
+  };
+
+  // Compress image function
+  // const compressImage = async (imageUri: string): Promise<string> => {
+  //   try {
+  //     const result = await Compressor.compress(imageUri, {
+  //       quality: 0.8,
+  //       maxWidth: 800,
+  //       maxHeight: 800,
+  //     });
+  //     return result;
+  //   } catch (error) {
+  //     console.error('Image compression failed:', error);
+  //     return imageUri; // Return original if compression fails
+  //   }
+  // };
+
+  // Process media data with compression and multiple media detection
+  const processMediaData = async (
+    mediaData: any[],
+    type: 'image' | 'reel',
+  ): Promise<Post[]> => {
+    const processedPosts: Post[] = [];
+
+    for (const item of mediaData) {
+      try {
+        let mediaFiles: string[] = [];
+
+        if (type === 'image') {
+          // For posts, check if there are multiple media files
+          if (item.media && Array.isArray(item.media)) {
+            mediaFiles = item.media
+              .map((media: any) => media.media_file)
+              .filter(Boolean);
+          } else if (item.media_file) {
+            mediaFiles = [item.media_file];
+          }
+        } else {
+          // For reels, use video_file
+          if (item.video_file) {
+            mediaFiles = [item.video_file];
+          }
+        }
+
+        if (mediaFiles.length > 0) {
+          // Compress the first image for thumbnail (only for images, not videos)
+          let compressedUri = mediaFiles[0];
+          if (type === 'image') {
+            //  compressedUri = await compressImage(mediaFiles[0]);
+          }
+
+          const post: Post = {
+            id: item.id?.toString() || '',
+            type: type,
+            uri: mediaFiles[0], // Original URI for fullscreen
+            compressedUri: mediaFiles[0], // Compressed URI for grid
+            likes: item.like_count || 0,
+            comments: item.comment_count || 0,
+            caption: item.caption || '',
+            location: item.location || '',
+            createdAt: item.created_at || '',
+            collection_id: item.collection_id || 1,
+            mediaCount: mediaFiles.length > 1 ? mediaFiles.length : undefined,
+            allMedia: mediaFiles,
+          };
+
+          processedPosts.push(post);
+        }
+      } catch (error) {
+        console.error('Error processing media item:', error);
+      }
+    }
+
+    return processedPosts;
+  };
+
+  // Fetch followers and following counts
+  const fetchFollowersCount = async () => {
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+      const res = await axios.get('https://pashuahar.com/follower/followers', {
+        headers,
+      });
+      // Assume response: { data: { count: number } }
+      return res.data?.data?.count || 0;
+    } catch (err) {
+      return 0;
+    }
+  };
+
+  const fetchFollowingCount = async () => {
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+      const res = await axios.get('https://pashuahar.com/follower/following', {
+        headers,
+      });
+      // Assume response: { data: { count: number } }
+      return res.data?.data?.count || 0;
+    } catch (err) {
+      return 0;
+    }
+  };
+
+  // Fetch profile and posts data every time the screen comes into focus or params change
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchData();
+      return () => {
+        // Cleanup: flush previous data
+        setProfile({
+          username: '',
+          fullName: '',
+          bio: '',
+          profileImage: 'https://picsum.photos/200',
+          postsCount: 0,
+          followersCount: 0,
+          followingCount: 0,
+          id: ''
+        });
+        setPosts([]);
+        setSavedPosts([]);
+        setCollections([]);
+        setLoading(true);
+      };
+    }, [route?.params?.userId, route?.params?.isFromSearch])
+  );
+
+  const fetchData = async () => {
+    console.log("yes called ......", userId,isFromSearch);
+    
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+      let response:any;
+      if(isFromSearch && userId){
+         try {
+          response = await axios.get(`https://pashuahar.com/user_profile/${userId}/`,{headers});
+        } catch (err) {
+          console.error('Error in user_profile API:', err);
+          throw err;
+        }
+      }
+      const data = response.data?.data;
+console.log("datat......" , data);
+
+      setIsFollowing(data?.is_following);
+      setFollowStatus(data?.follow_status);
+      console.log("responseresponseresponse",data?.is_followed_by , data?.follow_status);
+      
+      // Fetch profile data
+      let profileResponse;
+      try {
+        profileResponse = isFromSearch
+          ? response?.data?.data?.profile
+          : await getProfile();
+      } catch (err) {
+        console.error('Error in getProfile API:', err);
+        throw err;
+      }
+      console.log('profileResponse', profileResponse.data?.data);
+        setData( isFromSearch ? profileResponse : profileResponse.data?.data?.results)
+      let followersCount = 0;
+      let followingCount = 0;
+      // Fetch followers/following counts in parallel
+      if(isFromSearch) {
+        followersCount = response?.data?.data?.followers_count
+        followingCount = response?.data?.data?.following_count
+      }
+      else {
+        [followersCount, followingCount] = await Promise.all([
+          fetchFollowersCount(),
+          fetchFollowingCount(),
+        ]);
+      }
+      
+      console.log('followersCount', followersCount);
+
+      if (isFromSearch ? profileResponse : profileResponse.data) {
+        const profileData = isFromSearch ? profileResponse : profileResponse.data.data?.profile;
+        console.log("profileDataprofileData",profileData);
+
+        setProfile({
+          username: profileData.username || 'jk',
+          fullName:
+            `${profileData.first_name || ''} ${
+              profileData.last_name || ''
+            }`.trim() || 'Jay Chhaniyara',
+          bio: profileData.bio || 'Its Boy Jk',
+          profileImage:
+            profileData.profile_picture || 'https://picsum.photos/200',
+          postsCount: isFromSearch ? response?.data?.data?.post_reels_count : profileData.posts_count || 8,
+          followersCount,
+          followingCount,
+          id:profileData.user
+        });
+        // setUserId()
+      }
+
+      // Fetch posts data
+      let postsResponse;
+      try {
+        postsResponse = isFromSearch
+          ? response?.data?.data
+          : await getUserPosts();
+      } catch (err) {
+        console.error('Error in getUserPosts API:', err);
+        throw err;
+      }
+      console.log("postsResponse",postsResponse);
+
+      // Fetch reels data
+      let reelsResponse;
+      try {
+        reelsResponse = isFromSearch
+          ? response?.data?.data
+          : await getUserReels();
+      } catch (err) {
+        console.error('Error in getUserReels API:', err);
+        throw err;
+      }
+      console.log("reelsResponse",reelsResponse?.data?.data?.results);
+
+      let allMedia: Post[] = [];
+      // console.log("postsResponse.posts",postsResponse.posts);
+      
+
+      // Transform posts data with compression and multiple media detection
+      // console.log("here comes postsResponse",postsResponse);
+      
+      if (!isFromSearch ? postsResponse?.data : postsResponse) {
+        const postsData = isFromSearch ? postsResponse?.posts :  postsResponse?.data?.data?.results;
+        // const postsData = postsResponse.data.data.results;
+        console.log("postsDatapostsDatapostsData",postsData);
+        
+        const processedPosts = await processMediaData(postsData, 'image');
+        allMedia = [...allMedia, ...processedPosts];
+      }
+
+      // Transform reels data with compression and multiple media detection
+      if (!isFromSearch ? reelsResponse.data : reelsResponse) {
+        const reelsData = isFromSearch ? reelsResponse?.reels : reelsResponse?.data?.data?.results;
+        const processedReels = await processMediaData(reelsData, 'reel');
+        allMedia = [...allMedia, ...processedReels];
+      }
+
+      console.log('allMedia........', allMedia);
+      setPosts(allMedia);
+
+      // Initialize video states for all reels
+      initializeVideoStates(allMedia);
+
+      // Initialize post states when posts are loaded
+      initializePostStates(allMedia);
+    } catch (error) {
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Filter out posts/reels with no valid media_file or video_file
-  const hasValidMedia = (item: any) => {
-    if (item.type === 'reel') {
-      return !!item.video_file;
+  // Fetch saved posts for the Saved tab
+  const fetchSavedPosts = async () => {
+    setSavedLoading(true);
+    setSavedError(null);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+      const res = await axios.get('https://pashuahar.com/collections', {
+        headers,
+      });
+      console.log('collections', res.data);
+
+      // Store collections data
+      const collectionsData = res.data?.data || [];
+      setCollections(collectionsData);
+
+      // Transform collections to show as saved items
+      const processedCollections = collectionsData.map((collection: any) => ({
+        id: collection.id.toString(),
+        type: 'image' as const,
+        uri: 'https://picsum.photos/200', // placeholder image
+        compressedUri: 'https://picsum.photos/200',
+        likes: 0,
+        comments: 0,
+        caption: collection.name,
+        location: '',
+        createdAt: collection.created_at,
+        collection_id: collection.id,
+        isCollection: true,
+        collectionName: collection.name,
+      }));
+      setSavedPosts(processedCollections);
+    } catch (err) {
+      console.log('errerrerr', err);
+      setSavedError('Failed to load collections');
+    } finally {
+      setSavedLoading(false);
     }
-    const media = item.media?.[0];
-    return media && media.media_file;
   };
 
-  const filteredContent = (
-    activeTab === 'posts'
-      ? posts
-      : activeTab === 'reels'
-      ? reels
-      : posts.filter(p => p.is_saved)
-  ).filter(hasValidMedia);
+  // Create new collection
+  const createCollection = async (name: string) => {
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+      const res = await axios.post(
+        'https://pashuahar.com/collections/',
+        {
+          name: name,
+        },
+        {headers},
+      );
 
-  const handleItemPress = (index: number) => {
-    setSelectedIndex(index);
+      console.log('Created collection', res.data);
+
+      // Refresh collections after creating
+      fetchSavedPosts();
+
+      return res.data;
+    } catch (err) {
+      console.error('Error creating collection:', err);
+      Alert.alert('Error', 'Failed to create collection');
+      throw err;
+    }
   };
 
-  const toggleCaption = (index: number) => {
-    setExpandedCaptions(prev => ({...prev, [index]: !prev[index]}));
+  // Fetch collection details
+  const fetchCollectionDetails = async (collectionId: string) => {
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+      const res = await axios.get(
+        `https://pashuahar.com/collections/${collectionId}`,
+        {headers},
+      );
+      console.log('Collection details', res.data);
+      return res.data;
+    } catch (err) {
+      console.error('Error fetching collection details:', err);
+      Alert.alert('Error', 'Failed to load collection details');
+      throw err;
+    }
   };
 
-  const handleVideoRef = (ref: any, id: string) => {
-    // Optionally store refs if you want to control videos programmatically
-  };
+  // Fetch saved posts when switching to Saved tab
+  useEffect(() => {
+    if (!isFromSearch && activeTab === 'saved' && savedPosts.length === 0 && !savedLoading) {
+      fetchSavedPosts();
+    }
+  }, [activeTab]);
 
-  const handlePlayPause = (id: string) => {
-    setVideoStates(prev => ({
-      ...prev,
-      [id]: {
-        ...prev[id],
-        isPlaying: !prev[id]?.isPlaying,
-        isMuted: prev[id]?.isMuted ?? true,
-      },
-    }));
-  };
+  // Refresh collections when screen comes into focus (e.g., after deletion)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (activeTab === 'saved') {
+        fetchSavedPosts();
+      }
+    }, [activeTab]),
+  );
 
-  const handleMuteUnmute = (id: string) => {
-    setVideoStates(prev => ({
-      ...prev,
-      [id]: {
-        ...prev[id],
-        isMuted: !prev[id]?.isMuted,
-        isPlaying: prev[id]?.isPlaying ?? true,
-      },
-    }));
-  };
+  // Reset fullscreen modal state when returning from comment screen
+  useFocusEffect(
+    React.useCallback(() => {
+      // Reset fullscreen modal state to ensure it works properly after navigation
+      if (!fullscreenVisible) {
+        setSelectedIndex(0);
+        setCurrentFullscreenIndex(0);
+        setShouldPauseAllVideos(false);
+      }
+    }, []),
+  );
 
-  const renderContentItem = ({item, index}: any) => {
+  // Use correct posts for the current tab
+  const filteredPosts =
+    activeTab === 'saved'
+      ? savedPosts
+      : posts.filter(post => {
+          if (activeTab === 'posts') return post.type === 'image';
+          if (activeTab === 'reels') return post.type === 'reel';
+          return true;
+        });
+
+  const renderPostItem = ({item, index}: {item: any; index: number}) => {
     const isReel = item.type === 'reel';
-    const isVideo = isReel || item.media?.[0]?.media_file?.endsWith('.mp4');
-    const imageUri =
-      item.compressedUri ||
-      item.uri ||
-      item.media?.[0]?.media_file ||
-      item.media?.[0]?.url;
-    const videoUri = item.video_file || item.uri;
+    const isCollection = item.isCollection;
+    const shouldShowVideoControls = isReel && activeTab === 'reels';
+    const videoState = videoStates[item.id] || {
+      isPlaying: false,
+      isMuted: true,
+    };
 
     return (
       <TouchableOpacity
-        style={styles.postContainer}
-        activeOpacity={0.8}
-        onPress={() => handleItemPress(index)}>
-        {!isVideo ? (
-          <Image source={{uri: imageUri}} style={styles.postImage} />
+        style={styles.postItem}
+        onPress={() => {
+          if (isCollection) {
+            // Navigate to collection details
+            navigation.navigate('CollectionDetailScreen', {
+              collectionId: item.collection_id,
+              collectionName: item.collectionName,
+            });
+          } else {
+            setSelectedIndex(index);
+            setFullscreenVisible(true);
+          }
+        }}
+        activeOpacity={0.9}>
+        {/* Main media display - use compressed image for better performance */}
+        {!isReel ? (
+          <Image
+            source={{uri: item.compressedUri || item.uri}}
+            style={styles.postImage}
+          />
         ) : (
           <View style={styles.videoContainer}>
             <Video
-              source={{uri: videoUri}}
+              ref={ref => handleVideoRef(ref, item.id)}
+              source={{uri: item.uri}}
               style={styles.postImage}
-              muted
+              muted={videoState.isMuted}
               repeat
               resizeMode="cover"
-              paused={true} // Always paused in grid
+              paused={!videoState.isPlaying || shouldPauseAllVideos}
+              onLoad={() => setVideoLoading(false)}
+              onError={() => setVideoLoading(false)}
             />
+
+            {/* Video controls overlay - only show when on reels tab */}
+            {shouldShowVideoControls && (
+              <View style={styles.videoControls}>
+                <TouchableOpacity
+                  style={styles.videoControlButton}
+                  onPress={e => {
+                    e.stopPropagation();
+                    togglePlayPause(item.id);
+                  }}>
+                  <Ionicons
+                    name={videoState.isPlaying ? 'pause' : 'play'}
+                    size={20}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.videoControlButton}
+                  onPress={e => {
+                    e.stopPropagation();
+                    toggleMute(item.id);
+                  }}>
+                  <Ionicons
+                    name={videoState.isMuted ? 'volume-mute' : 'volume-high'}
+                    size={20}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         )}
-        {/* Overlay play icon for reels in grid */}
-        {isReel && (
-          <View style={styles.reelIndicator}>
-            <Icon name="play" size={16} color="#fff" />
+
+        {/* Collection indicator */}
+        {isCollection && (
+          <View style={styles.collectionIndicator}>
+            <Ionicons name="folder-outline" size={16} color="#fff" />
+            <Text style={styles.collectionText}>{item.collectionName}</Text>
           </View>
         )}
+
+        {/* Multiple media indicator */}
+        {item.mediaCount && item.mediaCount > 1 && (
+          <View style={styles.multipleMediaIndicator}>
+            <Ionicons name="copy-outline" size={16} color="#fff" />
+            <Text style={styles.multipleMediaText}>{item.mediaCount}</Text>
+          </View>
+        )}
+
+        {/* Top-right options icon */}
+       {isFromSearch ? null : <TouchableOpacity
+          style={{position: 'absolute', top: 8, right: 8, zIndex: 2}}
+          onPress={e => {
+            e.stopPropagation();
+            handleOptions(item);
+          }}>
+          <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
+        </TouchableOpacity>}
+
+        {/* Like/comment counts overlay */}
+        {/* <View style={styles.postOverlay}>
+          <View style={styles.postStat}>
+            <Ionicons name="heart" size={14} color="#fff" />
+            <Text style={styles.postStatText}>{item.likes}</Text>
+          </View>
+          <View style={styles.postStat}>
+            <Ionicons name="chatbubble" size={14} color="#fff" />
+            <Text style={styles.postStatText}>{item.comments}</Text>
+          </View>
+          <View style={styles.postStat}>
+            <TouchableOpacity onPress={() => handleShare(item)}>
+              <Ionicons name="paper-plane-outline" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View> */}
       </TouchableOpacity>
     );
   };
 
-  // New component for full-screen reel item with compression logic
-  type FullScreenReelItemProps = {
-    item: any;
-    index: number;
-    profile: any;
-    navigation: any;
-    expandedCaptions: Record<number, boolean>;
-    toggleCaption: (index: number) => void;
-    onViewableItemsChanged: any;
-  };
+  const renderStats = () => (
+    <View style={styles.statsContainer}>
+      <View style={styles.statItem}>
+        <Text style={styles.statNumber}>{profile.postsCount}</Text>
+        <Text style={styles.statLabel}>Posts</Text>
+      </View>
+      <TouchableOpacity
+        style={styles.statItem}
+        onPress={() =>
+          isFromSearch ? null :
+          navigation.navigate('FollowersFollowingScreen', {
+            type: 'followers',
+            userId: '1',
+            username: profile.username,
+          })
+        }>
+        <Text style={styles.statNumber}>{profile.followersCount}</Text>
+        <Text style={styles.statLabel}>Followers</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.statItem}
+        onPress={() =>
+          isFromSearch ? null :
+          navigation.navigate('FollowersFollowingScreen', {
+            type: 'following',
+            userId: '1',
+            username: profile.username,
+          })
+        }>
+        <Text style={styles.statNumber}>{profile.followingCount}</Text>
+        <Text style={styles.statLabel}>Following</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
-  // Memoized component for full-screen reel item with local video state
-  const FullScreenReelItem = React.memo(
-    ({
-      item,
-      index,
-      profile,
-      navigation,
-      expandedCaptions,
-      toggleCaption,
-      onViewableItemsChanged,
-    }: FullScreenReelItemProps) => {
-      const isReel = item.type === 'reel';
-      const [compressedUri, setCompressedUri] = React.useState<string | null>(
-        null,
-      );
-      const [isVideoPaused, setIsVideoPaused] = React.useState(false); // auto-play by default
-      const [isVideoMuted, setIsVideoMuted] = React.useState(true);
-      const [activeMediaIndex, setActiveMediaIndex] = React.useState(0);
+  const renderProfileHeader = () => (
+    <View style={styles.profileHeader}>
+      <Image source={{uri: profile.profileImage}} style={styles.profileImage} />
+      {renderStats()}
+    </View>
+  );
 
-      React.useEffect(() => {
-        let isMounted = true;
-        if (isReel && item.video_file) {
-          (async () => {
-            try {
-              const result = await VideoCompressor.compress(item.video_file, {
-                compressionMethod: 'auto',
-              });
-              if (isMounted) setCompressedUri(result);
-            } catch (e) {
-              if (isMounted) setCompressedUri(item.video_file); // fallback to original
-            }
-          })();
-        }
-        return () => {
-          isMounted = false;
-        };
-      }, [item.video_file]);
+  const renderBio = () => (
+    <View style={styles.bioContainer}>
+      <Text style={styles.username}>@{profile.username}</Text>
+      <Text style={styles.fullName}>{profile.fullName}</Text>
+      <Text style={styles.bioText}>{profile.bio}</Text>
+    </View>
+  );
 
-      // Use the same image URI logic as in the grid, but remove fallback
-      const imageUri =
-        item.compressedUri ||
-        item.uri ||
-        item.media?.[0]?.media_file ||
-        item.media?.[0]?.url;
+  const renderTabBar = () => (
+    <View style={styles.tabBar}>
+      <TouchableOpacity
+        style={[styles.tabButton, activeTab === 'posts' && styles.activeTab]}
+        onPress={() => setActiveTab('posts')}>
+        <Ionicons
+          name="grid-outline"
+          size={24}
+          color={activeTab === 'posts' ? '#000' : '#888'}
+        />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.tabButton, activeTab === 'reels' && styles.activeTab]}
+        onPress={() => setActiveTab('reels')}>
+        <Ionicons
+          name="play-outline"
+          size={24}
+          color={activeTab === 'reels' ? '#000' : '#888'}
+        />
+      </TouchableOpacity>
+      {isFromSearch ? null : <TouchableOpacity
+        style={[styles.tabButton, activeTab === 'saved' && styles.activeTab]}
+        onPress={() => setActiveTab('saved')}>
+        <Ionicons
+          name="bookmark-outline"
+          size={24}
+          color={activeTab === 'saved' ? '#000' : '#888'}
+        />
+      </TouchableOpacity>}
+    </View>
+  );
 
-      const mediaList = isReel
-        ? [{media_file: compressedUri || item.video_file}]
-        : item?.media || [];
-      const caption = item.caption || '';
-      const isExpanded = expandedCaptions[index];
-      const shouldTruncate = caption.length > 50 && !isExpanded;
-      const displayedCaption = shouldTruncate
-        ? `${caption.substring(0, 100)}...`
-        : caption;
+  const renderFullscreenItem = ({item, index}: {item: any; index: number}) => {
+    const windowHeight = Dimensions.get('window').height;
+    const windowWidth = Dimensions.get('window').width;
+    const isCurrentVideo = currentFullscreenIndex === index;
+    const isReel = item.type === 'reel';
+    const postState = postStates[item.id] || {
+      isLiked: false,
+      likesCount: item.likes,
+      likeLoading: false,
+    };
 
-      // Dots indicator for carousel
-      const renderDots = () => (
+    // Get all media items for this post
+    const mediaItems = item.allMedia || [item.uri];
+    const currentMediaIndexForPost = postMediaIndices[item.id] || 0;
+    const currentMedia = mediaItems[currentMediaIndexForPost];
+    const isVideo =
+      currentMedia &&
+      (currentMedia.includes('.mp4') ||
+        currentMedia.includes('.mov') ||
+        currentMedia.includes('.avi'));
+
+    // Get the correct video state for the current media item
+    const videoId =
+      mediaItems.length > 1
+        ? `${item.id}-${currentMediaIndexForPost}`
+        : item.id;
+    const videoState = videoStates[videoId] || {
+      isPlaying: false,
+      isMuted: true,
+    };
+
+    return (
+      <View style={{flex: 1, backgroundColor: '#000'}}>
+        {/* Top bar */}
+        {/* <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 40, paddingBottom: 10, paddingHorizontal: 10, backgroundColor: '#111', justifyContent: 'space-between' }}>
+          <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>Posts</Text>
+        </View> */}
+       
+        {/* User info */}
         <View
           style={{
             flexDirection: 'row',
-            justifyContent: 'center',
-            marginTop: 8,
+            alignItems: 'center',
+            paddingHorizontal: 14,
+            paddingBottom: 8,
+            justifyContent: 'space-between',
           }}>
-          {mediaList.map((_: any, idx: number) => (
-            <View
-              key={idx}
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: idx === activeMediaIndex ? '#fff' : '#888',
-                marginHorizontal: 3,
-              }}
-            />
-          ))}
-        </View>
-      );
-
-      return (
-        <View style={styles.fullItemContainer}>
-          {/* Header */}
-          <View style={styles.headerOverlay}>
+          <View style={{flexDirection: 'row', alignItems: 'center'}}>
             <Image
-              source={{
-                uri:
-                  item.profile?.profile_picture ||
-                  profile?.profile?.profile_picture ||
-                  'https://picsum.photos/100',
-              }}
-              style={styles.userAvatar}
+              source={{uri: profile.profileImage}}
+              style={{width: 36, height: 36, borderRadius: 18, marginRight: 10}}
             />
-            <Text style={styles.usernameOverlay}>
-              @{item.profile?.username || profile?.profile?.username}
+            <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 15}}>
+              {profile.username}
             </Text>
           </View>
 
-          {/* Media Carousel (top 60% of screen) */}
-          <View style={{width: '100%', height: height * 0.6}}>
+          {/* Options button for fullscreen */}
+         {isFromSearch ? null : <TouchableOpacity
+            onPress={() => handleOptions(item)}
+            style={{padding: 8}}>
+            <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
+          </TouchableOpacity>}
+        </View>
+
+        {/* Main media with horizontal scroll for multiple items */}
+        <View
+          style={{
+            width: windowWidth,
+            height: windowHeight * 0.5,
+            alignSelf: 'center',
+            backgroundColor: '#000',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}>
+          {mediaItems.length > 1 ? (
             <FlatList
-              data={mediaList}
+              data={mediaItems}
               horizontal
               pagingEnabled
-              keyExtractor={(_, idx) => idx.toString()}
-              renderItem={({item: mediaItem}) => {
-                const isVideo =
-                  isReel || mediaItem.media_file?.endsWith('.mp4');
-                const uri = isVideo
-                  ? mediaItem.media_file || mediaItem.url
-                  : imageUri;
-                if (!uri) {
-                  return null;
-                }
-                return isVideo ? (
-                  <View
-                    style={{width, height: height * 0.6, position: 'relative'}}>
-                    <Video
-                      source={{uri}}
-                      style={styles.fullMedia}
-                      resizeMode="cover"
-                      repeat
-                      paused={isVideoPaused}
-                      muted={isVideoMuted}
-                    />
-                    {/* Play/Pause Button */}
-                    <TouchableOpacity
-                      style={styles.playPauseOverlay}
-                      onPress={() => setIsVideoPaused(prev => !prev)}>
-                      <Icon
-                        name={
-                          isVideoPaused
-                            ? 'play-circle-outline'
-                            : 'pause-circle-outline'
-                        }
-                        size={48}
-                        color="#fff"
-                      />
-                    </TouchableOpacity>
-                    {/* Mute/Unmute Button */}
-                    <TouchableOpacity
-                      style={styles.muteOverlay}
-                      onPress={() => setIsVideoMuted(prev => !prev)}>
-                      <Icon
-                        name={isVideoMuted ? 'volume-mute' : 'volume-high'}
-                        size={32}
-                        color="#fff"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <Image
-                    source={{uri}}
-                    style={styles.fullMedia}
-                    resizeMode="cover"
-                  />
-                );
-              }}
               showsHorizontalScrollIndicator={false}
-              onViewableItemsChanged={({viewableItems}) => {
-                if (viewableItems && viewableItems.length > 0) {
-                  setActiveMediaIndex(viewableItems[0].index || 0);
-                }
-                if (onViewableItemsChanged)
-                  onViewableItemsChanged({viewableItems});
+              onMomentumScrollEnd={event => {
+                const newIndex = Math.round(
+                  event.nativeEvent.contentOffset.x / windowWidth,
+                );
+                setPostMediaIndices(prev => ({
+                  ...prev,
+                  [item.id]: newIndex,
+                }));
               }}
-              viewabilityConfig={{itemVisiblePercentThreshold: 50}}
-            />
-            {mediaList.length > 1 && renderDots()}
-          </View>
+              renderItem={({item: mediaItem, index: mediaIndex}) => (
+                <View style={{width: windowWidth, height: windowHeight * 0.5}}>
+                  {isVideo ? (
+                    <View
+                      style={{width: windowWidth, height: windowHeight * 0.5}}>
+                      {videoLoading && (
+                        <ActivityIndicator
+                          size="large"
+                          color="#fff"
+                          style={{
+                            position: 'absolute',
+                            alignSelf: 'center',
+                            top: '45%',
+                          }}
+                        />
+                      )}
+                      <Video
+                        ref={ref =>
+                          handleVideoRef(ref, `${item.id}-${mediaIndex}`)
+                        }
+                        source={{uri: mediaItem}}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          backgroundColor: '#000',
+                        }}
+                        muted={
+                          videoStates[`${item.id}-${mediaIndex}`]?.isMuted ||
+                          true
+                        }
+                        repeat
+                        resizeMode="cover"
+                        paused={
+                          !videoStates[`${item.id}-${mediaIndex}`]?.isPlaying ||
+                          !isCurrentVideo
+                        }
+                        onLoadStart={() => setVideoLoading(true)}
+                        onLoad={() => setVideoLoading(false)}
+                        onError={() => setVideoLoading(false)}
+                      />
 
-          {/* Post details below media */}
-          <View style={styles.scrollableContent}>
-            <ScrollView
-              contentContainerStyle={styles.scrollContentContainer}
-              showsVerticalScrollIndicator={false}>
-              <View style={styles.overlayContent}>
-                <Text style={styles.caption}>{displayedCaption}</Text>
-                {caption.length > 50 && (
-                  <TouchableOpacity
-                    onPress={() => {
-                      toggleCaption(index);
-                    }}>
-                    <Text style={styles.readMoreText}>
-                      {isExpanded ? 'Show less' : 'Read more'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                      {/* Video controls for fullscreen */}
+                      <View style={styles.fullscreenVideoControls}>
+                        <TouchableOpacity
+                          style={styles.fullscreenControlButton}
+                          onPress={() =>
+                            togglePlayPause(`${item.id}-${mediaIndex}`)
+                          }>
+                          <Ionicons
+                            name={
+                              videoStates[`${item.id}-${mediaIndex}`]?.isPlaying
+                                ? 'pause'
+                                : 'play'
+                            }
+                            size={24}
+                            color="#fff"
+                          />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.fullscreenControlButton}
+                          onPress={() =>
+                            toggleMute(`${item.id}-${mediaIndex}`)
+                          }>
+                          <Ionicons
+                            name={
+                              videoStates[`${item.id}-${mediaIndex}`]?.isMuted
+                                ? 'volume-mute'
+                                : 'volume-high'
+                            }
+                            size={24}
+                            color="#fff"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : (
+                    <Image
+                      source={{uri: mediaItem}}
+                      style={{
+                        width: windowWidth,
+                        height: windowHeight * 0.5,
+                        resizeMode: 'cover',
+                        backgroundColor: '#000',
+                      }}
+                    />
+                  )}
+                </View>
+              )}
+              keyExtractor={(mediaItem, mediaIndex) =>
+                `${item.id}-${mediaIndex}`
+              }
+            />
+          ) : // Single media item
+          isVideo ? (
+            <View style={{width: windowWidth, height: windowHeight * 0.5}}>
+              {videoLoading && (
+                <ActivityIndicator
+                  size="large"
+                  color="#fff"
+                  style={{
+                    position: 'absolute',
+                    alignSelf: 'center',
+                    top: '45%',
+                  }}
+                />
+              )}
+              <Video
+                ref={ref => handleVideoRef(ref, item.id)}
+                source={{uri: currentMedia}}
+                style={{width: '100%', height: '100%', backgroundColor: '#000'}}
+                muted={videoState.isMuted}
+                repeat
+                resizeMode="cover"
+                paused={!videoState.isPlaying || !isCurrentVideo}
+                onLoadStart={() => setVideoLoading(true)}
+                onLoad={() => setVideoLoading(false)}
+                onError={() => setVideoLoading(false)}
+              />
+
+              {/* Video controls for fullscreen single video */}
+              <View style={styles.fullscreenVideoControls}>
+                <TouchableOpacity
+                  style={styles.fullscreenControlButton}
+                  onPress={() => togglePlayPause(item.id)}>
+                  <Ionicons
+                    name={videoState.isPlaying ? 'pause' : 'play'}
+                    size={24}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.fullscreenControlButton}
+                  onPress={() => toggleMute(item.id)}>
+                  <Ionicons
+                    name={videoState.isMuted ? 'volume-mute' : 'volume-high'}
+                    size={24}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
               </View>
-            </ScrollView>
-
-            {/* Use common <Post> component for actions and info */}
-            <Post
-              id={item.id?.toString()}
-              username={
-                item.profile?.username || profile?.profile?.username || ''
-              }
-              media={mediaList}
-              caption={item.caption || ''}
-              likes={item.like_count || 0}
-              userAvatar={
-                item.profile?.profile_picture ||
-                profile?.profile?.profile_picture
-              }
-              isLiked={item.is_liked || false}
-              contentType={isReel ? 'reel' : 'post'}
-              navigation={navigation}
-              allowComments={item.allow_comments !== false}
-              commentCount={item.comment_count || 0}
-              hideLikeCount={item.hide_like_count || false}
-              location={item.location || ''}
-              createdAt={item.created_at || ''}
-              profile={profile}
-              item={item}
+            </View>
+          ) : (
+            <Image
+              source={{uri: currentMedia}}
+              style={{
+                width: windowWidth,
+                height: windowHeight * 0.5,
+                resizeMode: 'cover',
+                backgroundColor: '#000',
+              }}
             />
-          </View>
+          )}
+
+          {/* Media indicator dots for multiple items */}
+          {mediaItems.length > 1 && (
+            <View
+              style={{
+                position: 'absolute',
+                bottom: 20,
+                left: 0,
+                right: 0,
+                flexDirection: 'row',
+                justifyContent: 'center',
+              }}>
+              {mediaItems.map((_: string, dotIndex: number) => (
+                <View
+                  key={dotIndex}
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor:
+                      dotIndex === currentMediaIndexForPost
+                        ? '#fff'
+                        : 'rgba(255,255,255,0.5)',
+                    marginHorizontal: 4,
+                  }}
+                />
+              ))}
+            </View>
+          )}
         </View>
-      );
-    },
-  );
 
-  // Update renderFullScreenItem to use the new component and restore expandedCaptions prop
-  const renderFullScreenItem = ({item, index}: any) => (
-    <FullScreenReelItem
-      item={item}
-      index={index}
-      profile={profile}
-      navigation={navigation}
-      expandedCaptions={expandedCaptions}
-      toggleCaption={toggleCaption}
-      onViewableItemsChanged={onViewableItemsChanged}
-    />
-  );
+        {/* Like/comment counts row (interactive) */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 14,
+            marginTop: 12,
+            marginBottom: 2,
+          }}>
+          <TouchableOpacity
+            onPress={() => handleLike(item)}
+            disabled={postState.likeLoading}
+            style={{flexDirection: 'row', alignItems: 'center'}}>
+            {postState.likeLoading ? (
+              <ActivityIndicator size={20} color="#bea063" />
+            ) : (
+              <Ionicons
+                name={postState.isLiked ? 'heart' : 'heart-outline'}
+                size={22}
+                color={postState.isLiked ? '#bea063' : '#bea063'}
+              />
+            )}
+            <Text
+              style={{
+                color: '#fff',
+                fontSize: 15,
+                marginLeft: 6,
+                marginRight: 18,
+              }}>
+              {postState.likesCount || item.likes}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => handleComment(item)}
+            style={{flexDirection: 'row', alignItems: 'center'}}>
+            <Ionicons name="chatbubble-outline" size={20} color="#fff" />
+            <Text style={{color: '#fff', fontSize: 15, marginLeft: 6}}>
+              {item.comments}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ActivityIndicator
-          size="large"
-          color="#000"
-          style={styles.loadingContainer}
-        />
-      </SafeAreaView>
+        {/* Username, caption, emojis */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 14,
+            marginBottom: 2,
+            flexWrap: 'wrap',
+          }}>
+          <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 14}}>
+            {profile.username}
+          </Text>
+          {item.caption ? (
+            <Text style={{color: '#fff', fontSize: 14, marginLeft: 6}}>
+              {item.caption}
+            </Text>
+          ) : null}
+        </View>
+
+        {/* Date */}
+        {item.createdAt && (
+          <Text
+            style={{
+              color: '#aaa',
+              fontSize: 13,
+              paddingHorizontal: 14,
+              marginTop: 2,
+            }}>
+            {new Date(item.createdAt).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+            })}
+          </Text>
+        )}
+      </View>
     );
-  }
+  };
 
-  if (error) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.errorText}>{error}</Text>
-      </SafeAreaView>
-    );
-  }
+  // Initialize post states when posts are loaded
+  const initializePostStates = (mediaItems: Post[]) => {
+    const newPostStates: {
+      [key: string]: {
+        isLiked: boolean;
+        likesCount: number;
+        likeLoading: boolean;
+      };
+    } = {};
+    mediaItems.forEach(item => {
+      newPostStates[item.id] = {
+        isLiked: item.isLiked || false,
+        likesCount: item.likes,
+        likeLoading: false,
+      };
+    });
+    setPostStates(newPostStates);
+  };
+
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followStatus, setFollowStatus] = useState('');
+  const [followLoading, setFollowLoading] = useState(false);
 
   return (
     <SafeAreaView style={styles.container}>
-      {selectedIndex === null ? (
-        <>
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => {
-                navigation.navigate('MainTab', {
-                  screen: 'SearchTab',
-                  params: {
-                    screen: 'Search',
-                  },
-                });
-              }}>
-              <Icon name="arrow-back" size={24} color="#000" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>
-              {profile?.profile?.username || 'Profile'}
-            </Text>
-            <Icon name="ellipsis-horizontal" size={24} color="#000" />
-          </View>
-          <ScrollView>
-            <View style={styles.profileSection}>
-              <View style={styles.profileHeader}>
-                <Image
-                  source={{
-                    uri:
-                      profile?.profile?.profile_picture ||
-                      'https://picsum.photos/200',
-                  }}
-                  style={styles.profileImage}
-                />
-                <View style={styles.profileStats}>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>{posts.length}</Text>
-                    <Text style={styles.statLabel}>Posts</Text>
-                  </View>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>
-                      {profile?.followers_count || 0}
-                    </Text>
-                    <Text style={styles.statLabel}>Followers</Text>
-                  </View>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>
-                      {profile?.following_count || 0}
-                    </Text>
-                    <Text style={styles.statLabel}>Following</Text>
-                  </View>
-                </View>
-              </View>
-              {/* Follow/Unfollow Button */}
-              {userId !== profile?.profile?.id && (
-                <View style={{alignItems: 'center', marginTop: 8}}>
-                  <TouchableOpacity
-                    style={[
-                      styles.followButton,
-                      isFollowed && followStatus !== 'pending'
-                        ? styles.unfollowButton
-                        : null,
-                      followStatus === 'pending' ? styles.pendingButton : null,
-                    ]}
-                    disabled={followStatus === 'pending' || followLoading}
-                    onPress={async () => {
-                      console.log(
-                        'profile?.debug_info?.profile_user_id',
-                        userId,
-                        isFollowed,
-                      );
-
-                      if (isFollowed) {
-                        // Unfollow API call
-                        try {
-                          setFollowLoading(true);
-                          await axios.post(
-                            'https://pashuahar.com/follower/unfollow/',
-                            {user_id: userId},
-                            {headers},
-                          );
-                          setIsFollowed(false);
-                          setFollowStatus('');
-                          setFollowLoading(false);
-                        } catch (e) {
-                          setFollowLoading(false);
-                          // handle error
-                        }
-                      } else {
-                        console.log(
-                          'profile?.debug_info?.profile_user_id',
-                          profile?.debug_info?.profile_user_id,
-                        );
-
-                        // Follow API call
-                        try {
-                          setFollowLoading(true);
-                          await axios.post(
-                            'https://pashuahar.com/follower/follow/',
-                            {
-                              user_id:
-                                userId || +profile?.debug_info?.profile_user_id,
-                            },
-                            {headers},
-                          );
-                          setIsFollowed(true);
-                          setFollowStatus('pending'); // or '' if immediately followed
-                          setFollowLoading(false);
-                        } catch (e) {
-                          setFollowLoading(false);
-                          // handle error
-                        }
-                      }
-                    }}>
-                    {followLoading ? (
-                      <ActivityIndicator
-                        color={isFollowed ? '#0095f6' : '#fff'}
-                        size="small"
-                      />
-                    ) : (
-                      <Text
-                        style={
-                          isFollowed && followStatus !== 'pending'
-                            ? styles.unfollowButtonText
-                            : followStatus === 'pending'
-                            ? styles.pendingButtonText
-                            : styles.followButtonText
-                        }>
-                        {isFollowed
-                          ? followStatus === 'pending'
-                            ? 'Requested'
-                            : 'Unfollow'
-                          : 'Follow'}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              )}
-              <Text style={styles.username}>{profile?.profile?.username}</Text>
-              <Text style={styles.fullName}>
-                {profile?.profile?.first_name} {profile?.profile?.last_name}
+       {/* <View style={styles.header}>
+      <TouchableOpacity onPress={() => navigation.navigate('Menu')}>
+        <Ionicons name="menu-outline" size={24} color="#bea063" />
+      </TouchableOpacity>
+      <Text style={styles.headerTitle}>{profile?.username}</Text>
+      <View style={{width: 24}} />
+    </View> */}
+      {/* Fullscreen Modal */}
+      <Modal
+        visible={fullscreenVisible}
+        animationType="slide"
+        onRequestClose={() => setFullscreenVisible(false)}
+        transparent={false}>
+        <SafeAreaView style={{flex: 1, backgroundColor: '#000'}}>
+          <TouchableOpacity
+            style={{position: 'absolute', top: 40, right: 20, zIndex: 1}}
+            onPress={() => setFullscreenVisible(false)}>
+            <Ionicons name="close" size={30} color="#fff" />
+          </TouchableOpacity>
+          {filteredPosts.length === 0 ? (
+            <View
+              style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+              <Text style={{color: '#fff', fontSize: 18}}>
+                No posts to display
               </Text>
-              <Text style={styles.bio}>{profile?.profile?.bio}</Text>
             </View>
-            <View style={styles.tabContainer}>
-              {['posts', 'reels', 'saved'].map(tab => (
-                <TouchableOpacity
-                  key={tab}
-                  style={[styles.tab, activeTab === tab && styles.activeTab]}
-                  onPress={() => setActiveTab(tab as any)}>
-                  <Icon
-                    name={
-                      tab === 'posts'
-                        ? 'grid'
-                        : tab === 'reels'
-                        ? 'play'
-                        : 'bookmark'
+          ) : (
+            <FlatList
+              ref={fullscreenFlatListRef}
+              data={filteredPosts}
+              renderItem={renderFullscreenItem}
+              keyExtractor={item => item.id}
+              pagingEnabled
+              initialScrollIndex={selectedIndex}
+              getItemLayout={(data, index) => {
+                const mediaHeight = Dimensions.get('window').height * 0.5;
+                const contentHeight = 150; // Approximate height for user info, likes, comments, caption
+                const totalItemHeight = mediaHeight + contentHeight;
+                return {
+                  length: totalItemHeight,
+                  offset: totalItemHeight * index,
+                  index,
+                };
+              }}
+              showsVerticalScrollIndicator={false}
+              viewabilityConfig={viewabilityConfig}
+              onViewableItemsChanged={onViewableItemsChanged}
+              initialNumToRender={3}
+              windowSize={5}
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
+      {/* Main Profile Content */}
+      <ScrollView> 
+        {loading && (
+          <View style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 100,
+            backgroundColor: 'rgba(255,255,255,0.8)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}>
+            <ActivityIndicator size="large" color="#bea063" />
+          </View>
+        )}
+        {renderProfileHeader()}
+        {renderBio()}
+        {
+          console.log("uesr ......", userId , profile.id)
+          
+        }
+        {userId && (
+          <View style={{ alignItems: 'center', marginTop: 8 }}>
+            <TouchableOpacity
+              style={[
+                styles.followButton,
+                isFollowing && followStatus !== 'pending' ? styles.unfollowButton : null,
+                followStatus === 'pending' ? styles.pendingButton : null,
+              ]}
+              disabled={followStatus === 'pending' || followLoading}
+              onPress={async () => {
+                try {
+                  setFollowLoading(true);
+                  const authToken = await AsyncStorage.getItem('accessToken');
+                  const headers = {
+                    Accept: 'application/json',
+                    Authorization: `Bearer ${authToken}`,
+                  };
+                  if (isFollowing && followStatus !== 'pending') {
+                    // Unfollow
+                    const res = await axios.post(
+                      'https://pashuahar.com/follower/unfollow/',
+                      { user_id: userId || profile.id },
+                      { headers }
+                    );
+                    console.log('Unfollow API response:', res.data);
+                    if (res.data && (res.data.status || res.data.success)) {
+                      await fetchData(); // Refresh profile data after unfollow
+                      // Alert.alert('Unfollowed successfully');
+                    } else {
+                      // Alert.alert('Unfollow failed', res.data?.message || 'Unknown error');
                     }
-                    size={24}
-                    color={activeTab === tab ? '#000' : '#666'}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
-            {filteredContent.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Icon
-                  name={
-                    activeTab === 'reels'
-                      ? 'play-circle-outline'
-                      : 'image-outline'
+                  } else if (!isFollowing && followStatus !== 'pending') {
+                    // Follow
+                    const res = await axios.post(
+                      'https://pashuahar.com/follower/follow/',
+                      { user_id: userId || profile.id },
+                      { headers }
+                    );
+                    console.log('Follow API response:', res.data);
+                    if (res.data && (res.data.status || res.data.success)) {
+                      await fetchData(); // Refresh profile data after follow
+                      // Alert.alert('Follow request sent');
+                    } else {
+                      // Alert.alert('Follow failed', res.data?.message || 'Unknown error');
+                    }
                   }
-                  size={60}
-                  color="#ccc"
-                />
-                <Text style={styles.emptyText}>
-                  {activeTab === 'reels'
-                    ? 'No reels available yet.\nStart sharing your moments!'
-                    : 'No posts available yet.\nStart sharing your moments!'}
+                } catch (e: any) {
+                  console.log('Follow/Unfollow API error:', e?.response?.data || e.message);
+                  // Alert.alert('Error', e?.response?.data?.message || e.message || 'Unknown error');
+                } finally {
+                  setFollowLoading(false);
+                }
+              }}
+            >
+              {followLoading ? (
+                <ActivityIndicator color={isFollowing ? '#0095f6' : '#fff'} size="small" />
+              ) : (
+                <Text style={
+                  isFollowing && followStatus !== 'pending'
+                    ? styles.unfollowButtonText
+                    : followStatus === 'pending'
+                      ? styles.pendingButtonText
+                      : styles.followButtonText
+                }>
+                  {isFollowing
+                    ? followStatus === 'pending'
+                      ? 'Requested'
+                      : 'Unfollow'
+                    : 'Follow'}
                 </Text>
-              </View>
-            ) : (
-              <FlatList
-                data={filteredContent}
-                renderItem={renderContentItem}
-                keyExtractor={item => item.data?.id?.toString()}
-                numColumns={3}
-                scrollEnabled={false}
-                contentContainerStyle={styles.postsGrid}
-              />
-            )}
-          </ScrollView>
-        </>
-      ) : (
-        <FlatList
-          ref={flatListRef}
-          data={filteredContent}
-          renderItem={renderFullScreenItem}
-          keyExtractor={item =>
-            item.data?.id?.toString() || Math.random().toString()
-          }
-          pagingEnabled
-          horizontal={false}
-          initialScrollIndex={selectedIndex}
-          getItemLayout={(_, index) => ({
-            length: height,
-            offset: height * index,
-            index,
-          })}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
-      {selectedIndex !== null && (
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+        {isFromSearch ? null : <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => navigation.navigate('EditProfile',{data : data})}>
+            <Text style={styles.editButtonText}>Edit Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.shareButton}>
+            <Ionicons name="share-outline" size={20} color="#000" />
+          </TouchableOpacity>
+        </View>}
+
+        {renderTabBar()}
+
+        {activeTab === 'saved' && savedLoading ? (
+          <View style={styles.emptyStateContainer}>
+            <ActivityIndicator size="large" color="#666" />
+            <Text style={styles.emptyStateText}>Loading collections...</Text>
+          </View>
+        ) : activeTab === 'saved' && savedError ? (
+          <View style={styles.emptyStateContainer}>
+            <Ionicons name="alert-circle-outline" size={48} color="#666" />
+            <Text style={styles.emptyStateText}>{savedError}</Text>
+          </View>
+        ) : activeTab === 'saved' && filteredPosts.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
+            <Ionicons name="bookmark-outline" size={48} color="#666" />
+            <Text style={styles.emptyStateText}>No collections yet</Text>
+            <Text style={styles.emptyStateSubtext}>
+              Create your first collection to save posts
+            </Text>
+            <TouchableOpacity
+              style={styles.createCollectionButton}
+              onPress={() => setCreateCollectionModalVisible(true)}>
+              <Text style={styles.createCollectionButtonText}>
+                Create Collection
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredPosts}
+            renderItem={renderPostItem}
+            keyExtractor={item => item.id}
+            numColumns={NUM_COLUMNS}
+            scrollEnabled={false}
+            contentContainerStyle={styles.postsGrid}
+          />
+        )}
+
+        {/* Create Collection Button for Saved Tab */}
+        {activeTab === 'saved' && filteredPosts.length > 0 && (
+          <TouchableOpacity
+            style={styles.floatingCreateButton}
+            onPress={() => setCreateCollectionModalVisible(true)}>
+            <Ionicons name="add" size={24} color="#fff" />
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+
+      <Modal
+        visible={optionsVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOptionsVisible(false)}>
         <TouchableOpacity
-          style={styles.closeButton}
-          onPress={() => setSelectedIndex(null)}>
-          <Icon name="close" size={30} color="#fff" />
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          activeOpacity={1}
+          onPressOut={() => setOptionsVisible(false)}>
+          {isFromSearch ? null : <View
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 10,
+              padding: 20,
+              minWidth: 180,
+            }}>
+            <TouchableOpacity
+              onPress={handleEdit}
+              style={{paddingVertical: 10}}>
+              <Text style={{fontSize: 16}}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleDelete}
+              style={{
+                paddingVertical: 10,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}>
+              {deleteLoading ? (
+                <ActivityIndicator
+                  size={18}
+                  color="#bea063"
+                  style={{marginRight: 8}}
+                />
+              ) : null}
+              <Text style={{fontSize: 16, color: '#E74C3C'}}>Delete</Text>
+            </TouchableOpacity>
+          </View>}
         </TouchableOpacity>
-      )}
+      </Modal>
+
+      {/* Create Collection Modal */}
+      <Modal
+        visible={createCollectionModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCreateCollectionModalVisible(false)}>
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          activeOpacity={1}
+          onPressOut={() => setCreateCollectionModalVisible(false)}>
+          <View
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 10,
+              padding: 20,
+              minWidth: 300,
+            }}>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: 'bold',
+                marginBottom: 20,
+                textAlign: 'center',
+              }}>
+              Create New Collection
+            </Text>
+
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: '#ddd',
+                borderRadius: 5,
+                padding: 12,
+                marginBottom: 20,
+                fontSize: 16,
+              }}
+              placeholder="Collection name"
+              value={newCollectionName}
+              onChangeText={setNewCollectionName}
+              autoFocus
+            />
+
+            <View
+              style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  marginRight: 10,
+                  borderWidth: 1,
+                  borderColor: '#ddd',
+                  borderRadius: 5,
+                  alignItems: 'center',
+                }}
+                onPress={() => {
+                  setCreateCollectionModalVisible(false);
+                  setNewCollectionName('');
+                }}>
+                <Text style={{fontSize: 16}}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  backgroundColor: '#000',
+                  borderRadius: 5,
+                  alignItems: 'center',
+                }}
+                onPress={async () => {
+                  if (newCollectionName.trim()) {
+                    setCreateCollectionLoading(true);
+                    try {
+                      await createCollection(newCollectionName.trim());
+                      setCreateCollectionModalVisible(false);
+                      setNewCollectionName('');
+                    } catch (error) {
+                      // Error already handled in createCollection function
+                    } finally {
+                      setCreateCollectionLoading(false);
+                    }
+                  } else {
+                    Alert.alert('Error', 'Please enter a collection name');
+                  }
+                }}
+                disabled={createCollectionLoading}>
+                {createCollectionLoading ? (
+                  <ActivityIndicator size={20} color="#fff" />
+                ) : (
+                  <Text style={{fontSize: 16, color: '#fff'}}>Create</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Edit Post/Reel Modal */}
+      <Modal
+        visible={editModalVisible && !isFromSearch}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditModalVisible(false)}>
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          activeOpacity={1}
+          onPressOut={() => setEditModalVisible(false)}>
+          <View
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 10,
+              padding: 20,
+              minWidth: 300,
+            }}>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: 'bold',
+                marginBottom: 20,
+                textAlign: 'center',
+              }}>
+              Edit {selectedPost?.type === 'reel' ? 'Reel' : 'Post'}
+            </Text>
+
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: '#ddd',
+                borderRadius: 5,
+                padding: 12,
+                marginBottom: 20,
+                fontSize: 16,
+                minHeight: 100,
+                textAlignVertical: 'top',
+              }}
+              placeholder="Enter caption..."
+              value={editCaption}
+              onChangeText={setEditCaption}
+              multiline
+              autoFocus
+            />
+
+            <View
+              style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  marginRight: 10,
+                  borderWidth: 1,
+                  borderColor: '#ddd',
+                  borderRadius: 5,
+                  alignItems: 'center',
+                }}
+                onPress={() => {
+                  setEditModalVisible(false);
+                  setEditCaption('');
+                  setSelectedPost(null);
+                }}>
+                <Text style={{fontSize: 16}}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  backgroundColor: '#000',
+                  borderRadius: 5,
+                  alignItems: 'center',
+                }}
+                onPress={handleEditSubmit}
+                disabled={editLoading}>
+                {editLoading ? (
+                  <ActivityIndicator size={20} color="#fff" />
+                ) : (
+                  <Text style={{fontSize: 16, color: '#fff'}}>Update</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#fff'},
-  loadingContainer: {flex: 1, justifyContent: 'center', alignItems: 'center'},
-  errorText: {color: 'red', fontSize: 16, textAlign: 'center', marginTop: 20},
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 0.5,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#bea063',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#bea063',
+    textAlign: 'center',
+    flex: 1,
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+  },
+  profileImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginRight: 20,
+  },
+  statsContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  bioContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+  },
+  username: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  fullName: {
+    fontSize: 16,
+    marginTop: 2,
+  },
+  bioText: {
+    fontSize: 14,
+    color: '#333',
+    marginTop: 5,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    marginBottom: 15,
+  },
+  editButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    padding: 8,
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  editButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  shareButton: {
+    width: 40,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBar: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+    borderBottomWidth: 1,
     borderBottomColor: '#ddd',
   },
-  headerTitle: {fontSize: 18, fontWeight: '600'},
-  profileSection: {padding: 16},
-  profileHeader: {flexDirection: 'row', alignItems: 'center', marginBottom: 16},
-  profileImage: {width: 80, height: 80, borderRadius: 40, marginRight: 16},
-  profileStats: {flex: 1, flexDirection: 'row', justifyContent: 'space-around'},
-  statItem: {alignItems: 'center'},
-  statNumber: {fontSize: 18, fontWeight: 'bold'},
-  statLabel: {fontSize: 12, color: '#666'},
-  username: {fontSize: 16, fontWeight: '600', marginBottom: 4},
-  fullName: {fontSize: 14, color: '#333', marginBottom: 4},
-  bio: {fontSize: 14, color: '#666', lineHeight: 20},
-  tabContainer: {
-    flexDirection: 'row',
-    borderTopWidth: 0.5,
-    borderTopColor: '#ddd',
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
   },
-  tab: {flex: 1, alignItems: 'center', paddingVertical: 12},
-  activeTab: {borderBottomWidth: 2, borderBottomColor: '#000'},
-  postsGrid: {paddingBottom: 20},
-  postContainer: {width: tileSize, height: tileSize, position: 'relative'},
-  postImage: {width: '100%', height: '100%'},
+  activeTab: {
+    borderBottomWidth: 2,
+    borderBottomColor: '#000',
+  },
+  postsGrid: {
+    padding: 1,
+  },
+  postItem: {
+    width: ITEM_SIZE,
+    height: ITEM_SIZE,
+    margin: 0.5,
+  },
+  postImage: {
+    width: '100%',
+    height: '100%',
+  },
+  multipleMediaIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 3,
+  },
+  multipleMediaText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 2,
+  },
   reelIndicator: {
     position: 'absolute',
     top: 8,
@@ -717,101 +2128,219 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 4,
   },
-
-  headerOverlay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    alignSelf: 'flex-start',
-  },
-  userAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    marginRight: 8,
-  },
-  usernameOverlay: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-
-  caption: {
-    color: '#fff',
-    fontSize: 14,
-    marginBottom: 6,
-    lineHeight: 20, // Added for better readability
-  },
-  readMoreText: {
-    color: '#888',
-    fontSize: 13,
-    marginBottom: 10,
-  },
-
-  closeButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    zIndex: 10,
-  },
-  fullItemContainer: {
-    width,
-    height,
-    backgroundColor: '#000',
-  },
-  fullMedia: {
-    width: '100%',
-    height: height * 0.6, // Takes 60% of screen height
-  },
-  scrollableContent: {
-    flex: 1, // Takes remaining space
-    paddingBottom: 20, // Space for actions row
-  },
-  scrollContentContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-  },
-  overlayContent: {
-    marginBottom: 10,
-  },
-  actionsRow: {
+  postOverlay: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 5,
+  },
+  postStat: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'rgba(0,0,0,0.7)',
   },
-  playPauseOverlay: {
+  postStatText: {
+    color: '#fff',
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  videoContainer: {
+    position: 'relative',
+  },
+  videoControls: {
     position: 'absolute',
-    top: '40%',
-    left: '40%',
-    zIndex: 10,
-    opacity: 0.8,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 10,
   },
-  muteOverlay: {
+  videoControlButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenVideoControls: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+  },
+  fullscreenControlRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 20,
+  },
+  fullscreenControlButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  fullscreenProfileImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 10,
+  },
+  fullscreenUsername: {
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  fullscreenPostActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 10,
+  },
+  fullscreenActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  fullscreenActionButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenLikesContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    padding: 10,
+  },
+  fullscreenLikesText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  fullscreenCaptionContainer: {
+    flexDirection: 'row',
+    marginBottom: 10,
+  },
+  fullscreenCaptionUsername: {
+    fontWeight: 'bold',
+    fontSize: 14,
+    color: '#fff',
+    marginRight: 5,
+  },
+  fullscreenCaptionText: {
+    fontSize: 14,
+    color: '#fff',
+    flex: 1,
+  },
+  fullscreenCommentsButton: {
+    padding: 10,
+  },
+  fullscreenCommentsText: {
+    fontSize: 14,
+    color: '#ccc',
+  },
+  fullscreenDateText: {
+    fontSize: 12,
+    color: '#999',
+    paddingHorizontal: 10,
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyStateText: {
+    color: '#666',
+    fontSize: 18,
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  emptyStateSubtext: {
+    color: '#999',
+    fontSize: 14,
+    marginTop: 5,
+    textAlign: 'center',
+  },
+  collectionIndicator: {
     position: 'absolute',
     top: 8,
     right: 8,
-    zIndex: 10,
-    opacity: 0.8,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 3,
+  },
+  collectionText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 2,
+  },
+  createCollectionButton: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  createCollectionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  floatingCreateButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   followButton: {
-    minWidth: 120,
-    paddingHorizontal: 24,
-    paddingVertical: 8,
+    minWidth: 140,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
     borderRadius: 24,
     backgroundColor: '#bea063',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
+    marginTop: 20,
+    marginBottom: 20,
+    marginHorizontal: 20,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 6,
+    elevation: 4,
   },
   unfollowButton: {
     backgroundColor: '#fff',
@@ -827,35 +2356,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+    letterSpacing: 0.5,
   },
   unfollowButtonText: {
     color: '#bea063',
     fontWeight: 'bold',
     fontSize: 16,
+    letterSpacing: 0.5,
   },
   pendingButtonText: {
     color: '#888',
     fontWeight: 'bold',
     fontSize: 16,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-  },
-  emptyText: {
-    color: '#888',
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 16,
-    lineHeight: 22,
-  },
-  videoContainer: {
-    width: '100%',
-    height: '100%',
-    position: 'relative',
-    backgroundColor: '#000',
+    letterSpacing: 0.5,
   },
 });
 

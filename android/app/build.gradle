@@ -82,7 +82,7 @@ android {
         applicationId "com.yogiverse"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 7
+        versionCode 8
         versionName "3.0"
         missingDimensionStrategy 'react-native-camera', 'general'
         vectorDrawables.useSupportLibrary = true
@@ -90,7 +90,6 @@ android {
             packagingOptions {
                 pickFirst '**/libc++_shared.so'
             }
-
     }
     signingConfigs {
         debug {

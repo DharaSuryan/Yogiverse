@@ -45,15 +45,6 @@ interface CollectionDetailScreenRouteProp {
 const { width } = Dimensions.get('window');
 const POST_SIZE = width / 3 - 2;
 
-// Utility to chunk posts into rows of 3 for grid layout
-function chunkArray(array: any[], size: number) {
-  const chunked = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunked.push(array.slice(i, i + size));
-  }
-  return chunked;
-}
-
 export default function CollectionDetailScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: CollectionDetailScreenRouteProp['params'] }>>();
@@ -316,23 +307,11 @@ export default function CollectionDetailScreen() {
           </Text>
         </View>
       ) : (
-        <SectionList
-          sections={[{ title: 'Posts', data: chunkArray(posts, 3) }]}
-          keyExtractor={(_, index) => index.toString()}
-          renderItem={({ item: row }) => (
-            <View style={{ flexDirection: 'row' }}>
-              {row.map((item: any, idx: number) => (
-                <View key={item?.item_data?.id?.toString() || idx} style={styles.gridItem}>
-                  {renderGridItem({ item })}
-                </View>
-              ))}
-              {/* Fill empty columns if needed */}
-              {row.length < 3 && Array.from({ length: 3 - row.length }).map((_, idx) => (
-                <View key={`empty-${idx}`} style={styles.gridItem} />
-              ))}
-            </View>
-          )}
-          renderSectionHeader={renderSectionHeader}
+        <FlatList
+          data={posts}
+          numColumns={3}
+          keyExtractor={item => item?.item_data?.id?.toString() || Math.random().toString()}
+          renderItem={renderGridItem}
           refreshing={refreshing}
           onRefresh={onRefresh}
           showsVerticalScrollIndicator={false}

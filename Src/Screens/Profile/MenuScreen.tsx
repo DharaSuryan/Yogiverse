@@ -37,6 +37,7 @@ const MENU_SECTIONS = [
   {
     title: 'More',
     data: [
+      { icon: 'lock-outline', label: 'Change Password', action: 'ChangePassword' },
       { icon: 'person-add-outline', label: 'Add Account', action: 'AddAccount' },
       { icon: 'help-circle-outline', label: 'Help & Support', action: 'Help' },
       { icon: 'log-out-outline', label: 'Log Out', action: 'Logout' },
@@ -85,10 +86,7 @@ export default function MenuScreen({ navigation }) {
   const dispatch = useDispatch();
 
   // If you want other items to navigate, you can handle here
-  const handleMenuAction = (action) => {
-    // Example: navigation logic for other menu options
-    // switch(action) { ... }
-  };
+  
   const handleLogout = async () => {
     Alert.alert(
       'Logout',
@@ -152,6 +150,19 @@ export default function MenuScreen({ navigation }) {
       ]
     );
   };
+  const handleMenuAction = (action) => {
+  if (action === 'Logout') {
+    handleLogout();
+    return;
+  }
+  if (action === 'ChangePassword') {
+    navigation.navigate('ChangePassword');
+    return;
+  }
+  if (action) {
+    navigation.navigate(action);
+  }
+};
 
   // ... rest of your component code ...
 

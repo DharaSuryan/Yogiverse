@@ -9,16 +9,6 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import {navigationRef} from '../Component/Route';
 
 // Types
-import {
-  RootStackParamList,
-  AuthStackParamList,
-  MainTabParamList,
-  HomeStackParamList,
-  CreatePostStackParamList,
-  SearchStackParamList,
-  ProfileStackParamList,
-  VendorStackParamList,
-} from './types';
 
 // Screens
 import SplashScreen from '../Screens/Splash/SplashScreen';
@@ -31,7 +21,6 @@ import SubCategoryScreen from '../Screens/Auth/SubCategory';
 
 import HomeScreen from '../Screens/Home/HomeScreen';
 import NotificationsScreen from '../Screens/Home/NotificationsScreen';
-
 import SearchScreen from '../Screens/Search/SearchScreen';
 import SearchDetailScreen from '../Screens/Search/SearchDetailScreen';
 import SubCateGoryDisplay from '../Screens/Search/SubCateGoryDisplay';
@@ -64,12 +53,16 @@ import ProfilePostDetailScreen from '../Screens/Profile/ProfilePostDetailScreen'
 import UserProfileScreen from '../Screens/Profile/UserProfileScreen';
 import FollowersFollowingScreen from '../Screens/Profile/FollowersFollowingScreen';
 
-import StoryCreation from '../Screens/Story/StoryCreation';
-import StoryViewerScreen from '../Screens/Story/StoryViewerScreen';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import CommentScreen from '../Screens/Comment/CommentScreen';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import ChangePasswordScreen from '../Screens/Profile/ChangePassword';
+import ChatListScreen from '../Screens/Home/ChatListScreen';
+import ChatScreen from '../Screens/Home/ChatScreen';
+import LocationListScreen from '../Screens/Location/LocationListScreen';
+import MediaPicker from '../Screens/Post/Mediapicker';
+import StoryUploadScreen from '../Screens/Post/StoryUploadScreen';
 
 // Navigators
 const Stack = createNativeStackNavigator();
@@ -130,7 +123,7 @@ function MainTabScreen() {
               iconName = focused ? 'add-circle' : 'add-circle-outline';
               break;
             case 'Vendor':
-               iconName = focused ? 'meditation' : 'meditation-outline';
+              iconName = focused ? 'meditation' : 'meditation-outline';
               break;
             case 'Profile':
               iconName = focused ? 'person' : 'person-outline';
@@ -351,14 +344,29 @@ const Navigation = () => {
         <Stack.Screen name="PostPreview" component={PostPreviewScreen} />
         <Stack.Screen name="Post" component={PostScreen} />
         <Stack.Screen name="UploadPost" component={UploadPost} />
-        <Stack.Screen name="StoryCreation" component={StoryCreation} />
-        <Stack.Screen name="StoryViewerScreen" component={StoryViewerScreen} />
-        <Stack.Screen name="UserProfile" component={UserProfileScreen}/>
+        {/* <Stack.Screen name="StoryCreation" component={StoryCreation} />
+        <Stack.Screen name="StoryViewerScreen" component={StoryViewerScreen} /> */}
+        <Stack.Screen name="UserProfile" component={UserProfileScreen} />
         <Stack.Screen
           name="FollowersFollowingScreen"
           component={FollowersFollowingScreen}
         />
+        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+        <Stack.Screen
+          name="SubCateGoryDisplay"
+          component={SubCateGoryDisplay}
+        />
       </Stack.Navigator>
+      <Stack.Screen name="ChatListScreen" component={ChatListScreen} />
+      <Stack.Screen name="ChatScreen" component={ChatScreen} />
+      <Stack.Screen name="MediaPicker" component={MediaPicker} />
+      <Stack.Screen name="StoryUpload" component={StoryUploadScreen} />
+      <Stack.Screen name="ReelEditorScreen" component={ReelEditorScreen} />
+      {/* <Stack.Screen name="StoryCreation" component={StoryCreation} /> */}
+      <Stack.Screen
+        name="UploadPost"
+        component={require('../Screens/Post/UploadPost').default}
+      />
     </NavigationContainer>
   );
 };

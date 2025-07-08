@@ -1,98 +1,75 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  SafeAreaView,
-  Dimensions,
-  Image,
-  TextInput,
-} from 'react-native';
-// import Carousel from 'react-native-snap-carousel';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { CreatePostStackParamList } from '../../Navigation/types';
-import { Ionicons } from 'react-native-vector-icons';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions } from 'react-native';
+import { ColorMatrix } from 'react-native-color-matrix-image-filters';
 
-interface PostPreviewScreenProps {
-  route: {
-    params: {
-      images: string[];
-    };
+const screenWidth = Dimensions.get('window').width;
+
+const FILTERS = [
+  { key: 'normal', matrix: undefined },
+  { key: 'grayscale', matrix: require('react-native-color-matrix-image-filters').grayscale() },
+  { key: 'sepia', matrix: require('react-native-color-matrix-image-filters').sepia() },
+  { key: 'brightness', matrix: require('react-native-color-matrix-image-filters').brightness(1.5) },
+  { key: 'contrast', matrix: require('react-native-color-matrix-image-filters').contrast(2) },
+];
+
+const PostPreviewScreen = ({ route, navigation }) => {
+  const { media, caption, location, zoomScales, selectedFilters, onPost } = route.params;
+  console.log("media s....",media);
+  
+  // Support filter/zoom from either media array or selectedFilters/zoomScales
+  const getFilter = (item) => {
+    if (item.filter) return item.filter;
+    if (selectedFilters && selectedFilters[item.uri]) return selectedFilters[item.uri];
+    return 'normal';
   };
-}
-
-const PostPreviewScreen: React.FC<PostPreviewScreenProps> = ({ route }) => {
-  const navigation = useNavigation<NativeStackNavigationProp<
-    CreatePostStackParamList,
-    'PostPreview'
-  >>();
-  const { images } = route.params;
-  const [caption, setCaption] = useState('');
+  const getZoom = (item) => {
+    if (item.zoom) return item.zoom;
+    if (zoomScales && zoomScales[item.uri]) return zoomScales[item.uri];
+    return 1;
+  };
 
   const handlePost = () => {
-    navigation.navigate('Post', { 
-      media: images.map(uri => ({ uri, type: 'image' as const }))
-    });
-  };
-
-  const handleFilter = () => {
-    navigation.navigate('MediaFilter', { 
-      media: images.map(uri => ({ uri, type: 'image' as const }))
-    });
+    if (onPost) onPost();
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="close" size={24} color="#000" />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={handleFilter}>
-          <Text style={styles.filterButtonText}>Filter</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.carouselContainer}>
-        {/* <Carousel
-          data={images.map(uri => ({ uri, type: 'image' as const }))}
-          renderItem={({ item }: { item: { uri: string; type: 'image' } }) => (
-            <View style={styles.carouselItem}>
-              <Image
-                source={{ uri: item.uri }}
-                style={styles.carouselMedia}
-                resizeMode="cover"
-              />
+    <View style={styles.container}>
+      <ScrollView horizontal pagingEnabled style={styles.mediaScroll}>
+        {media.map((item, idx) => {
+          console.log("ites m....",item)
+          
+          const filterKey = getFilter(item);
+          const filterObj = FILTERS.find(f => f.key === filterKey);
+          const FilterWrapper = filterObj && filterObj.matrix
+            ? (props) => <ColorMatrix matrix={filterObj.matrix}>{props.children}</ColorMatrix>
+            : React.Fragment;
+          return (
+            <View key={item.uri} style={styles.mediaItem}>
+              <FilterWrapper>
+                <Image
+                  source={{ uri: item.uri }}
+                  style={{
+                    width: screenWidth * 0.9,
+                    height: screenWidth * 0.9,
+                    resizeMode: 'contain',
+                    transform: [{ scale: getZoom(item) }],
+                  }}
+                />
+              </FilterWrapper>
             </View>
-          )}
-          sliderWidth={Dimensions.get('window').width}
-          itemWidth={Dimensions.get('window').width}
-          enableSnap={true}
-          loop={false}
-          activeSlideAlignment="start"
-          autoplay={false}
-          autoplayDelay={5000}
-          autoplayInterval={3000}
-        /> */}
+          );
+        })}
+      </ScrollView>
+      <View style={styles.infoContainer}>
+        <Text style={styles.captionLabel}>Caption:</Text>
+        <Text style={styles.caption}>{caption}</Text>
+        <Text style={styles.locationLabel}>Location:</Text>
+        <Text style={styles.location}>{location?.display_name || 'None'}</Text>
       </View>
-
-      <View style={styles.captionContainer}>
-        <TextInput
-          style={styles.captionInput}
-          placeholder="Write a caption..."
-          value={caption}
-          onChangeText={setCaption}
-          multiline
-        />
-      </View>
-
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.postButton} onPress={handlePost}>
-          <Text style={styles.postButtonText}>Next</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+      <TouchableOpacity style={styles.postButton} onPress={handlePost}>
+        <Text style={styles.postButtonText}>Post</Text>
+      </TouchableOpacity>
+    </View>
   );
 };
 
@@ -100,67 +77,55 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-  },
-  header: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  filterButtonText: {
-    color: '#000',
-  },
-  carouselContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-    padding: 10,
-  },
-  carouselItem: {
-    flex: 1,
     justifyContent: 'center',
+    padding: 16,
+  },
+  mediaScroll: {
+    maxHeight: screenWidth * 0.95,
+    marginBottom: 24,
+  },
+  mediaItem: {
+    width: screenWidth,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  carouselMedia: {
+  infoContainer: {
     width: '100%',
-    height: '100%',
+    marginBottom: 24,
+    paddingHorizontal: 16,
   },
-  buttonContainer: {
-    padding: 16,
+  captionLabel: {
+    color: '#888',
+    fontSize: 14,
+    marginBottom: 2,
   },
-  captionContainer: {
-    padding: 16,
-    backgroundColor: '#fff',
+  caption: {
+    color: '#222',
+    fontSize: 16,
+    marginBottom: 10,
   },
-  captionInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 5,
-    padding: 10,
-    minHeight: 100,
-    backgroundColor: '#fff',
+  locationLabel: {
+    color: '#888',
+    fontSize: 14,
+    marginBottom: 2,
   },
-  captionInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 5,
-    padding: 10,
-    minHeight: 100,
-  },
-  buttonContainer: {
-    padding: 16,
+  location: {
+    color: '#222',
+    fontSize: 16,
+    marginBottom: 10,
   },
   postButton: {
     backgroundColor: '#0095f6',
-    padding: 12,
-    borderRadius: 5,
+    borderRadius: 24,
+    paddingVertical: 14,
+    paddingHorizontal: 60,
+    alignSelf: 'center',
   },
   postButtonText: {
     color: '#fff',
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
 

@@ -14,21 +14,13 @@ import {
   FlatList,
   Dimensions,
 } from 'react-native';
-import {useNavigation, useRoute} from '@react-navigation/native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {RootStackParamList} from '../../Navigation/types';
 import {launchImageLibrary} from 'react-native-image-picker';
 import api, {
   fetchCountries,
   fetchStates,
   fetchCities,
-  registerUser,
-  editProfile,
 } from '../../Api/Api';
-import Icon from 'react-native-vector-icons/Ionicons';
-import MainCategoryScreen from '../Auth/MainCategory';
-import SubCategoryScreen from '../Auth/SubCategory';
-import {Dropdown, MultiSelect} from 'react-native-element-dropdown';
+import {MultiSelect} from 'react-native-element-dropdown';
 import DocumentPicker from 'react-native-document-picker';
 
 // Types
@@ -260,30 +252,6 @@ const EditProfile = ({navigation, route}: any) => {
     }
   };
 
-  const loadStates = async (countryId: number) => {
-    if (isLoadingStates || !hasMoreStates) return;
-    try {
-      setIsLoadingStates(true);
-      const response = await fetchStates(countryId, statePage, ITEMS_PER_PAGE);
-      let states;
-      if (response.data && Array.isArray(response.data.data)) {
-        states = response.data.data;
-      } else {
-        states = [];
-      }
-      if (states.length === 0) {
-        setHasMoreStates(false);
-      } else {
-        setFilteredStates(prev => [...prev, ...states]);
-        setStatePage(prev => prev + 1);
-        setHasMoreStates(true);
-      }
-    } catch (error) {
-      setHasMoreStates(false);
-    } finally {
-      setIsLoadingStates(false);
-    }
-  };
 
   const loadCities = async (stateId: number) => {
     if (isLoadingCities || !hasMoreCities) return;
@@ -344,36 +312,6 @@ const EditProfile = ({navigation, route}: any) => {
     setIsSubmitting(true);
 
     try {
-      const profileData = {
-        user: {
-          first_name,
-          last_name,
-          email,
-          phone_no,
-          username,
-          role,
-        },
-        profile: {
-          bio,
-          country: selectedCountry?.id,
-          state: selectedState?.id,
-          city: selectedCity?.id,
-        },
-        vendor_profile: {
-          business_name,
-          description,
-          aadhar_number,
-          achievement_awards,
-          business_presence,
-          business_type,
-          company_registration,
-          gst_number,
-          pan_number,
-          perma_link,
-          status,
-          main_categories: categoryList || [],
-        }
-      };
 
       const formData = new FormData();
       formData.append('first_name', first_name);

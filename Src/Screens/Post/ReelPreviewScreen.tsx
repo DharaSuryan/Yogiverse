@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,16 +7,17 @@ import {
   SafeAreaView,
   TextInput,
   ActivityIndicator, Platform, Alert,
+  Modal,
 } from 'react-native';
 import Video from 'react-native-video';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CreatePostStackParamList } from '../../Navigation/types';
-import { PostApi } from '../../Api/PostApi';
 import {postPosts, postReels} from "../../Api/Api";
 import { CommonActions } from '@react-navigation/native';
 import { Video as CompressorVideo } from 'react-native-compressor';
+import LocationPicker, { LocationOption } from '../../Components/LocationPicker';
 
 const ReelPreviewScreen = () => {
   
@@ -24,8 +25,29 @@ const navigation = useNavigation<NativeStackNavigationProp<CreatePostStackParamL
   const route = useRoute();
   // @ts-ignore
   const { uri } = route.params || {};
+  console.log('ReelPreviewScreen uri:', uri);
   const [caption, setCaption] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<LocationOption | null>(null);
+  const [videoUri, setVideoUri] = useState(() => {
+    if (Platform.OS === 'ios' && typeof uri === 'string') {
+      return uri.replace('file://', '');
+    }
+    return uri;
+  });
+
+  // Update videoUri if trimmedUri param is present when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      const params: any = route.params;
+      if (params && params.trimmedUri) {
+        setVideoUri(params.trimmedUri);
+        // Clear the param after using it
+        navigation.setParams({ trimmedUri: undefined });
+      }
+    }, [route.params])
+  );
 
   const getMimeType = (uri: string): string => {
     const extension = uri.split('.').pop()?.toLowerCase();
@@ -44,37 +66,19 @@ const navigation = useNavigation<NativeStackNavigationProp<CreatePostStackParamL
     try {
       setLoading(true);
       const formData = new FormData();
-      // Type guard for params
-      let uri: string = '';
-      if (
-        route &&
-        typeof route === 'object' &&
-        'params' in route &&
-        route.params &&
-        typeof route.params === 'object' &&
-        'uri' in route.params &&
-        typeof (route.params as any).uri === 'string'
-      ) {
-        uri = (route.params as any).uri;
-      }
-      const fileName = uri.split('/').pop();
-      const fileType = getMimeType(uri);
+      // Use the current videoUri (already trimmed/filtered) for upload
+      const fileName = videoUri.split('/').pop();
+      const fileType = getMimeType(videoUri);
       formData.append('caption', caption);
       formData.append('is_draft', 'false');
       formData.append('allow_comments', 'true');
       formData.append('hide_like_count', 'false');
       formData.append('music_track', '');
+      formData.append('location', selectedLocation ? selectedLocation.display_name : '');
       formData.append('duration', '15');
-      let compressedUri = uri;
-      try {
-        compressedUri = await CompressorVideo.compress(uri, {
-          compressionMethod: 'auto',
-        });
-      } catch (e) {
-        console.log('Video compression error:', e);
-      }
+      // No need to re-compress, just use videoUri
       formData.append('video_file', {
-        uri: Platform.OS === 'ios' ? compressedUri.replace('file://', '') : compressedUri,
+        uri: Platform.OS === 'ios' ? videoUri.replace('file://', '') : videoUri,
         name: fileName || 'video.mp4',
         type: fileType,
       });
@@ -84,42 +88,38 @@ const navigation = useNavigation<NativeStackNavigationProp<CreatePostStackParamL
 
       Alert.alert('Success', 'Your Reel has been uploaded!');
       navigation.navigate("UploadOptions")
-      // navigation.goBack();
-      // navigation.dispatch(
-      //   CommonActions.reset({
-      //     index: 0,
-      //     routes: [
-      //       {
-      //         name: 'MainTab',
-      //         state: {
-      //           routes: [{ name: 'HomeTab' }],
-      //         },
-      //       },
-      //     ],
-      //   })
-      // );
     } catch (error) {
       setLoading(false);
       console.error('Error uploading reel:', error);
-      // Optionally show error to user
     }
   };
+
+  // Placeholder for video trimming logic
+  const handleTrim = async () => {
+    Alert.alert('Trim', 'Video trimming functionality will be implemented here.');
+    // Integrate with a video trimming library and update setTrimmedUri(newUri)
+  };
+
+  // Callback to handle trimmed video URI from ReelEditorScreen
+  const handleTrimFinish = useCallback((trimmedUri: string) => {
+    setVideoUri(trimmedUri);
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          {React.createElement(Ionicons as any, { name: 'arrow-back', size: 24, color: '#000' })}
+          {React.createElement(Ionicons as any, { name: 'arrow-back', size: 24, color: '#bea063' })}
         </TouchableOpacity>
-        <Text style={styles.title}>Preview Reel</Text>
+        <Text style={[styles.title,{color:"#bea063"}]}>Preview Reel</Text>
         <TouchableOpacity onPress={handlePost} disabled={loading}>
-          <Text style={styles.postButton}>{loading ? 'Posting...' : 'Post'}</Text>
+          <Text style={[styles.postButton,{color:"#bea063"}]}>{loading ? 'Posting...' : 'Post'}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.videoContainer}>
         <Video
-          source={{ uri }}
+          source={{ uri: videoUri }}
           style={styles.video}
           resizeMode="cover"
           repeat
@@ -127,22 +127,48 @@ const navigation = useNavigation<NativeStackNavigationProp<CreatePostStackParamL
         />
       </View>
 
-      <View style={styles.captionContainer}>
+      <View style={styles.controlsContainer}>
         <TextInput
           style={styles.captionInput}
           placeholder="Write a caption..."
+          placeholderTextColor="#bea063"
           value={caption}
           onChangeText={setCaption}
           multiline
         />
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() => setShowLocationPicker(true)}
+        >
+          <Text style={{ color: '#bea063' }}>{selectedLocation ? selectedLocation.display_name : 'Select Location'}</Text>
+        </TouchableOpacity>
+        {/* <TouchableOpacity
+          style={styles.trimButton}
+          onPress={handleTrim}
+        >
+          <Text style={styles.trimButtonText}>Trim Video</Text>
+        </TouchableOpacity> */}
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() =>{ 
+            console.log("yes comes here ...");
+            (navigation as any).navigate('ReelEditorScreen', { media: { uri: videoUri, type: 'video' } })
+          }}
+        >
+          <Text style={styles.filterButtonText}>Filter</Text>
+        </TouchableOpacity>
       </View>
 
-      <TouchableOpacity
-        style={styles.filterButton}
-        onPress={() => navigation.navigate('ReelEditor', { media: { uri, type: 'video' } })}
-      >
-        <Text style={styles.filterButtonText}>Filter</Text>
-      </TouchableOpacity>
+      {/* Location Picker Modal */}
+      <Modal visible={showLocationPicker} animationType="slide" onRequestClose={() => setShowLocationPicker(false)}>
+        <LocationPicker
+          value={selectedLocation}
+          onChange={location => {
+            setSelectedLocation(location);
+            setShowLocationPicker(false);
+          }}
+        />
+      </Modal>
 
       {loading && (
         <View
@@ -190,26 +216,53 @@ const styles = StyleSheet.create({
   video: {
     flex: 1,
   },
-  captionContainer: {
+  controlsContainer: {
     padding: 16,
+    backgroundColor: '#fff',
   },
   captionInput: {
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 5,
+    borderRadius: 8,
     padding: 10,
-    minHeight: 100,
+    minHeight: 60,
+    marginBottom: 12,
+    color: '#222',
+  },
+  locationButton: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    alignItems: 'center',
+  },
+  trimButton: {
+    backgroundColor: '#bea063',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  trimButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   filterButton: {
-    position: 'absolute',
-    bottom: 40,
-    right: 20,
     backgroundColor: '#fff',
-    padding: 12,
     borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#bea063',
+    marginBottom: 12,
   },
   filterButtonText: {
-    color: '#000',
+    color: '#bea063',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 

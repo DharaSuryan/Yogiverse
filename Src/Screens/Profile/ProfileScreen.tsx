@@ -19,8 +19,9 @@ import Video from 'react-native-video';
 import Post from '../../Component/Post';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import {useNavigation, useFocusEffect} from '@react-navigation/native';
+import {useNavigation, useFocusEffect, useRoute} from '@react-navigation/native';
 import {getProfile, getUserPosts, getUserReels} from '../../Api/Api';
+import LocationPicker, { LocationOption } from '../../Components/LocationPicker';
 //  import { Image as Compressor } from 'react-native-compressor';
 
 const {width} = Dimensions.get('window');
@@ -45,7 +46,7 @@ interface Post {
   allMedia?: string[]; // All media files for this post
 }
 
-const ProfileScreen = ({navigation}: any) => {
+const ProfileScreen = () => {
   const [activeTab, setActiveTab] = useState<'posts' | 'reels' | 'saved'>(
     'posts',
   );
@@ -59,12 +60,18 @@ const ProfileScreen = ({navigation}: any) => {
     followersCount: 0,
     followingCount: 0,
     id: '',
+    location: '',
   });
-  const [userId, setUserId] = useState();
-  console.log('profile s state', profile.id);
+  const route = useRoute<any>();
+  let { userId } = route?.params || {};
+  let {isFromSearch} = route?.params || {};
+  console.log("isFromSearch",isFromSearch);
+  
+
+// console.log("profile s state",profile.id);
 
   // Real data from API
-  const [data, setData] = useState('');
+  const [data , setData] = useState('')
   const [posts, setPosts] = useState<Post[]>([]);
   const [savedPosts, setSavedPosts] = useState<Post[]>([]); // For saved tab
   const [collections, setCollections] = useState<any[]>([]); // For collections data
@@ -96,12 +103,15 @@ const ProfileScreen = ({navigation}: any) => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editCaption, setEditCaption] = useState('');
   const [editLoading, setEditLoading] = useState(false);
+  const [editLocation, setEditLocation] = useState<LocationOption | null>(null);
 
   // Collection creation state
   const [createCollectionModalVisible, setCreateCollectionModalVisible] =
     useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [createCollectionLoading, setCreateCollectionLoading] = useState(false);
+  const [profileOptionsModalVisible, setProfileOptionsModalVisible] =
+    useState(false);
 
   // Fullscreen media state
   const [postMediaIndices, setPostMediaIndices] = useState<{
@@ -350,12 +360,14 @@ const ProfileScreen = ({navigation}: any) => {
 
     // Set the current caption for editing
     setEditCaption(selectedPost.caption || '');
+    setEditLocation(selectedPost.location ? { display_name: selectedPost.location, lat: '', lon: '' } : null);
     setEditModalVisible(true);
     setOptionsVisible(false);
   };
 
   const handleEditSubmit = async () => {
     if (!selectedPost) return;
+
     setEditLoading(true);
     try {
       const authToken = await AsyncStorage.getItem('accessToken');
@@ -378,6 +390,7 @@ const ProfileScreen = ({navigation}: any) => {
         editUrl,
         {
           caption: editCaption,
+          location: editLocation ? editLocation.display_name : '',
         },
         {headers},
       );
@@ -395,6 +408,12 @@ const ProfileScreen = ({navigation}: any) => {
           p.id === postId ? {...p, caption: editCaption} : p,
         ),
       );
+
+      // Update profile location in state
+      setProfile(prev => ({
+        ...prev,
+        location: editLocation ? editLocation.display_name : '',
+      }));
 
       setEditModalVisible(false);
       setEditCaption('');
@@ -416,7 +435,8 @@ const ProfileScreen = ({navigation}: any) => {
     }
   };
 
-  // const navigation = useNavigation<any>();
+  const navigation = useNavigation<any>();
+  const editRoute = useRoute<any>();
 
   // Video control functions
   const toggleMute = (itemId: string) => {
@@ -649,66 +669,108 @@ const ProfileScreen = ({navigation}: any) => {
     }
   };
 
-  // Fetch profile and posts data on component mount
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Fetch profile and posts data every time the screen comes into focus or params change
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchData();
+      return () => {
+        // Cleanup: flush previous data
+        setProfile({
+          username: '',
+          fullName: '',
+          bio: '',
+          profileImage: 'https://picsum.photos/200',
+          postsCount: 0,
+          followersCount: 0,
+          followingCount: 0,
+          id: '',
+          location: '',
+        });
+        setPosts([]);
+        setSavedPosts([]);
+        setCollections([]);
+        setLoading(true);
+      };
+    }, [route?.params?.userId, route?.params?.isFromSearch])
+  );
 
   const fetchData = async () => {
     try {
+      let response:any;
+      if(isFromSearch && userId){
+         response = await axios.get(`https://pashuahar.com/user_profile/${userId}`);
+      }
+      console.log("responseresponseresponse",isFromSearch,response?.data?.data?.profile);
+      
       // Fetch profile data
-      const profileResponse = await getProfile();
+      const profileResponse =  isFromSearch ? response?.data?.data?.profile : await getProfile();
       console.log('profileResponse', profileResponse.data?.data);
-      setData(profileResponse?.data?.data);
+        setData( isFromSearch ? profileResponse : profileResponse.data?.data?.results)
       let followersCount = 0;
       let followingCount = 0;
       // Fetch followers/following counts in parallel
-      [followersCount, followingCount] = await Promise.all([
-        fetchFollowersCount(),
-        fetchFollowingCount(),
-      ]);
+      if(isFromSearch) {
+        followersCount = response?.data?.data?.followers_count
+        followingCount = response?.data?.data?.following_count
+      }
+      else {
+        [followersCount, followingCount] = await Promise.all([
+          fetchFollowersCount(),
+          fetchFollowingCount(),
+        ]);
+      }
+      
       console.log('followersCount', followersCount);
 
-      if (profileResponse.data) {
-        const profileData = profileResponse.data.data?.profile;
-        // console.log("profileDataprofileData",profileData);
+      if (isFromSearch ? profileResponse : profileResponse.data) {
+        const profileData = isFromSearch ? profileResponse : profileResponse.data.data?.profile;
+        console.log("profileDataprofileData",profileData);
 
         setProfile({
-          username: profileData?.username,
-          fullName: `${profileData?.first_name || ''} ${
-            profileData?.last_name || ''
-          }`.trim(),
-          bio: profileData.bio || '',
+          username: profileData.username || 'jk',
+          fullName:
+            `${profileData.first_name || ''} ${
+              profileData.last_name || ''
+            }`.trim() || 'Jay Chhaniyara',
+          bio: profileData.bio,
           profileImage:
             profileData.profile_picture || 'https://picsum.photos/200',
-          postsCount: profileData.posts_count || 7,
+          postsCount: isFromSearch ? response?.data?.data?.post_reels_count : profileData.posts_count || 8,
           followersCount,
           followingCount,
           id: profileData.user,
+          location:  '',
         });
         // setUserId()
       }
 
       // Fetch posts data
-      const postsResponse = await getUserPosts();
-      // console.log("postsResponse",postsResponse?.data?.data?.results);
+      const postsResponse =  isFromSearch ? response?.data?.data: await getUserPosts();
+      console.log("postsResponse",postsResponse);
 
       // Fetch reels data
-      const reelsResponse = await getUserReels();
-      // console.log("reelsResponse",reelsResponse.data.data.results);
+      const reelsResponse = isFromSearch ? response?.data?.data: await getUserReels();
+      console.log("reelsResponse",reelsResponse?.data?.data?.results);
 
       let allMedia: Post[] = [];
+      // console.log("postsResponse.posts",postsResponse.posts);
+      
 
       // Transform posts data with compression and multiple media detection
-      if (postsResponse.data) {
-        const postsData = postsResponse.data.data.results;
+      // console.log("here comes postsResponse",postsResponse);
+      
+      if (!isFromSearch ? postsResponse?.data : postsResponse) {
+        const postsData = isFromSearch ? postsResponse?.posts :  postsResponse?.data?.data?.results;
+        // const postsData = postsResponse.data.data.results;
+        console.log("postsDatapostsDatapostsData",postsData);
+        
         const processedPosts = await processMediaData(postsData, 'image');
         allMedia = [...allMedia, ...processedPosts];
       }
 
       // Transform reels data with compression and multiple media detection
-      if (reelsResponse.data) {
-        const reelsData = reelsResponse.data.data.results;
+      if (!isFromSearch ? reelsResponse.data : reelsResponse) {
+        const reelsData = isFromSearch ? reelsResponse?.reels : reelsResponse?.data?.data?.results;
         const processedReels = await processMediaData(reelsData, 'reel');
         allMedia = [...allMedia, ...processedReels];
       }
@@ -823,7 +885,7 @@ const ProfileScreen = ({navigation}: any) => {
 
   // Fetch saved posts when switching to Saved tab
   useEffect(() => {
-    if (activeTab === 'saved' && savedPosts.length === 0 && !savedLoading) {
+    if (!isFromSearch && activeTab === 'saved' && savedPosts.length === 0 && !savedLoading) {
       fetchSavedPosts();
     }
   }, [activeTab]);
@@ -879,13 +941,8 @@ const ProfileScreen = ({navigation}: any) => {
               collectionName: item.collectionName,
             });
           } else {
-            // Navigate to ProfilePostDetailScreen
-            navigation.navigate('ProfilePostDetailScreen', {
-              postId: item.id,
-              post: item,
-              postIndex: index,
-              posts: filteredPosts,
-            });
+            setSelectedIndex(index);
+            setFullscreenVisible(true);
           }
         }}
         activeOpacity={0.9}>
@@ -921,7 +978,7 @@ const ProfileScreen = ({navigation}: any) => {
                   <Ionicons
                     name={videoState.isPlaying ? 'pause' : 'play'}
                     size={20}
-                    color="#bea063"
+                    color="#fff"
                   />
                 </TouchableOpacity>
 
@@ -934,7 +991,7 @@ const ProfileScreen = ({navigation}: any) => {
                   <Ionicons
                     name={videoState.isMuted ? 'volume-mute' : 'volume-high'}
                     size={20}
-                    color="#bea063"
+                    color="#fff"
                   />
                 </TouchableOpacity>
               </View>
@@ -945,7 +1002,7 @@ const ProfileScreen = ({navigation}: any) => {
         {/* Collection indicator */}
         {isCollection && (
           <View style={styles.collectionIndicator}>
-            <Ionicons name="folder-outline" size={16} color="#bea063" />
+            <Ionicons name="folder-outline" size={16} color="#fff" />
             <Text style={styles.collectionText}>{item.collectionName}</Text>
           </View>
         )}
@@ -953,20 +1010,20 @@ const ProfileScreen = ({navigation}: any) => {
         {/* Multiple media indicator */}
         {item.mediaCount && item.mediaCount > 1 && (
           <View style={styles.multipleMediaIndicator}>
-            <Ionicons name="copy-outline" size={16} color="#bea063" />
+            <Ionicons name="copy-outline" size={16} color="#fff" />
             <Text style={styles.multipleMediaText}>{item.mediaCount}</Text>
           </View>
         )}
 
         {/* Top-right options icon */}
-        <TouchableOpacity
+       {isFromSearch ? null : <TouchableOpacity
           style={{position: 'absolute', top: 8, right: 8, zIndex: 2}}
           onPress={e => {
             e.stopPropagation();
             handleOptions(item);
           }}>
-          <Ionicons name="ellipsis-vertical" size={20} color="#bea063" />
-        </TouchableOpacity>
+          <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
+        </TouchableOpacity>}
 
         {/* Like/comment counts overlay */}
         {/* <View style={styles.postOverlay}>
@@ -997,6 +1054,7 @@ const ProfileScreen = ({navigation}: any) => {
       <TouchableOpacity
         style={styles.statItem}
         onPress={() =>
+          isFromSearch ? null :
           navigation.navigate('FollowersFollowingScreen', {
             type: 'followers',
             userId: '1',
@@ -1009,6 +1067,7 @@ const ProfileScreen = ({navigation}: any) => {
       <TouchableOpacity
         style={styles.statItem}
         onPress={() =>
+          isFromSearch ? null :
           navigation.navigate('FollowersFollowingScreen', {
             type: 'following',
             userId: '1',
@@ -1033,6 +1092,11 @@ const ProfileScreen = ({navigation}: any) => {
       <Text style={styles.username}>@{profile.username}</Text>
       <Text style={styles.fullName}>{profile.fullName}</Text>
       <Text style={styles.bioText}>{profile.bio}</Text>
+      {profile.location && (
+        <Text style={{ color: '#bea063', flexWrap: 'wrap', width: '100%', marginTop: 4 }}>
+          {profile.location}
+        </Text>
+      )}
     </View>
   );
 
@@ -1044,7 +1108,7 @@ const ProfileScreen = ({navigation}: any) => {
         <Ionicons
           name="grid-outline"
           size={24}
-          color={activeTab === 'posts' ? '#bea063' : '#888'}
+          color={activeTab === 'posts' ? '#000' : '#888'}
         />
       </TouchableOpacity>
       <TouchableOpacity
@@ -1053,18 +1117,18 @@ const ProfileScreen = ({navigation}: any) => {
         <Ionicons
           name="play-outline"
           size={24}
-          color={activeTab === 'reels' ? '#bea063' : '#888'}
+          color={activeTab === 'reels' ? '#000' : '#888'}
         />
       </TouchableOpacity>
-      <TouchableOpacity
+      {isFromSearch ? null : <TouchableOpacity
         style={[styles.tabButton, activeTab === 'saved' && styles.activeTab]}
         onPress={() => setActiveTab('saved')}>
         <Ionicons
           name="bookmark-outline"
           size={24}
-          color={activeTab === 'saved' ? '#bea063' : '#888'}
+          color={activeTab === 'saved' ? '#000' : '#888'}
         />
-      </TouchableOpacity>
+      </TouchableOpacity>}
     </View>
   );
 
@@ -1105,6 +1169,7 @@ const ProfileScreen = ({navigation}: any) => {
         {/* <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 40, paddingBottom: 10, paddingHorizontal: 10, backgroundColor: '#111', justifyContent: 'space-between' }}>
           <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>Posts</Text>
         </View> */}
+       
         {/* User info */}
         <View
           style={{
@@ -1125,11 +1190,11 @@ const ProfileScreen = ({navigation}: any) => {
           </View>
 
           {/* Options button for fullscreen */}
-          <TouchableOpacity
+         {isFromSearch ? null : <TouchableOpacity
             onPress={() => handleOptions(item)}
             style={{padding: 8}}>
             <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
-          </TouchableOpacity>
+          </TouchableOpacity>}
         </View>
 
         {/* Main media with horizontal scroll for multiple items */}
@@ -1361,7 +1426,7 @@ const ProfileScreen = ({navigation}: any) => {
               <Ionicons
                 name={postState.isLiked ? 'heart' : 'heart-outline'}
                 size={22}
-                color={postState.isLiked ? '#bea063' : '#fff'}
+                color={postState.isLiked ? '#FF3B30' : '#fff'}
               />
             )}
             <Text
@@ -1443,20 +1508,11 @@ const ProfileScreen = ({navigation}: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* <View style={styles.header}>
-    
-      <Text style={styles.headerTitle}>{profile?.username}</Text>
-      <TouchableOpacity onPress={() => navigation.navigate('Menu')}>
-        <Ionicons name="menu-outline" size={24} color="#bea063" />
-      </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('Menu')}>
-        <Ionicons name="menu-outline" size={24} color="#bea063" />
-      </TouchableOpacity>
-      <View style={{width: 24}} />
-    </View> */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{profile?.username}</Text>
-        <View style={{flexDirection: 'row', alignItems: 'center',gap:8}}>
+       <View style={styles.header}>
+        <TouchableOpacity onPress={() => setProfileOptionsModalVisible(true)}>
+          <Text style={styles.headerTitle}>{profile?.username}</Text>
+        </TouchableOpacity>
+        <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
           <TouchableOpacity
             onPress={() => {
               /* Add your plus icon action here */
@@ -1470,10 +1526,9 @@ const ProfileScreen = ({navigation}: any) => {
               color="#bea063"
               style={{marginRight: 18}}
             />
-          </TouchableOpacity>         
+          </TouchableOpacity>
         </View>
       </View>
-
       {/* Fullscreen Modal */}
       <Modal
         visible={fullscreenVisible}
@@ -1521,7 +1576,22 @@ const ProfileScreen = ({navigation}: any) => {
         </SafeAreaView>
       </Modal>
       {/* Main Profile Content */}
-      <ScrollView>
+      <ScrollView> 
+        {loading && (
+          <View style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 100,
+            backgroundColor: 'rgba(255,255,255,0.8)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}>
+            <ActivityIndicator size="large" color="#bea063" />
+          </View>
+        )}
         {renderProfileHeader()}
         {renderBio()}
 
@@ -1598,7 +1668,7 @@ const ProfileScreen = ({navigation}: any) => {
           }}
           activeOpacity={1}
           onPressOut={() => setOptionsVisible(false)}>
-          <View
+          {isFromSearch ? null : <View
             style={{
               backgroundColor: '#fff',
               borderRadius: 10,
@@ -1626,7 +1696,7 @@ const ProfileScreen = ({navigation}: any) => {
               ) : null}
               <Text style={{fontSize: 16, color: '#E74C3C'}}>Delete</Text>
             </TouchableOpacity>
-          </View>
+          </View>}
         </TouchableOpacity>
       </Modal>
 
@@ -1734,7 +1804,7 @@ const ProfileScreen = ({navigation}: any) => {
 
       {/* Edit Post/Reel Modal */}
       <Modal
-        visible={editModalVisible}
+        visible={editModalVisible && !isFromSearch}
         transparent
         animationType="fade"
         onRequestClose={() => setEditModalVisible(false)}>
@@ -1758,8 +1828,9 @@ const ProfileScreen = ({navigation}: any) => {
               style={{
                 fontSize: 18,
                 fontWeight: 'bold',
-                marginBottom: 20,
+                marginBottom: 16,
                 textAlign: 'center',
+                color: '#bea063',
               }}>
               Edit {selectedPost?.type === 'reel' ? 'Reel' : 'Post'}
             </Text>
@@ -1770,7 +1841,7 @@ const ProfileScreen = ({navigation}: any) => {
                 borderColor: '#ddd',
                 borderRadius: 5,
                 padding: 12,
-                marginBottom: 20,
+                marginBottom: 8,
                 fontSize: 16,
                 minHeight: 100,
                 textAlignVertical: 'top',
@@ -1781,32 +1852,45 @@ const ProfileScreen = ({navigation}: any) => {
               multiline
               autoFocus
             />
+            <LocationPicker
+              value={editLocation}
+              onChange={setEditLocation}
+              style={{ marginBottom: 8 }}
+              isFromUserProfile={true}
+            />
 
-            <View
-              style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 4 }}>
               <TouchableOpacity
                 style={{
                   flex: 1,
                   padding: 12,
-                  marginRight: 10,
                   borderWidth: 1,
-                  borderColor: '#ddd',
+                  borderColor: '#bea063',
                   borderRadius: 5,
                   alignItems: 'center',
+                  backgroundColor: '#fff',
                 }}
                 onPress={() => {
                   setEditModalVisible(false);
                   setEditCaption('');
+                  setEditLocation(null);
                   setSelectedPost(null);
-                }}>
-                <Text style={{fontSize: 16}}>Cancel</Text>
+                }}
+              >
+                <Text
+                  style={{ color: '#bea063', fontWeight: '600', flexWrap: 'wrap', width: '100%' }}
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
+                >
+                  Cancel
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={{
                   flex: 1,
                   padding: 12,
-                  backgroundColor: '#000',
+                  backgroundColor: '#bea063',
                   borderRadius: 5,
                   alignItems: 'center',
                 }}
@@ -1815,10 +1899,96 @@ const ProfileScreen = ({navigation}: any) => {
                 {editLoading ? (
                   <ActivityIndicator size={20} color="#fff" />
                 ) : (
-                  <Text style={{fontSize: 16, color: '#fff'}}>Update</Text>
+                  <Text style={{ fontSize: 16, color: '#fff', fontWeight: '600' }}>Update</Text>
                 )}
               </TouchableOpacity>
             </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+      <Modal
+        visible={profileOptionsModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setProfileOptionsModalVisible(false)}>
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          activeOpacity={1}
+          onPressOut={() => setProfileOptionsModalVisible(false)}>
+          <View
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 10,
+              padding: 20,
+              minWidth: 300,
+              alignItems: 'center',
+            }}>
+            {/* Example: Current Profile */}
+            <View style={{alignItems: 'center', marginBottom: 20}}>
+              <Image
+                source={{uri: profile.profileImage}}
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: 30,
+                  marginBottom: 8,
+                }}
+              />
+              <Text style={{fontWeight: 'bold', fontSize: 16}}>
+                {profile.username}
+              </Text>
+              <Text style={{color: '#888', fontSize: 14}}>
+                {profile.fullName}
+              </Text>
+            </View>
+
+            {/* Example: Add Account Option */}
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 12,
+                width: '100%',
+              }}
+              onPress={() => {
+                setProfileOptionsModalVisible(false);
+                navigation.navigate('Auth', { screen: 'Login', params: { isAddingAccount: true } });
+              }}>
+              <Ionicons
+                name="person-add-outline"
+                size={22}
+                color="#4B0082"
+                style={{marginRight: 10}}
+              />
+              <Text style={{fontSize: 16, color: '#222'}}>Add Account</Text>
+            </TouchableOpacity>
+
+            {/* Example: Switch Account Option */}
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 12,
+                width: '100%',
+              }}
+              onPress={() => {
+                // Add your "Switch Account" logic here
+                setProfileOptionsModalVisible(false);
+                Alert.alert('Switch Account', 'Switch Account option pressed!');
+              }}>
+              <Ionicons
+                name="swap-horizontal-outline"
+                size={22}
+                color="#4B0082"
+                style={{marginRight: 10}}
+              />
+              <Text style={{fontSize: 16, color: '#222'}}>Switch Account</Text>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -1835,7 +2005,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    // paddingHorizontal: 15,
+    paddingHorizontal: 15,
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#bea063',
@@ -1844,8 +2014,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#bea063',
-    // textAlign: 'center',
-    left:10,
+    textAlign: 'center',
     flex: 1,
   },
   profileHeader: {
@@ -1899,18 +2068,16 @@ const styles = StyleSheet.create({
   },
   editButton: {
     flex: 1,
-   borderWidth: 1,
-    borderColor: '#bea063',
+    borderWidth: 1,
+    borderColor: '#ddd',
     borderRadius: 5,
     padding: 8,
     alignItems: 'center',
     marginRight: 10,
-    backgroundColor:'#bea063'
   },
   editButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color:'white'
   },
   shareButton: {
     width: 40,
@@ -1934,7 +2101,7 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     borderBottomWidth: 2,
-    borderBottomColor: '#bea063',
+    borderBottomColor: '#000',
   },
   postsGrid: {
     padding: 1,

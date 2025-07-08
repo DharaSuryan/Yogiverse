@@ -74,7 +74,7 @@ const Styles = StyleSheet.create({
         marginHorizontal: 4,
     },
     paginationDotActive: {
-        backgroundColor: '#0095F6',
+        backgroundColor: '#bea063',
         width: 8,
         height: 8,
     },
@@ -212,7 +212,7 @@ const Styles = StyleSheet.create({
         fontSize: 12,
     },
     replyingTo: {
-        color: '#0095F6',
+        color: '#bea063',
         fontWeight: '600',
     },
     mentionText: {
