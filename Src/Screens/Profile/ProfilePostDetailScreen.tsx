@@ -22,6 +22,9 @@ const ProfilePostDetailScreen = () => {
   const handleLike = () => setLiked(l => !l);
   const handleSave = () => setSaved(s => !s);
 
+
+
+
   const handleAddComment = () => {
     if (comment.trim()) {
       setComments(prev => [
@@ -36,8 +39,8 @@ const ProfilePostDetailScreen = () => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate('MainTab', { screen: 'Profile' })}>
-          <Icon name="arrow-back" size={24} color="#222" />
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Icon name="arrow-back" size={24} color="#bea063" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Post</Text>
         <View style={{ width: 24 }} />
@@ -49,7 +52,7 @@ const ProfilePostDetailScreen = () => {
         <Text style={styles.username}>
           {post.user?.username || 'username'}
           {post.user?.isVerified && (
-            <Icon name="checkmark-circle" size={14} color="#0095f6" style={{ marginLeft: 4 }} />
+            <Icon name="checkmark-circle" size={14} color="#bea063" style={{ marginLeft: 4 }} />
           )}
         </Text>
         <Text style={styles.dot}>•</Text>
@@ -72,7 +75,7 @@ const ProfilePostDetailScreen = () => {
         </TouchableOpacity>
         <View style={{ flex: 1 }} />
         <TouchableOpacity onPress={handleSave}>
-          <Icon name={saved ? 'bookmark' : 'bookmark-outline'} size={28} color="#222" />
+          <Icon name={saved ? 'bookmark' : 'bookmark-outline'} size={28} color="#bea063" />
         </TouchableOpacity>
       </View>
 
@@ -100,7 +103,7 @@ const ProfilePostDetailScreen = () => {
       />
 
       {/* Add Comment */}
-      {/* <KeyboardAvoidingView
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={80}
       >
@@ -117,7 +120,7 @@ const ProfilePostDetailScreen = () => {
             <Icon name="send" size={24} color="#bea063" />
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView> */}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -136,7 +139,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: 'bold',
     fontSize: 18,
-    color: '#222',
+    color: '#bea063',
   },
   userRow: {
     flexDirection: 'row',

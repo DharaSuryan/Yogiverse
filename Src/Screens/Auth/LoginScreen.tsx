@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Platform,
   Keyboard, StatusBar, TouchableWithoutFeedback, Alert, ActivityIndicator
@@ -9,12 +9,15 @@ import { NativeStackNavigationProp, CommonActions } from '@react-navigation/nati
 import { RootStackParamList, MainTabParamList, HomeStackParamList, AuthStackParamList } from '../../Navigation/types';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
-import { loginUser } from '../../Api/Api';
+import { loginUser, registerDeviceWithFCMToken } from '../../Api/Api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useBackHandler } from '../../Utils/BackHandler';
 import { saveAccount } from '../../Utils/accountManager';
+import { navigate, reset } from '../../Component/Route';
+import DeviceInfo from "react-native-device-info";
+
 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 0;
 
@@ -45,23 +48,37 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
       console.log("response",response);
       
       if (response.status === 200 && response.data) {
-        console.log("Login response", response.data);
-        
-        if (!isAddingAccount) {
-          // Store tokens and user data using Promise.all for better performance
-          await Promise.all([
-            AsyncStorage.setItem('accessToken', response?.data?.access_token),
-            AsyncStorage.setItem('refreshToken', response?.data?.refresh_token),
-            AsyncStorage.setItem('userData', JSON.stringify(response?.data?.user))
-          ]);
-        }
-        // Save the account for multi-account support
-        await saveAccount({
-          username: response.data.user.username,
-          token: response.data.access_token,
-          profileImage: response.data.user.profile_picture || response.data.user.profileImage,
-        });
+        console.log("Login response", response);
+        const fcmToken = await AsyncStorage.getItem('fcmToken');
+        // Store tokens and user data using Promise.all for better performance
+        await Promise.all([
+          AsyncStorage.setItem('accessToken', response.data.access_token),
+          AsyncStorage.setItem('refreshToken', response.data.refresh_token),
+          AsyncStorage.setItem('userData', JSON.stringify(response.data.user))
+        ]);
 
+        // Register device with FCM token if available
+        if (fcmToken) {
+          
+          try {
+            const deviceResponse = await registerDeviceWithFCMToken({
+              device_name: DeviceInfo.getSystemName(),
+              device_type: Platform.OS,
+              token: fcmToken,
+              access_token: response.data.access_token,
+            });
+            console.log('Device registration response:', deviceResponse);
+          } catch (deviceError) {
+            if (deviceError && typeof deviceError === 'object' && 'response' in deviceError) {
+              // @ts-ignore
+              console.error('Device registration error:', deviceError.response?.data || deviceError.message);
+            } else if (deviceError instanceof Error) {
+              console.error('Device registration error:', deviceError.message);
+            } else {
+              console.error('Device registration error:', deviceError);
+            }
+          }
+        }
         // Update Redux state
         dispatch(
           loginSuccess({
@@ -83,17 +100,38 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
             }]
           })
         );
+        // Navigate to main tab using reset
+        reset('MainTab')
+        // navigation.reset({
+        //   index: 0,
+        //   routes: [{ name: 'MainTab' }], 
+        // });
       } else {
         Alert.alert('Login Failed', 'Invalid username or password');
         console.log("response .... message ",response.message);
         
       }
-    } catch (error: any) {
-      console.error('Login error:', error);
-      Alert.alert('Login Failed', error.response?.data?.message);
-         console.log("response .... message ",error);
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'response' in error &&
+        error.response &&
+        typeof error.response === 'object' &&
+        'data' in error.response
+      ) {
+        // @ts-ignore
+        const errData = (error.response as any).data;
+        const errMsg = (errData && errData.message) ? errData.message : 'Invalid username or password';
+        Alert.alert('Login Failed', errMsg);
+        console.error('Login error:', errData);
+      } else if (error instanceof Error) {
+        Alert.alert('Login Failed', error.message || 'Invalid username or password');
+        console.error('Login error:', error.message);
+      } else {
+        Alert.alert('Login Failed', 'Invalid username or password');
+        console.error('Login error:', error);
+      }
     }
   };
 

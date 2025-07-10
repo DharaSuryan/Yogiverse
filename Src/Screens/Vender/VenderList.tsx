@@ -25,17 +25,20 @@ type SearchScreenNavigationProp = NativeStackNavigationProp<
   'Search'
 >;
 
-const VenderList = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
+const VenderList = ({navigation}:any) => {
+  // const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
 
   const [categories, setCategories] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [selectedSubcategories, setSelectedSubcategories] = useState<number[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [vendorLoading, setVendorLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showVendors, setShowVendors] = useState(false);
+
   useEffect(() => {
     fetchCategories();
-    
   }, []);
 
   const fetchCategories = async (query = '') => {
@@ -55,22 +58,68 @@ const VenderList = () => {
     }
   };
 
+  // This function is replaced by fetchVendorsForSubcategories
 
    const handleSelectCategory = (categoryId: number | undefined) => {
       if (categoryId === undefined) return;
       setSelectedCategory(categoryId);
       setSelectedSubcategories([]); // Reset subcategory selection when main category changes
+      setShowVendors(false); // Hide vendors when category changes
+      setVendors([]); // Clear vendors
     };
 
     const handleSelectSubcategory = (subcategoryId: number) => {
       setSelectedSubcategories(prev => {
-        if (prev.includes(subcategoryId)) {
-          return prev.filter(id => id !== subcategoryId);
+        const newSelection = prev.includes(subcategoryId) 
+          ? prev.filter(id => id !== subcategoryId)
+          : [...prev, subcategoryId];
+        
+        // Automatically fetch vendors when subcategory selection changes
+        if (newSelection.length > 0) {
+          fetchVendorsForSubcategories(newSelection);
         } else {
-          return [...prev, subcategoryId];
+          setShowVendors(false);
+          setVendors([]);
         }
+        
+        return newSelection;
       });
     };
+
+  const fetchVendorsForSubcategories = async (subcategoryIds: number[]) => {
+    if (!selectedCategory || subcategoryIds.length === 0) {
+      return;
+    }
+
+    try {
+      setVendorLoading(true);
+      setShowVendors(true);
+      
+      // Build URL with proper parameters
+      let url = `https://pashuahar.com/vendor_list/?main_category=${selectedCategory}`;
+      if (subcategoryIds.length > 0) {
+        url += `&subcategory=${subcategoryIds[0]}`;
+      }
+      
+      console.log('Calling vendor API:', url);
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.status === true && data.vendors) {
+        console.log('Vendors from API:', data.vendors);
+        setVendors(data.vendors);
+      } else {
+        console.log('API response error:', data);
+        setVendors([]);
+      }
+    } catch (error) {
+      console.error('Error fetching vendors:', error);
+      setVendors([]);
+    } finally {
+      setVendorLoading(false);
+    }
+  };
   
     const handleItemPress = () => {
       if (selectedCategory === null) {
@@ -139,62 +188,7 @@ const VenderList = () => {
     );
   };
   
-  // const renderCategory = ({ item }: any) => {
-  //   const getImageSource = () => {
-  //     return categoryImages[item.category_name] || categoryImages['default'];
-  //   };
-  
-  //   return (
-  //     <TouchableOpacity
-  //       style={styles.categoryCard}
-  //       onPress={() => handleItemPress(item)}
-  //     >
-  //       <View style={styles.imageContainer}>
-  //         <Image 
-  //           source={getImageSource()} 
-  //           style={styles.categoryImage}
-  //           resizeMode="cover"
-  //         />
-  //       </View>
-  //       <Text style={styles.categoryTitle} numberOfLines={2}>
-  //         {item.category_name}
-  //       </Text>
-  //     </TouchableOpacity>
-  //   );
-  // };
- 
-  const handleShowSubcategories = () => {
-    if (selectedCategory === null) {
-      Alert.alert('Selection Required', 'Please select a main category first.');
-      return;
-    }
-    
-    if (selectedSubcategories.length === 0) {
-      Alert.alert('Selection Required', 'Please select at least one subcategory.');
-      return;
-    }
-    
-    const selectedVendor = categories.find(cat =>
-      selectedCategory === (cat.id !== undefined ? cat.id : cat.categories)
-    );
-    if (!selectedVendor) {
-      Alert.alert('Selection Error', 'No valid vendor found for your selection.');
-      return;
-    }
-    
-    // Navigate directly to VenderDetail with selected data
-    const navigationParams = {
-      mainCategoryId: selectedCategory,
-      subcategoryIds: selectedSubcategories,
-      mainCategoryName: selectedVendor.category_name
-    };
-    
-    console.log('Navigation params:', navigationParams);
-    console.log('Main Category ID:', selectedCategory);
-    console.log('Selected Subcategory IDs:', selectedSubcategories);
-    
-    navigation.navigate('VenderDetail', navigationParams);
-  };
+  // Vendors are now shown automatically when subcategories are selected
 
   const renderSubcategory = ({ item }: any) => {
     console.log('Subcategory item:', item);
@@ -241,6 +235,45 @@ const VenderList = () => {
             <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>
           </View>
         )}
+      </TouchableOpacity>
+    );
+  };
+
+  const renderVendor = ({ item }: any) => {
+    const username = item.user?.username || item.profile?.username || 'Unknown';
+    const profilePicture = item.profile?.profile_picture;
+    const firstName = item.user?.first_name || item.profile?.first_name || '';
+    const lastName = item.user?.last_name || item.profile?.last_name || '';
+    
+    // Create initials from first and last name
+    const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+    
+    return (
+      <TouchableOpacity 
+        style={styles.vendorGridCard}
+        onPress={() => {
+          // Navigate to individual vendor detail
+          const userId = item.profile?.user || item.user?.id;
+          console.log('Navigating to UserProfile with userId:', userId);
+          (navigation as any).navigate('UserProfile', { userId: userId ,isFromSearch: true});
+        }}
+      >
+        <View style={styles.vendorImageContainer}>
+          {profilePicture ? (
+            <Image 
+              source={{ uri: profilePicture }} 
+              style={styles.vendorGridImage}
+              defaultSource={require('../../Assets/Role.png')}
+            />
+          ) : (
+            <View style={styles.vendorInitialsContainer}>
+              <Text style={styles.vendorInitials}>{initials}</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.vendorGridName} numberOfLines={2}>
+          {username}
+        </Text>
       </TouchableOpacity>
     );
   };
@@ -297,20 +330,50 @@ const VenderList = () => {
             </View>
           )}
           
-          <TouchableOpacity
-            style={{
-              backgroundColor: '#bea063',
-              margin: 16,
-              padding: 14,
-              borderRadius: 8,
-              alignItems: 'center',
-            }}
-            onPress={handleShowSubcategories}
-          >
-            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>
-              Show Vendors
-            </Text>
-          </TouchableOpacity>
+          {/* Vendors will be shown automatically when subcategories are selected */}
+
+          {/* Vendors Section */}
+          {showVendors && (
+            <View style={styles.vendorSection}>
+              {/* <Text style={styles.vendorSectionTitle}>
+                Vendors for Selected Subcategory
+              </Text> */}
+              {(() => {
+                const selectedCat = categories.find(cat => 
+                  selectedCategory === (cat.id !== undefined ? cat.id : cat.categories)
+                );
+                const selectedSubcat = selectedCat?.sub_categories?.find((sub: any) => 
+                  selectedSubcategories.includes(sub.id)
+                );
+                return selectedSubcat ? (
+                  <Text style={styles.selectedSubcategoryText}>
+                    {selectedSubcat.name || selectedSubcat.sub_category_name || 'Subcategory'}
+                  </Text>
+                ) : null;
+              })()}
+              
+              {vendorLoading ? (
+                <View style={styles.vendorLoadingContainer}>
+                  <ActivityIndicator size="large" color="#bea063" />
+                  <Text style={styles.vendorLoadingText}>Loading ...</Text>
+                </View>
+              ) : vendors.length > 0 ? (
+                <FlatList
+                  data={vendors}
+                  keyExtractor={(item) => item.user?.id?.toString() || item.id?.toString()}
+                  numColumns={3}
+                  renderItem={renderVendor}
+                  contentContainerStyle={styles.vendorGridContainer}
+                  showsVerticalScrollIndicator={false}
+                  scrollEnabled={false}
+                />
+              ) : (
+                <View style={styles.emptyVendorContainer}>
+                  <Text style={styles.emptyVendorText}>No vendors found for selected categories</Text>
+                </View>
+              )}
+            </View>
+          )}
         </>
       )}
     </ScrollView>
@@ -443,6 +506,99 @@ const styles = StyleSheet.create({
   subcategoryList: {
     paddingHorizontal: 16,
     paddingBottom: 20,
+  },
+  vendorSection: {
+    marginTop: 20,
+    paddingHorizontal: 16,
+  },
+  vendorSectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  selectedSubcategoryText: {
+    fontSize: 16,
+    color: '#bea063',
+    fontWeight: '600',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  vendorLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  vendorLoadingText: {
+    marginLeft: 10,
+    color: '#bea063',
+    fontSize: 16,
+  },
+  vendorGridContainer: {
+    paddingBottom: 20,
+  },
+  vendorGridCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: 6,
+    paddingVertical: 18,
+    paddingHorizontal: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 2,
+    minWidth: 0,
+    maxWidth: '32%',
+  },
+  vendorImageContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  vendorGridImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 40,
+    resizeMode: 'cover',
+  },
+  vendorInitialsContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  vendorInitials: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  vendorGridName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#222',
+    textAlign: 'center',
+    marginTop: 2,
+    lineHeight: 20,
+  },
+  emptyVendorContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  emptyVendorText: {
+    fontSize: 16,
+    color: '#666',
   },
 })
 

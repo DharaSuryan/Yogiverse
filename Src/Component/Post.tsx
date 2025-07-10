@@ -12,13 +12,14 @@ import {
   Modal,
   SectionList,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
-import Video from 'react-native-video';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../Navigation/types';
+
+const Ionicons = require('react-native-vector-icons/Ionicons').default;
+import Video from 'react-native-video';
 
 interface Collection {
   id: number;
@@ -83,6 +84,7 @@ const Post: React.FC<PostProps> = ({
   const [showFallbackAvatar, setShowFallbackAvatar] = useState(false);
   const [showFallbackPostImage, setShowFallbackPostImage] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [videoStates, setVideoStates] = useState<{ [index: number]: { paused: boolean; muted: boolean } }>({});
   const [optionsVisible, setOptionsVisible] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [saveModalVisible, setSaveModalVisible] = useState(false);
@@ -91,6 +93,7 @@ const Post: React.FC<PostProps> = ({
   const [collectionsLoading, setCollectionsLoading] = useState(false);
   const [savingToCollectionId, setSavingToCollectionId] = useState<number | null>(null);
   const navigations = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [showFullCaption, setShowFullCaption] = useState(false);
 
   const getMediaUri = (item: any) => {
     if (item.media_file) return item.media_file.startsWith('http') ? item.media_file : `http://192.168.1.160:9001${item.media_file}`;
@@ -134,7 +137,7 @@ console.log("id.....", item?.profile?.id , id);
 
   const handleComment = () => {
     console.log("items ......",item , contentType);
-    return
+    // return
     // Navigate to CommentScreen with correct params
     navigations.navigate('CommentScreen', {
       content_type: contentType === 'reel' ? 'reel' : 'post',
@@ -291,7 +294,7 @@ console.log("id.....", item?.profile?.id , id);
           />
         ) : (
           <View style={styles.placeholderImage}>
-            {React.createElement(Icon as any, { name: "bookmark-outline", size: 20, color: "#999" })}
+            {React.createElement(Ionicons, { name: "bookmark-outline", size: 20, color: "#999" })}
           </View>
         )}
       </View>
@@ -330,18 +333,45 @@ console.log("id.....", item?.profile?.id , id);
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.userInfo}>
-          <Image
-            source={showFallbackAvatar ? fallbackAvatar : { uri: userAvatar }}
-            style={styles.avatar}
-            onError={() => setShowFallbackAvatar(true)}
-          />
+          <TouchableOpacity
+            onPress={() => {
+              // Use profile.id or item.profile.id as userId
+              const userId = profile?.id || item?.profile?.id;
+              if (userId) {
+                navigation.navigate('UserProfile', { userId: userId.toString(), isFromSearch: true });
+              }
+            }}
+          >
+            {(!userAvatar || userAvatar === 'null' || userAvatar === '' || userAvatar.includes('placeholder.com')) ? (
+              <View style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: '#f5f5f5',
+                justifyContent: 'center',
+                alignItems: 'center',
+                borderWidth: 1.5,
+                borderColor: '#bea063',
+                overflow: 'hidden',
+                marginRight: 10,
+              }}>
+                <Ionicons name="person-circle" size={28} color="#bea063" />
+              </View>
+            ) : (
+              <Image
+                source={showFallbackAvatar ? fallbackAvatar : { uri: userAvatar }}
+                style={styles.avatar}
+                onError={() => setShowFallbackAvatar(true)}
+              />
+            )}
+          </TouchableOpacity>
           <View>
             <Text style={styles.username}>{username}</Text>
             {!!location && <Text style={styles.location}>{location}</Text>}
           </View>
         </View>
         <TouchableOpacity onPress={handleOptions}>
-          {React.createElement(Icon as any, { name: "ellipsis-vertical", size: 20, color: "#000" })}
+          {React.createElement(Ionicons, { name: "ellipsis-vertical", size: 20, color: "#000" })}
         </TouchableOpacity>
       </View>
 
@@ -358,11 +388,20 @@ console.log("id.....", item?.profile?.id , id);
             e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width
           );
           setActiveIndex(index);
+          // Auto play the new active video, pause others
+          setVideoStates(prev => {
+            const newStates: { [index: number]: { paused: boolean; muted: boolean } } = {};
+            media.forEach((_, idx) => {
+              newStates[idx] = { paused: idx !== index, muted: prev[idx]?.muted ?? true };
+            });
+            return newStates;
+          });
         }}
         renderItem={({ item, index }) => {
           const uri = getMediaUri(item);
           const isActive = index === activeIndex;
-      
+          const videoState = videoStates[index] || { paused: !isActive, muted: true };
+
           if (item.is_video && uri) {
             return (
               <View style={styles.postImage}>
@@ -370,12 +409,36 @@ console.log("id.....", item?.profile?.id , id);
                   source={{ uri }}
                   style={styles.postImage}
                   resizeMode="cover"
-                  paused={!isActive}
+                  paused={videoState.paused}
                   repeat
+                  muted={videoState.muted}
                 />
+                {/* Play/Pause and Mute/Unmute Controls */}
+                {isActive && (
+                  <View style={{ position: 'absolute', bottom: 16, left: 16, flexDirection: 'row', gap: 16 }}>
+                    <TouchableOpacity
+                      onPress={() => setVideoStates(prev => ({
+                        ...prev,
+                        [index]: { ...videoState, paused: !videoState.paused }
+                      }))}
+                      style={{ marginRight: 16, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 }}
+                    >
+                      <Ionicons name={videoState.paused ? 'play' : 'pause'} size={24} color="#fff" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setVideoStates(prev => ({
+                        ...prev,
+                        [index]: { ...videoState, muted: !videoState.muted }
+                      }))}
+                      style={{ backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 }}
+                    >
+                      <Ionicons name={videoState.muted ? 'volume-mute' : 'volume-high'} size={24} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                )}
                 {!isActive && (
                   <View style={{ position: 'absolute', top: '45%', left: '45%' }}>
-                    {React.createElement(Icon as any, { name: "play-circle", size: 48, color: "#fff" })}
+                    {React.createElement(Ionicons, { name: "play-circle", size: 48, color: "#fff" })}
                   </View>
                 )}
               </View>
@@ -460,22 +523,22 @@ console.log("id.....", item?.profile?.id , id);
             <ActivityIndicator size={20} color="#bea063" />
           ) : (
             <>
-              {React.createElement(Icon as any, { name: isLiked ? 'heart' : 'heart-outline', size: 28, color: isLiked ? '#bea063' : '#bea063' })}
+              {React.createElement(Ionicons, { name: isLiked ? 'heart' : 'heart-outline', size: 28, color: isLiked ? '#bea063' : '#bea063' })}
             </>
           )}
         </TouchableOpacity>
         {allowComments && (
           <TouchableOpacity style={styles.actionButton} onPress={handleComment}>
-            {React.createElement(Icon as any, { name: "chatbubble-outline", size: 24, color: "#bea063" })}
+            {React.createElement(Ionicons, { name: "chatbubble-outline", size: 24, color: "#bea063" })}
           </TouchableOpacity>
         )}
         <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
-          {React.createElement(Icon as any, { name: "paper-plane-outline", size: 24, color: "#bea063" })}
+          {React.createElement(Ionicons, { name: "share-social-outline", size: 24, color: "#bea063" })}
         </TouchableOpacity>
         {/* Save icon on the right */}
         {!isdrmoDetails ? (
           <TouchableOpacity style={{position:'absolute',right:10}} onPress={handleSave}>
-            {React.createElement(Icon as any, { name: "bookmark-outline", size: 24, color: "#bea063" })}
+            {React.createElement(Ionicons, { name: "bookmark-outline", size: 24, color: "#bea063" })}
           </TouchableOpacity>
         ) : null}
       </View>
@@ -510,10 +573,10 @@ console.log("id.....", item?.profile?.id , id);
                   elevation: 3,
                 }}
               >
-                {React.createElement(Icon as any, { name: "add", size: 22, color: "#fff" })}
+                {React.createElement(Ionicons, { name: "add", size: 22, color: "#fff" })}
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setSaveModalVisible(false)}>
-                {React.createElement(Icon as any, { name: "close", size: 24, color: "#000" })}
+                {React.createElement(Ionicons, { name: "close", size: 24, color: "#000" })}
               </TouchableOpacity>
             </View>
             
@@ -523,7 +586,7 @@ console.log("id.....", item?.profile?.id , id);
               </View>
             ) : collections.length === 0 ? (
               <View style={styles.emptyCollectionsContainer}>
-                {React.createElement(Icon as any, { name: "bookmark-outline", size: 60, color: "#ccc" })}
+                {React.createElement(Ionicons, { name: "bookmark-outline", size: 60, color: "#ccc" })}
                 <Text style={styles.emptyCollectionsTitle}>No Collections Yet</Text>
                 <Text style={styles.emptyCollectionsSubtitle}>
                   Create a collection to save your favorite posts
@@ -580,7 +643,22 @@ console.log("id.....", item?.profile?.id , id);
 
       <View style={styles.captionContainer}>
         <Text style={styles.captionUsername}>{username}</Text>
-        <Text style={styles.caption}>{caption}</Text>
+        <Text
+          style={styles.caption}
+          numberOfLines={showFullCaption ? undefined : 2}
+        >
+          {caption}
+        </Text>
+        {caption && caption.length > 80 && !showFullCaption && (
+          <TouchableOpacity onPress={() => setShowFullCaption(true)}>
+            <Text style={{ color: '#bea063', fontWeight: '600', marginTop: 2 }}>Read more</Text>
+          </TouchableOpacity>
+        )}
+        {caption && caption.length > 80 && showFullCaption && (
+          <TouchableOpacity onPress={() => setShowFullCaption(false)}>
+            <Text style={{ color: '#bea063', fontWeight: '600', marginTop: 2 }}>Show less</Text>
+          </TouchableOpacity>
+        )}
       </View>
       {allowComments && (
         <TouchableOpacity onPress={handleComment} style={{paddingHorizontal: 10, marginBottom: 5}}>

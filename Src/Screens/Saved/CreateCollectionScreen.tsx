@@ -11,7 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+// import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -56,7 +56,7 @@ export default function CreateCollectionScreen({navigation}:any) {
             text: 'OK',
             onPress: () => {
               // Navigate back to saved collections screen
-              navigation.goBack();
+         navigation.goBack()
             }
           }
         ]

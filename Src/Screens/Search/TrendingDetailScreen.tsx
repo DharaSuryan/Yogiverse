@@ -4,12 +4,9 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import axios from 'axios';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { SearchStackParamList } from '../Navigation/types';
-import Post from '../Component/Post';
-import { goBack, navigate } from '../Component/Route';
-// import { SearchStackParamList } from '../../Navigation/types';
-
-const screenWidth = Dimensions.get('window').width;
+import { SearchStackParamList } from 'Navigation/types';
+import Post from "../../Component/Post"
+import { navigate } from '../../Component/Route';
 
 // Group `related` into rows of 2
 const chunkArray = (arr: any[], size: number) => {
@@ -18,14 +15,6 @@ const chunkArray = (arr: any[], size: number) => {
     result.push(arr.slice(i, i + size));
   }
   return result;
-};
-
-
-
-// type TrendingDetailScreenRouteProp = RouteProp<SearchStackParamList, 'TrendingDetail'>;
-
-type TrendingDetailScreenRouteParams = {
-  post: any;
 };
 
 const TrendingDetailScreen = () => {
@@ -59,7 +48,13 @@ const TrendingDetailScreen = () => {
       data: chunkArray(related, 2), // each item is an array of 2 posts
     },
   ];
-
+const handleBack = () => {
+  if (navigation.canGoBack()) {
+    navigation.goBack();
+  } else {
+    navigation.navigate('MainTab', { screen: 'SearchTab' });
+  }
+};
   // Prepare props for <Post />
   const profile = post.profile || {};
   let userAvatar = '';
@@ -83,10 +78,7 @@ const TrendingDetailScreen = () => {
           elevation: 3,
           zIndex: 10,
         }}
-        onPress={() => {
-        //  goBack()
-        navigate('Search')
-        }}
+        onPress={() => handleBack()}
       >
         <Icon name="arrow-back" size={28} color="#000" />
       </TouchableOpacity>

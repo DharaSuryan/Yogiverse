@@ -12,13 +12,15 @@ import {
   Dimensions,
   ActivityIndicator,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+const Ionicons = require('react-native-vector-icons/Ionicons').default;
 import { SearchStackParamList } from '../../Navigation/types';
 import { useNavigation } from '@react-navigation/native';
 import WarpperComponent from './warppercomponets';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { navigate,push } from '../../Component/Route';
+import { navigate, push } from '../../Component/Route';
+import MasonryList from '@react-native-seoul/masonry-list';
+
 
 
 const screenWidth = Dimensions.get('window').width;
@@ -54,7 +56,7 @@ const SearchScreen = () => {
   const { width } = Dimensions.get('window');
 
   const ITEM_WIDTH = (width - ITEM_MARGIN * (NUM_COLUMNS + 1)) / NUM_COLUMNS;
-  
+
   useEffect(() => {
     fetchCategories();
     fetchTrendingPosts();
@@ -68,7 +70,7 @@ const SearchScreen = () => {
         `https://pashuahar.com/main_with_sub_categories?search=${query}`
       );
       // console.log("here comes resoponse ...",mainCategoryRes.data?.data);
-      
+
       setCategories(mainCategoryRes.data?.data || []);
     } catch (err) {
       setError('Failed to load categories');
@@ -85,12 +87,12 @@ const SearchScreen = () => {
     setLoading(true);
     setError(null);
     try {
-      console.log("here comes ....",query);
-      
+      console.log("here comes ....", query);
+
       const searchRes = await axios.get(`https://pashuahar.com/search?search=${query}`);
       // console.log("searchRes.data?.resultssearchRes.data?.results",searchRes.data?.data?.results);
-      console.log("datat....",searchRes.data?.data);
-      
+      console.log("datat....", searchRes.data?.data);
+
       setSearchResults(searchRes.data?.data?.results || []);
     } catch (err) {
       setError('Failed to fetch search results');
@@ -109,7 +111,7 @@ const SearchScreen = () => {
         'Accept': 'application/json',
         'Authorization': `Bearer ${authToken}`
       };
-      const res = await axios.get('https://pashuahar.com/trending/?type=post',{headers});
+      const res = await axios.get('https://pashuahar.com/trending/?type=post', { headers });
       setTrendingPosts(res.data?.data || []);
     } catch (err) {
       setTrendingError('Failed to load trending posts');
@@ -124,12 +126,12 @@ const SearchScreen = () => {
   };
 
   const handleItemPress = (item: any) => {
-    console.log("here comes ....",item);
-    
+    console.log("here comes ....", item);
+
 
     if (item.first_name) {
       // User result - navigate to Profile tab (current user's profile)
-      navigation.navigate('UserProfile' as any, { userId: item.id.toString(),isFromSearch:true });
+      navigation.navigate('UserProfile' as any, { userId: item.id.toString(), isFromSearch: true });
       // navigate('MainTab', {
       //   screen: 'ProfileTab',
       //   params: {
@@ -142,7 +144,7 @@ const SearchScreen = () => {
       // });
     } else {
       // Category or other result - navigate to SubCateGoryDisplay
-      push('SubCateGoryDisplay' , { item });
+      push('SubCateGoryDisplay', { item });
     }
   };
 
@@ -169,12 +171,12 @@ const SearchScreen = () => {
       </TouchableOpacity>
     );
   };
-  
+
   // const renderCategory = ({ item }: any) => {
   //   const getImageSource = () => {
   //     return categoryImages[item.category_name] || categoryImages['default'];
   //   };
-  
+
   //   return (
   //     <TouchableOpacity
   //       style={styles.categoryCard}
@@ -195,7 +197,7 @@ const SearchScreen = () => {
   // };
   const renderSearchResult = ({ item }: any) => {
     console.log("itesm....", item);
-    
+
     let displayName = '';
     let displayType = '';
     let avatarSource = null;
@@ -208,7 +210,7 @@ const SearchScreen = () => {
       isUser = true;
       avatarSource = item?.profile_picture
         ? { uri: item?.profile_picture }
-        : require('../../Assets/yoga.jpg'); // fallback image
+        : null; // We'll handle the default icon in render
     } else if (item.caption) {
       // Post result
       displayName = item.caption;
@@ -229,13 +231,19 @@ const SearchScreen = () => {
       >
         <View style={styles.searchResultAvatarContainer}>
           {isUser ? (
-            <Image
-              source={avatarSource}
-              style={styles.searchResultAvatar}
-            />
+            avatarSource ? (
+              <Image
+                source={avatarSource}
+                style={styles.searchResultAvatar}
+              />
+            ) : (
+              <View style={styles.searchResultIconCircle}>
+                {React.createElement(Ionicons, { name: "person-circle", size: 44, color: "#bea063" })}
+              </View>
+            )
           ) : (
             <View style={styles.searchResultIconCircle}>
-              <Icon name="search" size={20} color="#fff" />
+              {React.createElement(Ionicons, { name: "search", size: 20, color: "#fff" })}
             </View>
           )}
         </View>
@@ -255,23 +263,38 @@ const SearchScreen = () => {
       mediaUrl = item.media[0]?.media_file || '';
     }
 
-    // Randomize height for demo, or use actual image aspect ratio if available
-    const randomHeight = Math.floor(Math.random() * 100) + 200; // 200-300px
+    const randomHeight = Math.floor(Math.random() * 120) + 200;
+    const screenWidth = Dimensions.get('window').width;
+    const columnWidth = screenWidth / 2 - 16;
 
     return (
       <TouchableOpacity
-        style={styles.masonryItem}
+        style={
+          {
+            margin: 8,
+            borderRadius: 12,
+            overflow: 'hidden',
+            backgroundColor: '#f0f0f0',
+          }
+        }
         onPress={() => navigation.push('TrendingDetailScreen', { post: item })}
         activeOpacity={0.9}
       >
         {mediaUrl ? (
           <Image
             source={{ uri: mediaUrl }}
-            style={[styles.masonryImage, { height: randomHeight }]}
+            style={{
+              height: randomHeight,
+
+              width: columnWidth,
+              borderRadius: 12,
+            }}
             resizeMode="cover"
           />
         ) : (
-          <View style={[styles.masonryImage, { height: randomHeight, backgroundColor: '#eee' }]} />
+          <Image
+            style={[styles.masonryImage, { height: randomHeight, backgroundColor: '#ccc' }]}
+          />
         )}
       </TouchableOpacity>
     );
@@ -280,16 +303,15 @@ const SearchScreen = () => {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <Icon name="search" size={20} color="#000" style={styles.searchIcon} />
+        {React.createElement(Ionicons, { name: "search", size: 20, color: "#000", style: styles.searchIcon })}
         <TextInput
-          placeholder="Search for ideas"
+          placeholder="Search for Yogic"
           placeholderTextColor="black"
           style={styles.searchInput}
           value={searchQuery}
           onChangeText={handleSearchChange}
         />
       </View>
-
 
       {loading ? (
         <ActivityIndicator size="large" color="#000" style={{ marginTop: 20 }} />
@@ -322,8 +344,16 @@ const SearchScreen = () => {
             <Text style={{ color: 'red', textAlign: 'center' }}>{trendingError}</Text>
           ) : trendingPosts.length > 0 && (
             <View style={{ marginTop: 30, marginBottom: 10 }}>
-              <Text style={[styles.categoryTitle, { fontSize: 18, marginBottom: 10 }]}>Trending</Text>
-              <FlatList
+          
+              <MasonryList
+                data={trendingPosts}
+                keyExtractor={(item: any, index: any) => `${item.id}-${index}`}
+                numColumns={2}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.container}
+                renderItem={renderTrendingPost}
+              />
+              {/* <FlatList
                 data={trendingPosts}
                 keyExtractor={(item) => item?.id?.toString() || Math.random().toString()}
                 renderItem={renderTrendingPost}
@@ -331,7 +361,7 @@ const SearchScreen = () => {
                 columnWrapperStyle={{ justifyContent: 'space-between', paddingHorizontal: 8 }}
                 contentContainerStyle={{ paddingBottom: 30, paddingTop: 8 }}
                 scrollEnabled={false}
-              />
+              /> */}
             </View>
           )}
         </>
@@ -342,28 +372,28 @@ const SearchScreen = () => {
 
 
 const styles = StyleSheet.create({
-  
- 
+
+
   searchResultBlock: {
-        marginVertical: 10,
-        paddingHorizontal: 10,
-      },  
+    marginVertical: 10,
+    paddingHorizontal: 10,
+  },
   // categoryTitle: {
   //       fontSize: 16,
   //       fontWeight: 'bold',
   //       color: 'black',
   //     },
   // image: { width: '100%', height: '100%', },
-  
+
 
   container: { flex: 1, backgroundColor: '#fff' },
   header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: '#eee',
-      borderRadius: 10,
-      margin: 10,
-      paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eee',
+    borderRadius: 10,
+    margin: 10,
+    paddingHorizontal: 10,
   },
   searchIcon: { marginRight: 8 },
   searchInput: { flex: 1, height: 40 },
@@ -374,11 +404,11 @@ const styles = StyleSheet.create({
   suggestionList: { paddingHorizontal: 10 },
   columnWrapperStyle: { justifyContent: 'space-between', marginBottom: 15 },
   suggestionCard: {
-      width: screenWidth / 3 - 15,
-      marginHorizontal: 5,
-      backgroundColor: '#D3D3D3',
-      padding: 10,
-      borderRadius: 10,
+    width: screenWidth / 3 - 15,
+    marginHorizontal: 5,
+    backgroundColor: '#D3D3D3',
+    padding: 10,
+    borderRadius: 10,
   },
   cardImage: { width: '95%', height: 70, borderRadius: 40 },
   cardTitle: { fontSize: 14, fontWeight: 'bold', marginTop: 5, color: 'black' },
@@ -386,19 +416,19 @@ const styles = StyleSheet.create({
   gridContainer: { paddingHorizontal: 8, paddingBottom: 20 },
   column: { justifyContent: 'space-between', marginBottom: 12 },
   card: {
-      width: screenWidth / 2 - 12,
-      borderRadius: 12,
-      overflow: 'hidden',
-      backgroundColor: '#eee',
+    width: screenWidth / 2 - 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#eee',
   },
   // image: { width: '100%', height: '100%', },
   menuIconContainer: {
-      position: 'absolute',
-      bottom: 8,
-      right: 10,
-      backgroundColor: 'rgba(0,0,0,0.4)',
-      borderRadius: 12,
-      padding: 4,
+    position: 'absolute',
+    bottom: 8,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: 12,
+    padding: 4,
   },
   searchResultRow: {
     flexDirection: 'row',
@@ -422,7 +452,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#333',
+    backgroundColor: '#f5f5f5',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -582,4 +612,4 @@ const styles = StyleSheet.create({
   },
 })
 
-export default SearchScreen;
+export default WarpperComponent(SearchScreen);

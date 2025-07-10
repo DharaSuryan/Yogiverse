@@ -70,7 +70,8 @@ const VendorDetailScreen = ({navigation}:any) => {
     useCallback(() => {
       const onBackPress = () => {
         // Navigate back to VenderList screen
-        navigation.navigate('Vendor');
+        
+        navigation.goBack();
         return true;
       };
 
@@ -83,34 +84,31 @@ const VendorDetailScreen = ({navigation}:any) => {
     try {
       setLoading(true);
       
-      // Build query parameters for the API
-      // const queryParams = new URLSearchParams();
-      
-      // if (mainCategoryIds && mainCategoryIds.length > 0) {
-      //   queryParams.append('main_category', mainCategoryIds[0].toString());
-      // }
-      
-      // if (selectedSubcategoryIds && selectedSubcategoryIds.length > 0) {
-      //   queryParams.append('subcategory', selectedSubcategoryIds[0].toString());
-      // }
-      
       // Use the correct parameter names from navigation
       const mainCategory = mainCategoryId;
       const subcategory = subcategoryIds && subcategoryIds.length > 0 ? subcategoryIds[0] : null;
       
-      const url = `https://pashuahar.com/vendor_list/?main_category=${mainCategory}&subcategory=${subcategory}`;
+      // Build URL with proper parameters
+      let url = `https://pashuahar.com/vendor_list/?main_category=${mainCategory}`;
+      if (subcategory) {
+        url += `&subcategory=${subcategory}`;
+      }
+      
       console.log('Calling API:', url);
       
       const response = await fetch(url);
-      console.log("vender detail",response);
+      console.log("vender detail response:", response);
       
       const data = await response.json();
+      console.log("vender detail data:", data);
       
       if (data.status === true && data.vendors) {
         console.log('Vendors from API:', data.vendors);
         setVendors(data.vendors);
-        setFilteredVendors(data.vendors);
+        // Apply filtering after fetching
+        filterVendorsByCategories(data.vendors);
       } else {
+        console.log('API response error:', data);
         setError('Failed to fetch vendors');
       }
     } catch (error) {
@@ -184,8 +182,8 @@ const VendorDetailScreen = ({navigation}:any) => {
         <TouchableOpacity 
           style={styles.backButton} 
           onPress={() => {
-            // Navigate back to VenderList screen
-            (navigation as any).navigate('Vendor');
+            // Navigate back to previous screen
+            navigation.goBack();
           }}
         >
           <Ionicons name="arrow-back" size={24} color="#bea063" />
@@ -614,17 +612,6 @@ const styles = StyleSheet.create({
   },
   vendorInfo: {
     flex: 1,
-  },
-  vendorName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
-  },
-  vendorCategory: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
   },
   vendorLocation: {
     fontSize: 12,

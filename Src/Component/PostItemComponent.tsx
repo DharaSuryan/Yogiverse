@@ -53,21 +53,21 @@ const PostItem: React.FC<PostItemProps> = ({ post, onLike, onSave, onComment }) 
             <Icon
               name={post.liked ? 'heart' : 'heart-outline'}
               size={28}
-              color={post.liked ? '#FF3B30' : '#262626'}
+              color={post.liked ? '#bea063' : '#bea063'}
             />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => onComment(post)}>
-            <Icon name="chatbubble-outline" size={24} color="#262626" />
+            <Icon name="chatbubble-outline" size={24} color="#bea063" />
           </TouchableOpacity>
           <TouchableOpacity>
-            <Icon name="paper-plane-outline" size={24} color="#262626" />
+            <Icon name="paper-plane-outline" size={24} color="#bea063" />
           </TouchableOpacity>
         </View>
         <TouchableOpacity onPress={onSave}>
           <Icon
             name={post.saved ? 'bookmark' : 'bookmark-outline'}
             size={24}
-            color="#262626"
+            color="#bea063"
           />
         </TouchableOpacity>
       </View>

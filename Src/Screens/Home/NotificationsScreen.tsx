@@ -14,7 +14,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MainTabParamList, HomeStackParamList } from '../../Navigation/types';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { Notification } from '../../Types';
+import { Notification } from '../../Navigation/types';
 import { useFocusEffect } from '@react-navigation/native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';

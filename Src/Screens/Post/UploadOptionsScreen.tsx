@@ -9,16 +9,17 @@ import {
   FlatList,
   Alert,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useNavigationState } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CreatePostStackParamList } from '../../Navigation/types';
 import { launchImageLibrary } from 'react-native-image-picker';
+import { navigationRef } from '../../Component/Route';
 
-type UploadOptionsScreenNavigationProp = NativeStackNavigationProp<CreatePostStackParamList>;
+// type UploadOptionsScreenNavigationProp = NativeStackNavigationProp<CreatePostStackParamList>;
 
 const UploadOptionsScreen = () => {
-  const navigation = useNavigation<UploadOptionsScreenNavigationProp>();
+  const navigation = useNavigation();
   const [navigating, setNavigating] = useState(false);
   const routes = useNavigationState(state => state.routeNames);
 
@@ -34,12 +35,7 @@ const UploadOptionsScreen = () => {
       description: 'Share a photo or video to your story',
       icon: 'add-circle-outline',
       onPress: () => {
-        try {
-          navigation.navigate('StoryUpload');
-        } catch (e) {
-          // fallback for nested/tab navigation
-          navigation.navigate('CreatePostTab', { screen: 'StoryUpload' });
-        }
+        navigationRef.current?.navigate('StoryUpload');
       },
     },
     {
@@ -94,7 +90,7 @@ const UploadOptionsScreen = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="close" size={24} color="#000" />
+          <Ionicons name="close" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.title}>Create New</Text>
         <View style={{ width: 24 }} />
@@ -111,14 +107,14 @@ const UploadOptionsScreen = () => {
             >
               <View style={styles.optionContent}>
                 <View style={styles.iconContainer}>
-                  <Icon name={item.icon} size={32} color="#bea063" />
+                  <Ionicons name={item.icon} size={32} color="#bea063" />
                 </View>
                 <View style={styles.textContainer}>
                   <Text style={styles.optionTitle}>{item.title}</Text>
                   <Text style={styles.optionDescription}>{item.description}</Text>
                 </View>
               </View>
-              <Icon name="chevron-forward" size={24} color="#bea063" style={styles.chevron} />
+              <Ionicons name="chevron-forward" size={24} color="#bea063" style={styles.chevron} />
             </TouchableOpacity>
           )}
         />

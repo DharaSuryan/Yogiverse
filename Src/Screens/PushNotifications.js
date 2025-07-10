@@ -6,6 +6,7 @@ import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import messaging from '@react-native-firebase/messaging';
 import InternetPermission from '../Screens/InternetPermission';
 import APIWebCall from '../Api/Api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 PushNotification.createChannel({
   channelId: 'yogi-notification-channel-id', // (required)
@@ -40,73 +41,6 @@ const PushNotifications = ({props, navigation}) => {
       .finally(() => {});
   };
 
-  async function requestUserPermission() {
-    const authStatus = await messaging().requestPermission();
-    const enabled =
-      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-
-    if (enabled) {
-      const fcmToken = await messaging().getToken();
-
-      //console.log('fcmmmmmm777777777777', fcmToken);
-
-      registerTokenAPICall(fcmToken);
-      // await PushNotification.configure({
-      //   onNotification: function (notification) {
-
-      //     // onNotificationReceive(notification);
-
-      //     if (Platform.OS == 'ios') {
-      //       // notification.finish(PushNotificationIOS.FetchResult.NoData);
-      //     }
-
-      //     if (notification.userInteraction) {
-      //       //When user click on notification then he is here
-
-      //       onPressNotification(notification.data);
-      //     }
-      //   },
-      //   permissions: {
-      //     alert: true,
-      //     badge: true,
-      //     sound: true,
-      //   },
-      //   popInitialNotification: true,
-      //   requestPermissions: true,
-      // });
-
-      await PushNotification.configure({
-        onNotification: function (notification) {
-          // onNotificationReceive(notification);
-
-          if (Platform.OS == 'ios') {
-            // if (
-            //   notification.foreground &&
-            //   (notification.userInteraction || notification.remote)
-            // ) {
-            //   PushNotification.localNotification(notification);
-            // }
-            // notification.finish(PushNotificationIOS.FetchResult.NoData);
-          }
-
-          if (notification.userInteraction) {
-            //When user click on notification then he is here
-            onPressNotification(notification.data);
-          }
-          //  dispatch(vendorHome(VendorInfoParam, true, false));
-        },
-        permissions: {
-          alert: true,
-          badge: true,
-          sound: true,
-        },
-        popInitialNotification: true,
-        requestPermissions: true,
-      });
-    }
-  }
-
   const onPressNotification = async (data) => {
     navigation.navigate('ChatScreen', {
       chat_id: data.chat_id,
@@ -118,7 +52,13 @@ const PushNotifications = ({props, navigation}) => {
   };
 
   useEffect(() => {
-    requestUserPermission();
+    const registerStoredToken = async () => {
+      const fcmToken = await AsyncStorage.getItem('fcmToken');
+      if (fcmToken) {
+        registerTokenAPICall(fcmToken);
+      }
+    };
+    registerStoredToken();
 
     const unsubscribe = messaging().onMessage(async (remoteMessage) => {
       console.warn('remoteMessage', remoteMessage);

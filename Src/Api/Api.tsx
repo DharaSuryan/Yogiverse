@@ -172,6 +172,24 @@ export const loginUser = async (credentials: { username: string; password: strin
     throw error;
   }
 };
+
+export const getStories = async (userId?: string): Promise<ApiResponse> => {
+  try {
+    const url = userId ? `stories/?user=${userId}` : 'stories/';
+    console.log("uer......",url);
+    
+    const response = await api.get(url);
+    // console.log("here comes response",response?.data?.data);
+    return {
+      data: response.data,
+      status: response.status,
+      message: 'Stories fetched successfully',
+    };
+  } catch (error) {
+    console.log("here comes error",error);
+    throw error;
+  }
+};
 export const logoutUser = async () => {
   try {
     const refreshToken = await AsyncStorage.getItem('refreshToken');
@@ -196,16 +214,101 @@ export const getProfile = async (): Promise<ApiResponse> => {
     message: 'Profile fetched successfully',
   };
 };
-export const getPost = async (): Promise<ApiResponse> => {
-  // console.log("get ");
-  
-  const response = await api.get(`/posts/`); // ✅ adjust if endpoint differs
+
+// Fetch posts for the logged-in user
+export const getUserPosts = async (): Promise<ApiResponse> => {
+  const response = await api.get('/posts/');
   return {
     data: response.data,
     status: response.status,
-    message: 'Profile fetched successfully',
+    message: 'Posts fetched successfully',
   };
 };
+
+// Fetch following count for the logged-in user
+export const getFollowingCount = async (): Promise<ApiResponse> => {
+  const response = await api.get('/follower/following');
+  return {
+    data: response.data,
+    status: response.status,
+    message: 'Following count fetched successfully',
+  };
+};
+
+// Fetch followers count for the logged-in user
+export const getFollowersCount = async (): Promise<ApiResponse> => {
+  const response = await api.get('/follower/followers');
+  console.log("here ....",response?.data?.data);
+  
+  return {
+    data: response.data,
+    status: response.status,
+    message: 'Followers count fetched successfully',
+  };
+};
+
+// Post creation API
+// export const postPosts  = async ({formData}:any): Promise<ApiResponse> => {
+//   const authToken = await AsyncStorage.getItem('accessToken');
+//   try {
+//    const response = await axios.post(`${BASE_URL}/posts/`, formData, {
+//       headers: {
+//         'Content-Type': 'multipart/form-data',
+//         'Authorization': `Bearer ${authToken}`
+//       },
+//     });
+//     return {
+//       data: response.data,
+//       status: response.status,
+//       message: 'Story Send successful',
+//       user: response.data.user,
+//       token: response.data.token
+//     };
+//   } catch (error) {
+//     throw error;
+//   }
+// }
+
+// Story creation API
+// export const postStories  = async ({formData}:any): Promise<ApiResponse> => {
+//   console.log("format data....",formData);
+//   const authToken = await AsyncStorage.getItem('accessToken');
+//   try {
+//     // Add checks and logs for formData
+//     if (!formData) {
+//       console.log('formData is undefined!');
+//       throw new Error('formData is undefined');
+//     }
+//     console.log('formData type:', typeof formData, formData instanceof FormData);
+//     if (typeof formData.entries === 'function') {
+//       for (let pair of formData.entries()) {
+//         console.log(pair[0]+ ', ' + JSON.stringify(pair[1]));
+//       }
+//     } else {
+//       console.log('formData.entries is not a function', formData);
+//       if (typeof formData.getParts === 'function') {
+//         console.log('formData parts:', formData.getParts());
+//       }
+//     }
+//     const response = await axios.post(`${BASE_URL}stories/`, formData, {
+//       headers: {
+//         'Content-Type': 'multipart/form-data',
+//         'Authorization': `Bearer ${authToken}`
+//         // 'Content-Type': 'multipart/form-data',
+//       },
+//     });
+//     return {
+//       data: response.data,
+//       status: response.status,
+//       message: 'Story Send successful',
+//       user: response.data.user,
+//       token: response.data.token
+//     };
+//   } catch
+//    (error) {
+//     throw error;
+//   }
+// };
 export const fetchCountries = async (page = 1, limit = 10): Promise<ApiResponse> => {
   try {
     const response = await api.get('/helper_app/countries/', { params: { page, limit } });
@@ -356,34 +459,45 @@ export const postReels  = async ({formData}:any): Promise<ApiResponse> => {
   }
 };
 
-const _REQUEST2SERVER_Authorization_Post_FCM = async (url: string, params: any = null) => {
-  const token = await AsyncStorage.getItem('emp_token');
+const _REQUEST2SERVER_Authorization_Post_FCM = async (url: string, params: any = null,token:any) => {
+  // const token = await AsyncStorage.getItem('emp_token');
+  console.log("urlurl",BASE_URL,url,token,params);
+  
+  const authToken = await AsyncStorage.getItem('accessToken');
+  console.log("authToken",authToken);
+  
+       
   var config = {
     method: 'post',
     url: BASE_URL + url,
     headers: {
-      Accept: 'application/json',
-      Authorization: 'token ' + token,
+     'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
      
     },
     data: params,
   };
+  console.log("configconfigconfig",config.url,params);
+  
   return await new Promise(function (resolve, reject) {
     console.log('config--->', config);
     axios(config)
       .then((data) => {
+        console.log("datadatadata",data);
+        
         if (data.data.status) resolve(data.data);
         else reject(data.data);
       })
       .catch((error) => {
+        console.log("errorerrorerror",error);
+        
         reject(error);
       });
   });
 };
-export const onAddDevicesAPICall = (params: any) => {
-  return _REQUEST2SERVER_Authorization_Post_FCM(`/fcm-token/`, params);
+export const onAddDevicesAPICall = (params: any,token:any) => {
+  return _REQUEST2SERVER_Authorization_Post_FCM(`fcm-token/`, params,token);
 };
-
 
 const registerFCMToken = async (token: string) => {
   try {
@@ -407,54 +521,69 @@ const registerFCMToken = async (token: string) => {
     console.error('Error registering FCM token:', error);
   }
 };
-export const getUserPosts = async (): Promise<ApiResponse> => {
-  const response = await api.get('/posts/');
-  return {
-    data: response.data,
-    status: response.status,
-    message: 'Posts fetched successfully',
-  };
-};
+// export const getUserPosts = async (): Promise<ApiResponse> => {
+//   const response = await api.get('/posts/');
+//   return {
+//     data: response.data,
+//     status: response.status,
+//     message: 'Posts fetched successfully',
+//   };
+// };
 
-// Fetch following count for the logged-in user
-export const getFollowingCount = async (): Promise<ApiResponse> => {
-  const response = await api.get('/follower/following');
-  return {
-    data: response.data,
-    status: response.status,
-    message: 'Following count fetched successfully',
-  };
-};
-
-// Fetch followers count for the logged-in user
-export const getFollowersCount = async (): Promise<ApiResponse> => {
-  const response = await api.get('/follower/followers');
-  // console.log("here ....",response?.data?.data);
-  
-  return {
-    data: response.data,
-    status: response.status,
-    message: 'Followers count fetched successfully',
-  };
-};
-
-// Fetch stories (GET)
-export const getStories = async (): Promise<ApiResponse> => {
+export const registerDeviceWithFCMToken = async ({ device_name, device_type, token, access_token }: { device_name: string, device_type: string, token: string, access_token: string }) => {
   try {
-    const response = await api.get('/stories');
-    console.log("here comes response",response?.data?.data);
-    
-    return {
-      data: response.data,
-      status: response.status,
-      message: 'Stories fetched successfully',
-    };
+    const response = await axios.post(
+      'https://pashuahar.com/fcm-token/',
+      {
+        device_name,
+        device_type,
+        token,
+      },
+      {
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${access_token}`,
+        },
+      }
+    );
+    return response.data;
   } catch (error) {
-    console.log("here comes error",error);
-    
+    // Forward the error for handling in the caller
     throw error;
   }
 };
+
+export default api;
+
+// Fetch followers count for the logged-in user
+// export const getFollowersCount = async (): Promise<ApiResponse> => {
+//   const response = await api.get('/follower/followers');
+//   // console.log("here ....",response?.data?.data);
+  
+//   return {
+//     data: response.data,
+//     status: response.status,
+//     message: 'Followers count fetched successfully',
+//   };
+// };
+
+// Fetch stories (GET)
+// export const getStories = async (): Promise<ApiResponse> => {
+//   try {
+//     const response = await api.get('/stories');
+//     console.log("here comes response",response?.data?.data);
+    
+//     return {
+//       data: response.data,
+//       status: response.status,
+//       message: 'Stories fetched successfully',
+//     };
+//   } catch (error) {
+//     console.log("here comes error",error);
+    
+//     throw error;
+//   }
+// };
 // post("/change-password/", {
 //             old_password: oldPassword,
 //             new_password: newPassword,
@@ -490,3 +619,26 @@ export type VendorStackParamList = {
   VendorList: undefined;
   VendorDetail: { vendorId: string };
 };
+
+// export const postReels  = async ({formData}:any): Promise<ApiResponse> => {
+//   const authToken = await AsyncStorage.getItem('accessToken');
+//   console.log("formData",BASE_URL,formData,);
+  
+//   try {
+//     const response = await axios.post(`${BASE_URL}reels/`, formData, {
+//       headers: {
+//         'Content-Type': 'multipart/form-data',
+//         'Authorization': `Bearer ${authToken}`
+//       },
+//     });
+//     return {
+//       data: response.data,
+//       status: response.status,
+//       message: 'Story Send successful',
+//       user: response.data.user,
+//       token: response.data.token
+//     };
+//   } catch (error) {
+//     throw error;
+//   }
+// };

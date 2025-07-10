@@ -45,7 +45,7 @@ interface Post {
   allMedia?: string[]; // All media files for this post
 }
 
-const UserProfileScreen = () => {
+const UserProfileScreen = ({navigation}:any) => {
   const [activeTab, setActiveTab] = useState<'posts' | 'reels' | 'saved'>(
     'posts',
   );
@@ -422,7 +422,7 @@ const UserProfileScreen = () => {
     }
   };
 
-  const navigation = useNavigation<any>();
+  // const navigation = useNavigation<any>();
 
   // Video control functions
   const toggleMute = (itemId: string) => {
@@ -737,12 +737,12 @@ console.log("datat......" , data);
         console.log("profileDataprofileData",profileData);
 
         setProfile({
-          username: profileData.username || 'jk',
+          username: profileData.username || '',
           fullName:
             `${profileData.first_name || ''} ${
               profileData.last_name || ''
-            }`.trim() || 'Jay Chhaniyara',
-          bio: profileData.bio || 'Its Boy Jk',
+            }`.trim() || '',
+          bio: profileData.bio || '',
           profileImage:
             profileData.profile_picture || 'https://picsum.photos/200',
           postsCount: isFromSearch ? response?.data?.data?.post_reels_count : profileData.posts_count || 8,
@@ -1451,7 +1451,7 @@ console.log("datat......" , data);
             )}
             <Text
               style={{
-                color: '#fff',
+                color: '#bea063',
                 fontSize: 15,
                 marginLeft: 6,
                 marginRight: 18,
@@ -1462,8 +1462,8 @@ console.log("datat......" , data);
           <TouchableOpacity
             onPress={() => handleComment(item)}
             style={{flexDirection: 'row', alignItems: 'center'}}>
-            <Ionicons name="chatbubble-outline" size={20} color="#fff" />
-            <Text style={{color: '#fff', fontSize: 15, marginLeft: 6}}>
+            <Ionicons name="chatbubble-outline" size={20} color="#bea063" />
+            <Text style={{color: '#bea063', fontSize: 15, marginLeft: 6}}>
               {item.comments}
             </Text>
           </TouchableOpacity>
@@ -1529,6 +1529,13 @@ console.log("datat......" , data);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followStatus, setFollowStatus] = useState('');
   const [followLoading, setFollowLoading] = useState(false);
+
+  const handleBack = () => {
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'MainTab', params: { screen: 'HomeTab' } }],
+    });
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -1602,6 +1609,14 @@ console.log("datat......" , data);
             <ActivityIndicator size="large" color="#bea063" />
           </View>
         )}
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16 }}>
+            <TouchableOpacity onPress={()=> navigation.goBack()} style={{ marginRight: 16 }}>
+              <Ionicons name="arrow-back" size={28} color="#333" />
+            </TouchableOpacity>
+          
+          </View>
+        </SafeAreaView>
         {renderProfileHeader()}
         {renderBio()}
         {

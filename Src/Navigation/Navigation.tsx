@@ -40,9 +40,7 @@ import ReelCameraScreen from '../Screens/Post/ReelCameraScreen';
 import ReelPreviewScreen from '../Screens/Post/ReelPreviewScreen';
 import ReelEditorScreen from '../Screens/Post/ReelEditorScreennew';
 
-import VenderList from '../Screens/Vender/VenderList';
-import VendorDetailScreen from '../Screens/Vender/VenderDetail';
-import VendoerSubcategory from '../Screens/Vender/VendoerSubcategory';
+import VendorNavigator from './VendorNavigator';
 
 import ProfileScreen from '../Screens/Profile/ProfileScreen';
 import EditProfileScreen from '../Screens/Profile/EditProfile';
@@ -60,9 +58,10 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import ChangePasswordScreen from '../Screens/Profile/ChangePassword';
 import ChatListScreen from '../Screens/Home/ChatListScreen';
 import ChatScreen from '../Screens/Home/ChatScreen';
-import LocationListScreen from '../Screens/Location/LocationListScreen';
 import MediaPicker from '../Screens/Post/Mediapicker';
 import StoryUploadScreen from '../Screens/Post/StoryUploadScreen';
+import StoryViewerScreen from '../Screens/Story/StoryViewerScreen';
+import CollectionPostDetailScreen from '../Screens/Saved/CollectionPostDetailScreen';
 
 // Navigators
 const Stack = createNativeStackNavigator();
@@ -70,11 +69,6 @@ const AuthStack = createNativeStackNavigator();
 
 const MainTabs = createBottomTabNavigator();
 
-// const HomeStack = createNativeStackNavigator();
-// const CreatePostStack = createNativeStackNavigator();
-// const SearchStack = createNativeStackNavigator();
-// const ProfileStack = createNativeStackNavigator();
-// const VendorStack = createNativeStackNavigator();
 
 function AuthStackScreen() {
   return (
@@ -148,139 +142,19 @@ function MainTabScreen() {
         },
       })}
       initialRouteName="HomeTab">
-      {/* <MainTabs.Screen name="HomeTab" component={HomeStackScreen} />
-      <MainTabs.Screen name="SearchTab" component={SearchStackScreen} />
-      <MainTabs.Screen name="CreatePostTab" component={CreatePostStackScreen} />
-      <MainTabs.Screen name="VendorTab" component={VendorStackScreen} />
-      <MainTabs.Screen name="ProfileTab" component={ProfileStackScreen} /> */}
-
       <MainTabs.Screen name="HomeTab" component={HomeScreen} />
       <MainTabs.Screen name="SearchTab" component={SearchScreen} />
       <MainTabs.Screen name="UploadOptions" component={UploadOptionsScreen} />
-      <MainTabs.Screen name="Vendor" component={VenderList} />
+      <MainTabs.Screen name="Vendor" component={VendorNavigator} />
       <MainTabs.Screen name="Profile" component={ProfileScreen} />
     </MainTabs.Navigator>
   );
 }
 
-// function HomeStackScreen() {
-//   return (
-//     <HomeStack.Navigator screenOptions={{headerShown: false}}>
-//       <HomeStack.Screen name="Home" component={HomeScreen} />
-//       <HomeStack.Screen name="PostDetails" component={PostScreen} />
-//       <HomeStack.Screen name="Notifications" component={NotificationsScreen} />
-//     </HomeStack.Navigator>
-//   );
-// }
-
-// function SearchStackScreen() {
-//   return (
-//     <SearchStack.Navigator screenOptions={{headerShown: false}}>
-//       <SearchStack.Screen name="Search" component={SearchScreen} />
-//       <SearchStack.Screen name="SearchDetail" component={SearchDetailScreen} />
-//       <SearchStack.Screen
-//         name="TrendingDetailScreen"
-//         component={TrendingDetailScreen}
-//       />
-//       <SearchStack.Screen
-//         name="SubCateGoryDisplay"
-//         component={SubCateGoryDisplay}
-//       />
-//     </SearchStack.Navigator>
-//   );
-// }
-
-// function ProfileStackScreen() {
-//   return (
-//     <ProfileStack.Navigator screenOptions={{headerShown: false}}>
-//       <ProfileStack.Screen name="Profile" component={ProfileScreen} />
-//       <ProfileStack.Screen name="Menu" component={MenuScreen} />
-//       <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
-//       <ProfileStack.Screen
-//         name="CollectionDetailScreen"
-//         component={CollectionDetailScreen}
-//       />
-//       <ProfileStack.Screen
-//         name="CreateCollectionScreen"
-//         component={CreateCollectionScreen}
-//       />
-//       <ProfileStack.Screen
-//         name="ProfilePostDetailScreen"
-//         component={ProfilePostDetailScreen}
-//       />
-//     </ProfileStack.Navigator>
-//   );
-// }
-
-// function VendorStackScreen() {
-//   return (
-//     <VendorStack.Navigator screenOptions={{headerShown: false}}>
-//       <VendorStack.Screen name="Vendor" component={VenderList} />
-//       <VendorStack.Screen name="VenderDetail" component={VendorDetailScreen} />
-//       <VendorStack.Screen
-//         name="VendoerSubcategory"
-//         component={VendoerSubcategory}
-//       />
-//     </VendorStack.Navigator>
-//   );
-// }
-
-// function CreatePostStackScreen() {
-//   return (
-//     <CreatePostStack.Navigator screenOptions={{headerShown: false}}>
-//       <CreatePostStack.Screen
-//         name="UploadOptions"
-//         component={UploadOptionsScreen}
-//       />
-//       <CreatePostStack.Screen
-//         name="MediaPicker"
-//         component={MediaPickerScreen}
-//       />
-//       <CreatePostStack.Screen
-//         name="MediaFilter"
-//         component={MediaFilterScreen}
-//       />
-//       <CreatePostStack.Screen
-//         name="StoryCamera"
-//         component={StoryCameraScreen}
-//       />
-//       <CreatePostStack.Screen
-//         name="StoryPreview"
-//         component={StoryPreviewScreen}
-//       />
-//       <CreatePostStack.Screen name="ReelCamera" component={ReelCameraScreen} />
-//       <CreatePostStack.Screen
-//         name="ReelPreview"
-//         component={ReelPreviewScreen}
-//       />
-//       <CreatePostStack.Screen name="ReelEditor" component={ReelEditorScreen} />
-//       <CreatePostStack.Screen
-//         name="PostPreview"
-//         component={PostPreviewScreen}
-//       />
-//       <CreatePostStack.Screen
-//         name="PostDetails"
-//         component={PostDetailsScreen}
-//       />
-//       <CreatePostStack.Screen name="Post" component={PostScreen} />
-//       <CreatePostStack.Screen name="UploadPost" component={UploadPost} />
-//     </CreatePostStack.Navigator>
-//   );
-// }
-// tabBarIcon: ({ focused, color, size }) => {
-//           let iconName = focused
-//             ? route.name.toLowerCase()
-//             : `${route.name.toLowerCase()}-outline`;
-//           if (route.name === "CreatePostTab")
-//             iconName = focused ? "add-circle" : "add-circle-outline";
-//           if (route.name === "VendorTab")
-//             iconName = focused ? "meditation" : "meditation-outline";
-//           return <Icon name={iconName} size={size} color={color} />;
-//         },
-
 const Navigation = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
 
   useEffect(() => {
     checkAuth();
@@ -323,16 +197,12 @@ const Navigation = () => {
           name="CreateCollectionScreen"
           component={CreateCollectionScreen}
         />
+        <Stack.Screen name='CollectionPostDetail' component={CollectionPostDetailScreen}/>
         <Stack.Screen
           name="ProfilePostDetailScreen"
           component={ProfilePostDetailScreen}
         />
-        <Stack.Screen name="Vendor" component={VenderList} />
-        <Stack.Screen name="VenderDetail" component={VendorDetailScreen} />
-        <Stack.Screen
-          name="VendoerSubcategory"
-          component={VendoerSubcategory}
-        />
+        <Stack.Screen name="TrendingDetailScreen" component={TrendingDetailScreen}/>
         <Stack.Screen name="UploadOptions" component={UploadOptionsScreen} />
         <Stack.Screen name="MediaPicker" component={MediaPickerScreen} />
         <Stack.Screen name="MediaFilter" component={MediaFilterScreen} />
@@ -344,8 +214,8 @@ const Navigation = () => {
         <Stack.Screen name="PostPreview" component={PostPreviewScreen} />
         <Stack.Screen name="Post" component={PostScreen} />
         <Stack.Screen name="UploadPost" component={UploadPost} />
-        {/* <Stack.Screen name="StoryCreation" component={StoryCreation} />
-        <Stack.Screen name="StoryViewerScreen" component={StoryViewerScreen} /> */}
+        {/* <Stack.Screen name="StoryCreation" component={StoryCreation} /> */}
+        <Stack.Screen name="StoryViewerScreen" component={StoryViewerScreen} />
         <Stack.Screen name="UserProfile" component={UserProfileScreen} />
         <Stack.Screen
           name="FollowersFollowingScreen"
@@ -356,11 +226,11 @@ const Navigation = () => {
           name="SubCateGoryDisplay"
           component={SubCateGoryDisplay}
         />
+        <Stack.Screen name="StoryUpload" component={StoryUploadScreen} />
       </Stack.Navigator>
       <Stack.Screen name="ChatListScreen" component={ChatListScreen} />
       <Stack.Screen name="ChatScreen" component={ChatScreen} />
       <Stack.Screen name="MediaPicker" component={MediaPicker} />
-      <Stack.Screen name="StoryUpload" component={StoryUploadScreen} />
       <Stack.Screen name="ReelEditorScreen" component={ReelEditorScreen} />
       {/* <Stack.Screen name="StoryCreation" component={StoryCreation} /> */}
       <Stack.Screen

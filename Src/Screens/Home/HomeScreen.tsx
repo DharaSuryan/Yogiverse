@@ -1,166 +1,101 @@
-import React, {useEffect, useState, useCallback} from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  Image,
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-} from 'react-native';
-import {useNavigation, useFocusEffect} from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import axios from 'axios';
 import Post from '../../Component/Post';
 import ShareModal from '../../Components/ShareModal';
-import {Post as PostType, Story} from '../../Types/index';
+import { Post as PostType, Story } from '../../Types/index';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {getStories} from '../../Api/Api';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {RootStackParamList} from '../../Navigation/types';
-import Video from 'react-native-video';
+import { getStories, getProfile } from '../../Api/Api';
 
-// Add dummyStories fallback at the top
-// const dummyStories: (Partial<Story> | any)[] = [
-//   { id: 'add', type: 'add' },
-//   {
-//     id: '1',
-//     userId: '1',
-//     username: 'Your Story',
-//     userProfilePicture: 'https://via.placeholder.com/150/FF0000/FFFFFF?text=Your+Story',
-//     mediaUrl: 'https://via.placeholder.com/400/FF0000/FFFFFF?text=Test+Image',
-//     imageUrl: 'https://via.placeholder.com/400/FF0000/FFFFFF?text=Test+Image',
-//     type: 'image',
-//     timestamp: new Date().toISOString(),
-//     duration: 5000,
-//     viewers: [],
-//     isViewed: false,
-//     createdAt: new Date().toISOString(),
-//     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-//     user: {
-//       username: 'Your Story',
-//       email: 'your@story.com',
-//       isVerified: false
-//     }
-//   },
-//   {
-//     id: '2',
-//     userId: '2',
-//     username: 'Jane Doe',
-//     userProfilePicture: 'https://via.placeholder.com/150/00FF00/FFFFFF?text=Jane',
-//     mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-//     imageUrl: 'https://via.placeholder.com/400/00FF00/FFFFFF?text=Video+Thumb',
-//     type: 'video',
-//     timestamp: new Date().toISOString(),
-//     duration: 5000,
-//     viewers: [],
-//     isViewed: false,
-//     createdAt: new Date().toISOString(),
-//     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-//     user: {
-//       username: 'Jane Doe',
-//       email: 'jane@example.com',
-//       isVerified: false
-//     }
-//   },
-//   {
-//     id: '3',
-//     userId: '3',
-//     username: 'John Smith',
-//     userProfilePicture: 'https://via.placeholder.com/150/0000FF/FFFFFF?text=John',
-//     mediaUrl: 'https://via.placeholder.com/400/0000FF/FFFFFF?text=Another+Image',
-//     imageUrl: 'https://via.placeholder.com/400/0000FF/FFFFFF?text=Another+Image',
-//     type: 'image',
-//     timestamp: new Date().toISOString(),
-//     duration: 5000,
-//     viewers: [],
-//     isViewed: false,
-//     createdAt: new Date().toISOString(),
-//     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-//     user: {
-//       username: 'John Smith',
-//       email: 'john@example.com',
-//       isVerified: false
-//     }
-//   },
-//   {
-//     id: '4',
-//     userId: '4',
-//     username: 'Alice',
-//     userProfilePicture: 'https://via.placeholder.com/150/FFFF00/000000?text=Alice',
-//     mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-//     imageUrl: 'https://via.placeholder.com/400/FFFF00/000000?text=Video+Thumb+2',
-//     type: 'video',
-//     timestamp: new Date().toISOString(),
-//     duration: 5000,
-//     viewers: [],
-//     isViewed: false,
-//     createdAt: new Date().toISOString(),
-//     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-//     user: {
-//       username: 'Alice',
-//       email: 'alice@example.com',
-//       isVerified: false
-//     }
-//   },
-//   {
-//     id: '5',
-//     userId: '5',
-//     username: 'Bob',
-//     userProfilePicture: 'https://via.placeholder.com/150/FF00FF/FFFFFF?text=Bob',
-//     mediaUrl: 'https://via.placeholder.com/400/FF00FF/FFFFFF?text=Bob+Image',
-//     imageUrl: 'https://via.placeholder.com/400/FF00FF/FFFFFF?text=Bob+Image',
-//     type: 'image',
-//     timestamp: new Date().toISOString(),
-//     duration: 5000,
-//     viewers: [],
-//     isViewed: false,
-//     createdAt: new Date().toISOString(),
-//     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-//     user: {
-//       username: 'Bob',
-//       email: 'bob@example.com',
-//       isVerified: false
-//     }
-//   },
-// ];
+const Ionicons = require('react-native-vector-icons/Ionicons').default;
 
-export default function HomeScreen({navigation}: any) {
+export default function HomeScreen({ navigation }: any) {
   // const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [selectedPost, setSelectedPost] = useState<PostType | null>(null);
   const [posts, setPosts] = useState<PostType[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const pageSize = 10;
   const [error, setError] = useState<string | null>(null);
   const [stories, setStories] = useState<Story[]>([]);
   const [storiesLoading, setStoriesLoading] = useState(true);
   const [storiesError, setStoriesError] = useState<string | null>(null);
   const [viewedStories, setViewedStories] = useState<Set<string>>(new Set());
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(null);
+  const [userid,setUserId] = useState();
+  const [myStories, setMyStories] = useState<Story[]>([]);
+  const [allStories, setAllStories] = useState<Story[]>([]);
 
-  const fetchPosts = async () => {
-    setLoading(true);
+  useEffect(() => {
+    getData()
+  }, []);
+
+  // Fetch posts and stories only after userid is set
+  useEffect(() => {
+    if (userid) {
+      fetchPosts(1, false); // Always fetch first page when userid is set
+      fetchStories();
+    }
+  }, [userid]);
+
+  const getData = async () => {
+
+    await AsyncStorage.getItem('userId').then(setCurrentUserId);
+    // Fetch profile picture
+    await getProfile().then(profileRes => {
+      const profilePic = profileRes?.data?.data?.profile?.profile_picture
+      console.log("profile pix...." , profileRes?.data?.data?.profile?.id);
+      setUserId(profileRes?.data?.data?.profile?.id)
+      
+      setCurrentUserAvatar(profilePic || 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User');
+    });
+  }
+
+  const fetchPosts = async (pageToFetch = 1, isRefresh = false) => {
+    console.log('fetchPosts called', { loading, loadingMore, refreshing, pageToFetch, hasNextPage });
+    if (loading || loadingMore || refreshing) return;
+    if (pageToFetch > 1 && !hasNextPage) return;
+
+    if (isRefresh) {
+      setRefreshing(true);
+      setPage(1);
+      setHasNextPage(true);
+    } else if (pageToFetch === 1) {
+      setLoading(true);
+      setPage(1);
+      setHasNextPage(true);
+    } else {
+      setLoadingMore(true);
+    }
+
     setError(null);
     try {
       const authToken = await AsyncStorage.getItem('accessToken');
       const headers = {
-        Accept: 'application/json',
-        Authorization: `Bearer ${authToken}`,
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${authToken}`
       };
-      const res = await axios.get('https://pashuahar.com/home-feed/', {
-        headers,
-      });
-      console.log('res .....', res?.data?.data?.results);
-
-      setPosts(res.data?.data?.results || []);
+      const res = await axios.get(`https://pashuahar.com/home-feed/?page=${pageToFetch}&page_size=${pageSize}`, { headers });
+      const newPosts = res.data?.data?.results || [];
+      if (isRefresh || pageToFetch === 1) {
+        setPosts(newPosts);
+        setPage(1);
+      } else {
+        setPosts(prev => [...prev, ...newPosts]);
+        setPage(pageToFetch);
+      }
+      setHasNextPage(newPosts.length === pageSize);
     } catch (err) {
-      console.log('error .....comes ', err);
-
-      setError('Failed to load posts error');
+      setError('Failed to load posts');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+      setRefreshing(false);
     }
   };
 
@@ -169,142 +104,96 @@ export default function HomeScreen({navigation}: any) {
     setStoriesError(null);
     try {
       const res = await getStories();
-      console.log('stores api data ---->>', JSON.stringify(res));
       const apiStories = res.data?.data || [];
-      console.log(
-        'API Stories structure:',
-        JSON.stringify(apiStories, null, 2),
-      );
-
-      if (Array.isArray(apiStories) && apiStories.length > 0) {
-        // Log the first story to see its structure
-        if (apiStories[0]) {
-          console.log(
-            'First story structure:',
-            JSON.stringify(apiStories[0], null, 2),
-          );
-          console.log('First story keys:', Object.keys(apiStories[0]));
-        }
-
-        // Map API response to Story interface
-        const mappedStories = apiStories.map((apiStory: any) => ({
-          id: apiStory.id.toString(),
-          userId: apiStory.user.toString(),
+      console.log("useriduseriduserid",userid);
+      
+      console.log("api res .....", apiStories);
+      
+      // Split stories into personal and others
+      const myStoriesArr = apiStories.filter((apiStory: any) => String(apiStory.profile?.id) === String(userid)).map((apiStory: any) => ({
+        id: apiStory.id.toString(),
+        userId: apiStory.user?.toString?.() || apiStory.profile?.id?.toString?.() || '',
+        username: apiStory.profile?.username || 'Unknown User',
+        userProfilePicture: apiStory.profile?.profile_picture || 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User',
+        mediaUrl: apiStory.media_file,
+        imageUrl: apiStory.media_file,
+        type: (apiStory.media_file?.toLowerCase().endsWith('.mp4') ? 'video' : 'image') as 'image' | 'video',
+        timestamp: apiStory.created_at,
+        duration: 5000,
+        viewers: [],
+        isViewed: !apiStory.is_seen ? false : true,
+        createdAt: apiStory.created_at,
+        expiresAt: apiStory.expires_at,
+        caption: apiStory.caption || '',
+        location: '',
+        user: {
           username: apiStory.profile?.username || 'Unknown User',
-          userProfilePicture:
-            apiStory.profile?.profile_picture ||
-            'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User',
-          mediaUrl: apiStory.media_file, // This is the key field for media
-          imageUrl: apiStory.media_file, // Use same URL for imageUrl
-          type: (apiStory.media_file?.toLowerCase().endsWith('.mp4')
-            ? 'video'
-            : 'image') as 'image' | 'video', // Determine type by file extension
-          timestamp: apiStory.created_at,
-          duration: 5000,
-          viewers: [],
-          isViewed: false,
-          createdAt: apiStory.created_at,
-          expiresAt: apiStory.expires_at,
-          caption: apiStory.caption || '',
-          location: '',
-          user: {
-            username: apiStory.profile?.username || 'Unknown User',
-            email: apiStory.profile?.email || '',
-            isVerified: false,
-          },
-        }));
-
-        console.log('Mapped stories:', mappedStories);
-        setStories(mappedStories);
-      }
-      // console.log("Using dummy stories as fallback");
-      // setStories(dummyStories.slice(1) as Story[]); // skip 'add' for API fallback
+          email: apiStory.profile?.email || '',
+          isVerified: false
+        }
+      }));
+      setMyStories(myStoriesArr);
+      const othersArr = apiStories.filter((apiStory: any) => String(apiStory.profile?.id) !== String(userid)).map((apiStory: any) => ({
+        id: apiStory.id.toString(),
+        userId: apiStory.user?.toString?.() || apiStory.profile?.id?.toString?.() || '',
+        username: apiStory.profile?.username || 'Unknown User',
+        userProfilePicture: apiStory.profile?.profile_picture || 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User',
+        mediaUrl: apiStory.media_file,
+        imageUrl: apiStory.media_file,
+        type: (apiStory.media_file?.toLowerCase().endsWith('.mp4') ? 'video' : 'image') as 'image' | 'video',
+        timestamp: apiStory.created_at,
+        duration: 5000,
+        viewers: [],
+        isViewed: !apiStory.is_seen ? false : true,
+        createdAt: apiStory.created_at,
+        expiresAt: apiStory.expires_at,
+        caption: apiStory.caption || '',
+        location: '',
+        user: {
+          username: apiStory.profile?.username || 'Unknown User',
+          email: apiStory.profile?.email || '',
+          isVerified: false
+        }
+      }));
+      setAllStories(othersArr);
     } catch (err) {
-      console.log('Error fetching stories, using dummy data:', err);
-      // setStories(dummyStories.slice(1) as Story[]); // skip 'add' for error fallback
+      setMyStories([]);
+      setAllStories([]);
       setStoriesError('Failed to load stories');
     } finally {
       setStoriesLoading(false);
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchPosts();
-      fetchStories();
-    }, []),
-  );
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchPosts().finally(() => setRefreshing(false));
-  }, []);
-
-  const handleShare = (post: PostType) => {
-    setSelectedPost(post);
-    setShareModalVisible(true);
+  const onRefresh = () => {
+    fetchPosts(1, true);
   };
 
-  const handleStoryPress = (story: Story) => {
-    // Mark story as viewed
-    setViewedStories(prev => new Set([...prev, story.id]));
-    // Navigate to story viewer
-    navigation.navigate('StoryViewerScreen', {story});
+  const onEndReached = () => {
+    if (!loading && !loadingMore && !refreshing && hasNextPage) {
+      fetchPosts(page + 1);
+    }
   };
+
 
   // Helper function to get user initials
-  const getUserInitials = (username: string): string => {
-    if (!username) return '?';
-    const words = username.split(' ');
-    if (words.length >= 2) {
-      return (words[0][0] + words[1][0]).toUpperCase();
-    }
-    return username.substring(0, 2).toUpperCase();
-  };
 
   // Helper function to render user avatar with fallback
-  const renderUserAvatar = (story: Story) => {
-    const avatar = story.userProfilePicture;
-    const username = story.username;
 
-    // If no avatar or avatar is null/empty, show initials placeholder
-    if (!avatar || avatar === 'null' || avatar === '') {
-      return (
-        <View
-          style={[
-            styles.storyAvatar,
-            styles.avatarPlaceholder,
-            {borderColor: viewedStories.has(story.id) ? '#999' : '#bea063'},
-          ]}>
-          <Text style={styles.avatarInitials}>{getUserInitials(username)}</Text>
-        </View>
-      );
-    }
-
-    // Show image with fallback
-    return (
-      <Image
-        source={{uri: avatar}}
-        style={[
-          styles.storyAvatar,
-          {borderColor: viewedStories.has(story.id) ? '#999' : '#bea063'},
-        ]}
-        onError={() => {
-          console.log('Profile image failed to load for:', username);
-        }}
-        defaultSource={require('../../Assets/yoga.jpg')}
-      />
-    );
-  };
-
-  const renderPost = ({item}: {item: any}) => {
+  const renderPost = ({ item }: { item: any }) => {
     const post = item.data || {};
     const profile = item.profile || {};
+
+    // Determine avatar
+    let userAvatar = profile.profile_picture;
+    const showDefaultIcon = !userAvatar || userAvatar === 'null' || userAvatar === '' || userAvatar.includes('placeholder.com');
+
+    // Prepare avatar element
 
     if (item.type === 'reel') {
       // Prepare media array for Post component
       const media = post.video_file
-        ? [{media_file: post.video_file, is_video: true}]
+        ? [{ media_file: post.video_file, is_video: true }]
         : [];
 
       return (
@@ -352,12 +241,81 @@ export default function HomeScreen({navigation}: any) {
     );
   };
 
+  console.log('currentUserId:', currentUserId);
+  console.log('stories:', stories);
+
+  // Group allStories by user
+  const groupedStories = allStories.reduce((acc: any, story: any) => {
+    const userId = story.userId;
+    if (!acc[userId]) acc[userId] = [];
+    acc[userId].push(story);
+    return acc;
+  }, {});
+  const groupedStoriesArray = Object.values(groupedStories);
+
+  const renderStoryCircle = (userStories: any[]) => {
+    const firstStory = userStories[0];
+    // Use isViewed (or is_seen) to determine border color
+    const hasUnseen = userStories.some(s => !s.isViewed && !s.is_seen);
+    const avatar = firstStory.userProfilePicture || '';
+    const username = firstStory.username || 'Unknown';
+    const showDefaultIcon = !avatar || avatar === 'null' || avatar === '' || avatar.includes('placeholder.com');
+    if (showDefaultIcon) {
+      console.log('Rendering default icon for', username, avatar);
+    }
+    return (
+      <View style={{ alignItems: 'center', marginRight: 12 }} key={firstStory.userId || firstStory.username}>
+        <TouchableOpacity
+          style={{ position: 'relative' }}
+          onPress={() => {
+            // Open StoryViewerScreen with all stories for this user
+            navigation.navigate('StoryViewerScreen', {
+              stories: userStories,
+              initialIndex: 0,
+              isPersonal: String(firstStory.userId) === String(currentUserId),
+            });
+          }}
+          activeOpacity={0.7}
+        >
+          {showDefaultIcon ? (
+            <View
+              style={{
+                width: 62,
+                height: 62,
+                borderRadius: 31,
+                borderWidth: 2,
+                borderColor: hasUnseen ? '#bea063' : '#999',
+                backgroundColor: '#f5f5f5',
+                justifyContent: 'center',
+                alignItems: 'center',
+                overflow: 'hidden',
+              }}
+            >
+              <Ionicons name="person-circle" size={48} color="#bea063" style={{}} />
+            </View>
+          ) : (
+            <Image
+              source={{ uri: avatar }}
+              style={{
+                width: 62,
+                height: 62,
+                borderRadius: 31,
+                borderWidth: 2,
+                borderColor: hasUnseen ? '#bea063' : '#999',
+              }}
+            />
+          )}
+        </TouchableOpacity>
+        <Text style={styles.storyUsername} numberOfLines={1}>{username}</Text>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        {/* <Text style={styles.headerTitle}>Yogiverse</Text> */}
-        <Image
+      <Image
           source={require('../../Assets/Logo.png')}
           style={{
             height: 36,
@@ -366,24 +324,12 @@ export default function HomeScreen({navigation}: any) {
           }}
           resizeMode="contain"
         />
-
         <View style={styles.headerIcons}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Notifications' as never)}>
-            {React.createElement(Icon as any, {
-              name: 'heart-outline',
-              size: 24,
-              color: '#bea063',
-              style: styles.icon,
-            })}
+          <TouchableOpacity onPress={() => navigation.navigate('Notifications' as never)}>
+            <Ionicons name="heart-outline" size={24} color="#bea063" style={styles.icon} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => console.log('Messages')}>
-            {React.createElement(Icon as any, {
-              name: 'chatbubble-outline',
-              size: 24,
-              color: '#bea063',
-              style: styles.icon,
-            })}
+          <TouchableOpacity onPress={() => navigation.navigate('ChatListScreen')}>
+            <Ionicons name="chatbubble-outline" size={24} color="#bea063" style={styles.icon} />
           </TouchableOpacity>
         </View>
       </View>
@@ -391,87 +337,92 @@ export default function HomeScreen({navigation}: any) {
       <ScrollView>
         {/* Stories Section */}
         {storiesLoading ? (
-          <ActivityIndicator size="small" style={{marginVertical: 20}} />
+          <ActivityIndicator size="small" style={{ marginVertical: 20 }} />
         ) : storiesError ? (
-          <Text style={{color: 'red', textAlign: 'center', marginVertical: 20}}>
-            {storiesError}
-          </Text>
+          <Text style={{ color: 'red', textAlign: 'center', marginVertical: 20 }}>{storiesError}</Text>
         ) : (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.storyList}>
-            {/* Add Story Button */}
-            <TouchableOpacity
-              style={styles.addStoryButton}
-              onPress={() => navigation.navigate('StoryCreation')}>
-              {React.createElement(Icon as any, {
-                name: 'add',
-                size: 30,
-                color: '#bea063',
-              })}
-              <Text style={styles.addStoryText}>Add Story</Text>
-            </TouchableOpacity>
-
-            {/* Stories */}
-            {stories.map(story => {
-              console.log('here comes story .....', story);
-              const isVideo =
-                story.type === 'video' ||
-                story.mediaUrl?.toLowerCase().endsWith('.mp4');
-
-              return (
-                <TouchableOpacity
-                  key={story.id}
-                  style={styles.storyItem}
-                  onPress={() => handleStoryPress(story)}>
-                  <View style={styles.storyAvatarContainer}>
-                    {renderUserAvatar(story)}
-                    {/* Story type indicator */}
-                    {isVideo && (
-                      <View style={styles.videoIndicator}>
-                        {React.createElement(Icon as any, {
-                          name: 'videocam',
-                          size: 12,
-                          color: '#bea063',
-                        })}
-                      </View>
-                    )}
-                    {/* Story preview overlay */}
-                    <View
-                      style={[
-                        styles.storyPreviewOverlay,
-                        {
-                          borderColor: viewedStories.has(story.id)
-                            ? '#999'
-                            : '#bea063',
-                        },
-                      ]}>
-                      <View style={styles.storyPreviewInner} />
-                    </View>
+            contentContainerStyle={styles.storyList}
+          >
+            {/* My Story Avatar with Add Icon */}
+            <View style={{ alignItems: 'center', marginRight: 12 }}>
+              <TouchableOpacity
+                style={{ position: 'relative' }}
+                onPress={() => {
+                  console.log("my store .....", myStories);
+                  
+                  if (myStories.length > 0) {
+                    navigation.navigate('StoryViewerScreen', {
+                      stories: myStories, // Only pass myStories for personal
+                      initialIndex: 0,
+                      isPersonal: true
+                    });
+                  } else {
+                    Alert.alert('No Story', 'You have not added a story yet.');
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                {(!currentUserAvatar || currentUserAvatar === 'null' || currentUserAvatar.includes('placeholder.com')) ? (
+                  <View style={{
+                    width: 62,
+                    height: 62,
+                    borderRadius: 31,
+                    borderWidth: 2,
+                    borderColor: '#bea063',
+                    backgroundColor: '#f5f5f5',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}>
+                    <Ionicons name="person-circle" size={48} color="#bea063" />
                   </View>
-                  <Text style={styles.storyUsername} numberOfLines={1}>
-                    {story.username}
-                  </Text>
-                  {/* Story caption preview */}
-                  {story.caption && (
-                    <Text style={styles.storyCaption} numberOfLines={1}>
-                      {story.caption}
-                    </Text>
-                  )}
+                ) : (
+                  <Image
+                    source={{ uri: currentUserAvatar }}
+                    style={{
+                      width: 62,
+                      height: 62,
+                      borderRadius: 31,
+                      borderWidth: 2,
+                      borderColor: '#bea063',
+                    }}
+                  />
+                )}
+                {/* Add Icon Overlay */}
+                <TouchableOpacity
+                  style={{
+                    position: 'absolute',
+                    bottom: -2,
+                    right: -2,
+                    backgroundColor: '#fff',
+                    borderRadius: 12,
+                    borderWidth: 2,
+                    borderColor: '#bea063',
+                    width: 24,
+                    height: 24,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                  onPress={() => navigation.navigate('StoryUpload')}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="add" size={16} color="#bea063" />
                 </TouchableOpacity>
-              );
-            })}
+              </TouchableOpacity>
+              <Text style={styles.storyUsername} numberOfLines={1}>Your Story</Text>
+            </View>
+            {/* Other users' stories */}
+            {(groupedStoriesArray as any[][]).map(renderStoryCircle)}
           </ScrollView>
         )}
 
         {/* Posts Section */}
         {loading ? (
-          <ActivityIndicator size="large" style={{flex: 1, marginTop: 40}} />
+          <ActivityIndicator size="large" style={{ flex: 1, marginTop: 40 }} />
         ) : error ? (
-          <Text style={{color: 'red', textAlign: 'center', marginTop: 40}}>
-            {error}
-          </Text>
+          <Text style={{ color: 'red', textAlign: 'center', marginTop: 40 }}>{error}</Text>
         ) : (
           <FlatList
             data={posts}
@@ -479,7 +430,10 @@ export default function HomeScreen({navigation}: any) {
             keyExtractor={item => item.id?.toString()}
             refreshing={refreshing}
             onRefresh={onRefresh}
+            onEndReached={onEndReached}
+            onEndReachedThreshold={0.5}
             showsVerticalScrollIndicator={false}
+            ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#bea063" style={{ marginVertical: 16 }} /> : null}
           />
         )}
       </ScrollView>
@@ -567,7 +521,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 3,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,
     shadowRadius: 2,
     elevation: 2,
@@ -612,11 +566,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
-  },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between', // This will push the save icon to the right
-    padding: 10,
   },
 });

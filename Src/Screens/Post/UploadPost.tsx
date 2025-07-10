@@ -13,16 +13,13 @@ import {
   Dimensions,
   FlatList,
   AppState,
+  Platform,
+  PermissionsAndroid,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'react-native-image-picker';
 import Video from 'react-native-video';
-import { PostApi } from '../../Api/PostApi';
-import { useRoute } from '@react-navigation/native';
-import { CreatePostStackParamList } from '../../Navigation/types';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { getFCMToken } from 'Src/Utils/NotificationConfig';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { postPosts, postStories } from '../../Api/Api';
 import LocationPicker, { LocationOption } from '../../Components/LocationPicker';
 import PostPreviewScreen from './PostPreviewScreen';
@@ -34,6 +31,30 @@ const STORY_API_URL = 'https://pashuahar.com/stories';
 
 // VideoPauseContext for global video control
 const VideoPauseContext = React.createContext({ pauseAll: false, setPauseAll: (_: boolean) => {} });
+
+// Add camera permission request function
+const requestCameraPermission = async () => {
+  if (Platform.OS === 'android') {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+        {
+          title: 'Camera Permission',
+          message: 'App needs access to your camera to take photos and videos.',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        },
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch (err) {
+      Alert.alert('Permission error', 'Failed to request camera permission');
+      return false;
+    }
+  }
+  // On iOS, react-native-image-picker will handle it
+  return true;
+};
 
 // Fix props type for navigation/route
 // @ts-ignore
@@ -76,19 +97,31 @@ const UploadPost = ({ navigation, route }) => {
     return () => setPauseAll(false);
   }, [setPauseAll]);
 
-  // Handle camera capture (photo or video)
-  const handleCameraCapture = (mediaType: 'photo' | 'video') => {
+  // Update handleCameraCapture to only include durationLimit for video
+  const handleCameraCapture = async (mediaType: 'photo' | 'video') => {
     setShowCameraOptions(false);
+
+    const hasPermission = await requestCameraPermission();
+    if (!hasPermission) {
+      Alert.alert('Permission Denied', 'Camera permission is required to take photos or videos.');
+      return;
+    }
+
+    // Build options object
+    const options: any = {
+      mediaType,
+      includeBase64: false,
+      maxHeight: 2000,
+      maxWidth: 2000,
+      quality: 0.8,
+      videoQuality: 'medium',
+    };
+    if (mediaType === 'video') {
+      options.durationLimit = 60; // 60 seconds for video
+    }
+
     ImagePicker.launchCamera(
-      {
-        mediaType,
-        includeBase64: false,
-        maxHeight: 2000,
-        maxWidth: 2000,
-        quality: 0.8,
-        videoQuality: 'medium',
-        durationLimit: mediaType === 'video' ? 60 : undefined, // 60 seconds for video
-      },
+      options,
       (response) => {
         console.log("Camera response:", response);
 
@@ -260,10 +293,17 @@ const UploadPost = ({ navigation, route }) => {
           console.log("forma data ----->>>",JSON.stringify(formData))
           await postPosts({ formData });
            Alert.alert('Success', 'Your Post has been uploaded!');
-          navigation.reset({
-              index: 0,
-              routes: [{ name: 'MainTab' }],
-            });
+           navigation.goBack()
+          //  navigation.navigate("UploadOptions")
+          // navigation.reset({
+          //   index: 0,
+          //   routes: [{ name: 'MainTab' }],
+          // });
+
+          // navigation.reset({
+          //     index: 0,
+          //     routes: [{ name: 'MainTab' }],
+          //   });
         } catch (err) {
           console.log('Error', err);
           throw err;
@@ -331,20 +371,21 @@ const UploadPost = ({ navigation, route }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          {React.createElement(Ionicons as any, { name: 'close', size: 24, color: '#000' })}
+          {React.createElement(Ionicons as any, { name: 'close', size: 24, color: '#bea063' })}
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{isFromStory ? 'New Story' : 'New Post'}</Text>
+        <Text style={[styles.headerTitle, { color: '#bea063' }]}>{isFromStory ? 'New Story' : 'New Post'}</Text>
         <TouchableOpacity
           onPress={handlePreview}
-          disabled={!selectedMedia.length || !caption.trim() || uploading}
+          disabled={!selectedMedia.length || uploading}
           style={[
             styles.shareButton,
-            (!selectedMedia.length || !caption.trim() || uploading) && styles.shareButtonDisabled,
+            (!selectedMedia.length || uploading) && styles.shareButtonDisabled,
           ]}>
           <Text
             style={[
               styles.shareButtonText,
-              (!selectedMedia.length || !caption.trim() || uploading) && styles.shareButtonTextDisabled,
+              { color: '#bea063' },
+              (!selectedMedia.length || uploading) && styles.shareButtonTextDisabled,
             ]}>
             {uploading ? 'Previewing...' : 'Preview'}
           </Text>
@@ -358,34 +399,33 @@ const UploadPost = ({ navigation, route }) => {
           <TouchableOpacity
             style={styles.optionButton}
             onPress={() => handleMediaPicker('mixed', false)}>
-            {React.createElement(Ionicons as any, { name: 'images', size: 24, color: '#000' })}
-            <Text style={styles.optionText}>Gallery</Text>
+            {React.createElement(Ionicons as any, { name: 'images', size: 24, color: '#bea063' })}
+            <Text style={[styles.optionText, { color: '#bea063' }]}>Gallery</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.optionButton}
             onPress={() => handleMediaPicker('mixed', true)}>
-            {React.createElement(Ionicons as any, { name: 'camera', size: 24, color: '#000' })}
-            <Text style={styles.optionText}>Camera</Text>
+            {React.createElement(Ionicons as any, { name: 'camera', size: 24, color: '#bea063' })}
+            <Text style={[styles.optionText, { color: '#bea063' }]}>Camera</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.captionContainer}>
           <TextInput
-            style={styles.captionInput}
+            style={[styles.captionInput, { color: '#bea063',borderWidth:1, borderColor:'#bea063',borderRadius:10 }]}
             placeholder="Write a caption..."
-            placeholderTextColor="#888"
+            placeholderTextColor="#bea063"
             value={caption}
             onChangeText={setCaption}
-            multiline
-            editable={!uploading}
+            // editable={!uploading}
           />
         </View>
         <View style={{paddingHorizontal: 15, marginBottom: 10}}>
-          <Text style={{fontSize: 16, marginBottom: 5}}>Add Location</Text>
-          <TouchableOpacity style={[styles.locationButton, { backgroundColor: '#fff', borderColor: '#ddd', borderWidth: 1, borderRadius: 8, padding: 10, marginTop: 10, marginBottom: 10 }]}
+          <Text style={{fontSize: 16, marginBottom: 5, color: '#bea063'}}>Add Location</Text>
+          <TouchableOpacity style={[styles.locationButton, { backgroundColor: '#fff', borderColor: '#bea063', borderWidth: 1, borderRadius: 8, padding: 10, marginTop: 10, marginBottom: 10 }]}
             onPress={() => setShowLocationPicker(true)}>
-            <Text style={{ color: '#222' }}>{selectedLocation ? selectedLocation.display_name : 'Select Location'}</Text>
+            <Text style={{ color: '#bea063' }}>{selectedLocation ? selectedLocation.display_name : 'Select Location'}</Text>
           </TouchableOpacity>
         </View>
         {isFromStory && (
@@ -396,7 +436,7 @@ const UploadPost = ({ navigation, route }) => {
         )}
        {isFromStory ? null : <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginVertical: 24 }}>
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ color: '#888', marginBottom: 8 }}>Draft</Text>
+            <Text style={{ color: '#bea063', marginBottom: 8 }}>Draft</Text>
             <Switch
               value={isDraft}
               onValueChange={setIsDraft}
@@ -405,7 +445,7 @@ const UploadPost = ({ navigation, route }) => {
             />
           </View>
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ color: '#888', marginBottom: 8 }}>Allow Comments</Text>
+            <Text style={{ color: '#bea063', marginBottom: 8 }}>Allow Comments</Text>
             <Switch
               value={allowComments}
               onValueChange={setAllowComments}
@@ -414,7 +454,7 @@ const UploadPost = ({ navigation, route }) => {
             />
           </View>
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ color: '#888', marginBottom: 8 }}>Hide Like Count</Text>
+            <Text style={{ color: '#bea063', marginBottom: 8 }}>Hide Like Count</Text>
             <Switch
               value={hideLikeCount}
               onValueChange={setHideLikeCount}
@@ -560,11 +600,12 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   captionContainer: {
-    padding: 15,
+    // padding: 5,
+    marginHorizontal:10
   },
   captionInput: {
     fontSize: 16,
-    minHeight: 100,
+    minHeight: 60,
     textAlignVertical: 'top',
   },
   // Modal styles

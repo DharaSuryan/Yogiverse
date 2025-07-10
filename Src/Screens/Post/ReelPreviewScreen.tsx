@@ -36,6 +36,8 @@ const navigation = useNavigation<NativeStackNavigationProp<CreatePostStackParamL
     }
     return uri;
   });
+  const [compressedUri, setCompressedUri] = useState<string | null>(null);
+  const [compressing, setCompressing] = useState(false);
 
   // Update videoUri if trimmedUri param is present when screen is focused
   useFocusEffect(
@@ -48,6 +50,40 @@ const navigation = useNavigation<NativeStackNavigationProp<CreatePostStackParamL
       }
     }, [route.params])
   );
+
+  // Compress video as soon as videoUri changes
+  React.useEffect(() => {
+    if (!videoUri) return;
+    let isActive = true;
+    const compress = async () => {
+      setCompressing(true);
+      try {
+        let result = videoUri;
+        try {
+          // Compress in background to 360px max size, manual method
+          result = await CompressorVideo.compress(videoUri, {
+            compressionMethod: 'manual',
+            maxSize: 360, // Smaller file for faster upload
+          });
+          if (result && typeof result === 'string') {
+            console.log('[Compressor] Output file:', result);
+            if (!result.endsWith('.mp4')) {
+              console.warn('[Compressor] Output is not .mp4!');
+            }
+          }
+        } catch (e) {
+          console.log('Video compression error:', e);
+        }
+        if (isActive) setCompressedUri(result);
+      } finally {
+        if (isActive) setCompressing(false);
+      }
+    };
+    compress();
+    return () => {
+      isActive = false;
+    };
+  }, [videoUri]);
 
   const getMimeType = (uri: string): string => {
     const extension = uri.split('.').pop()?.toLowerCase();
@@ -67,8 +103,8 @@ const navigation = useNavigation<NativeStackNavigationProp<CreatePostStackParamL
       setLoading(true);
       const formData = new FormData();
       // Use the current videoUri (already trimmed/filtered) for upload
-      const fileName = videoUri.split('/').pop();
-      const fileType = getMimeType(videoUri);
+      const fileName = (compressedUri || videoUri).split('/').pop();
+      const fileType = getMimeType(compressedUri || videoUri);
       formData.append('caption', caption);
       formData.append('is_draft', 'false');
       formData.append('allow_comments', 'true');
@@ -76,9 +112,14 @@ const navigation = useNavigation<NativeStackNavigationProp<CreatePostStackParamL
       formData.append('music_track', '');
       formData.append('location', selectedLocation ? selectedLocation.display_name : '');
       formData.append('duration', '15');
-      // No need to re-compress, just use videoUri
+      // Use compressedUri for upload
+      if (!compressedUri) {
+        Alert.alert('Error', 'Video is still processing. Please wait.');
+        setLoading(false);
+        return;
+      }
       formData.append('video_file', {
-        uri: Platform.OS === 'ios' ? videoUri.replace('file://', '') : videoUri,
+        uri: Platform.OS === 'ios' ? compressedUri.replace('file://', '') : compressedUri,
         name: fileName || 'video.mp4',
         type: fileType,
       });
@@ -113,7 +154,9 @@ const navigation = useNavigation<NativeStackNavigationProp<CreatePostStackParamL
         </TouchableOpacity>
         <Text style={[styles.title,{color:"#bea063"}]}>Preview Reel</Text>
         <TouchableOpacity onPress={handlePost} disabled={loading}>
-          <Text style={[styles.postButton,{color:"#bea063"}]}>{loading ? 'Posting...' : 'Post'}</Text>
+          <Text style={[styles.postButton,{color:"#bea063"}]}>
+            {loading ? 'Posting...' : 'Post'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -181,6 +224,7 @@ const navigation = useNavigation<NativeStackNavigationProp<CreatePostStackParamL
           }}
         >
           <ActivityIndicator size="large" color="#0095f6" />
+          {compressing && <Text style={{ color: '#fff', marginTop: 12 }}>Compressing video...</Text>}
         </View>
       )}
     </SafeAreaView>

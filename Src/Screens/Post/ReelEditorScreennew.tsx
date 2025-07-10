@@ -11,7 +11,6 @@ import {
   Platform,
   PanResponder,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,7 +18,6 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import Video from 'react-native-video';
 import Slider from '@react-native-community/slider';
 import { CreatePostStackParamList } from '../../Navigation/types';
-// import ProcessingManager from '@salihgun/react-native-video-processor';
 
 const { width, height } = Dimensions.get('window');
 
@@ -40,7 +38,7 @@ const ReelEditorScreen: React.FC = () => {
   const navigation = useNavigation<ReelEditorScreenNavigationProp>();
   const route = useRoute<ReelEditorScreenRouteProp>();
   const { media } = route.params;
-  const videoRef = useRef<any>(null);
+  const videoRef = useRef<Video>(null);
 
   const [paused, setPaused] = useState(true);
   const [duration, setDuration] = useState(0);
@@ -53,9 +51,6 @@ const ReelEditorScreen: React.FC = () => {
   const [selectedOverlay, setSelectedOverlay] = useState<string | null>(null);
   const [textInput, setTextInput] = useState('');
   const [textColor, setTextColor] = useState('#FFFFFF');
-  const [isMuted, setIsMuted] = useState(false); // Mute state for preview only
-  const [processing, setProcessing] = useState(false); // Loading state
-  const [previewUri, setPreviewUri] = useState(media.uri); // For previewing trimmed video
 
   // Always start paused when entering the screen
   useEffect(() => {
@@ -134,23 +129,24 @@ const ReelEditorScreen: React.FC = () => {
     }
   };
 
-  // Use @salihgun/react-native-video-processor for trimming
-  const handleSave = async () => {
-    setProcessing(true);
-    try {
-      const options = {
-        startTime: trimStart,
-        endTime: trimEnd,
-      };
-      const trimmedUri = await ProcessingManager.trim(media.uri, options);
-      setProcessing(false);
-      setPreviewUri(trimmedUri); // Update preview to trimmed video
-      // Pass the trimmed URI to ReelPreview for upload
-      navigation.navigate('ReelPreview', { uri: trimmedUri });
-    } catch (e) {
-      setProcessing(false);
-      Alert.alert('Error', 'Failed to trim video');
-    }
+  const handleSave = () => {
+    Alert.alert(
+      'Save Reel',
+      `Video will be trimmed from ${trimStart.toFixed(1)}s to ${trimEnd.toFixed(1)}s`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Save',
+          onPress: () => {
+            // Implement video trimming and saving logic here
+            navigation.goBack();
+          },
+        },
+      ]
+    );
   };
 
   const panResponder = useRef(
@@ -227,19 +223,19 @@ const ReelEditorScreen: React.FC = () => {
           <Icon name="close" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Reel</Text>
-        <TouchableOpacity onPress={handleSave} disabled={processing}>
-          <Text style={styles.saveButton}>{processing ? 'Saving...' : 'Save'}</Text>
+        <TouchableOpacity onPress={handleSave}>
+          <Text style={styles.saveButton}>Save</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.videoContainer}>
         <Video
           ref={videoRef}
-          source={{ uri: previewUri }}
+          source={{ uri: media.uri }}
           style={styles.video}
           resizeMode="cover"
           paused={paused}
-          muted={isMuted}
+          muted={true}
           onProgress={handleProgress}
           onLoad={handleDuration}
           repeat={true}
@@ -253,6 +249,13 @@ const ReelEditorScreen: React.FC = () => {
       </View>
 
       <View style={styles.toolsContainer}>
+        {/* <TouchableOpacity 
+          style={[styles.toolButton, isAddingText && styles.activeToolButton]} 
+          onPress={handleAddText}
+        >
+          <Icon name="text" size={24} color={isAddingText ? '#fff' : '#bea063'} />
+          <Text style={{ color: isAddingText ? '#fff' : '#bea063', fontWeight: '600', fontSize: 12 }}>Text</Text>
+        </TouchableOpacity> */}
         <TouchableOpacity 
           style={[styles.toolButton, isTrimming && styles.activeToolButton]} 
           onPress={() => setIsTrimming(!isTrimming)}
@@ -260,69 +263,101 @@ const ReelEditorScreen: React.FC = () => {
           <Icon name="cut" size={24} color={isTrimming ? '#fff' : '#bea063'} />
           <Text style={{ color: isTrimming ? '#fff' : '#bea063', fontWeight: '600', fontSize: 12 }}>Trim</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toolButton, isMuted && styles.activeToolButton]}
-          onPress={() => setIsMuted(!isMuted)}
-        >
-          <Icon name={isMuted ? 'volume-mute' : 'volume-high'} size={24} color={isMuted ? '#fff' : '#bea063'} />
-          <Text style={{ color: isMuted ? '#fff' : '#bea063', fontWeight: '600', fontSize: 12 }}>
-            {isMuted ? 'Muted' : 'Sound'}
-          </Text>
-        </TouchableOpacity>
       </View>
 
-      {isTrimming && (
-        <ScrollView contentContainerStyle={{
-          padding: 16,
-          paddingBottom: 40,
-        }}>
-          <View style={styles.trimContainer}>
-            <Text style={styles.trimTitle}>Trim Video</Text>
-            <View style={styles.timeLabels}>
-              <Text style={styles.timeLabel}>{trimStart.toFixed(1)}s</Text>
-              <Text style={styles.timeLabel}>{trimEnd.toFixed(1)}s</Text>
-            </View>
-            <Slider
-              style={styles.trimSlider}
-              minimumValue={0}
-              maximumValue={duration}
-              value={currentTime}
-              onValueChange={(value) => videoRef.current?.seek(value)}
-              minimumTrackTintColor="#bea063"
-              maximumTrackTintColor="#666"
-              thumbTintColor="#bea063"
-            />
-            <View style={styles.trimControls}>
-              <View style={styles.trimControl}>
-                <Text style={styles.trimLabel}>Start</Text>
-                <Slider
-                  style={styles.trimRangeSlider}
-                  minimumValue={0}
-                  maximumValue={duration}
-                  value={trimStart}
-                  onValueChange={handleTrimStartChange}
-                  minimumTrackTintColor="#bea063"
-                  maximumTrackTintColor="#666"
-                  thumbTintColor="#bea063"
-                />
-              </View>
-              <View style={styles.trimControl}>
-                <Text style={styles.trimLabel}>End</Text>
-                <Slider
-                  style={styles.trimRangeSlider}
-                  minimumValue={0}
-                  maximumValue={duration}
-                  value={trimEnd}
-                  onValueChange={handleTrimEndChange}
-                  minimumTrackTintColor="#bea063"
-                  maximumTrackTintColor="#666"
-                  thumbTintColor="#bea063"
-                />
-              </View>
-            </View>
+      {/* {isAddingText && (
+        <View style={styles.textEditorContainer}>
+          <TextInput
+            style={styles.textInput}
+            value={textInput}
+            onChangeText={setTextInput}
+            placeholder="Add text..."
+            placeholderTextColor="#fff"
+            multiline
+          />
+          <View style={styles.colorPicker}>
+            {colors.map(color => (
+              <TouchableOpacity
+                key={color}
+                style={[
+                  styles.colorButton,
+                  { backgroundColor: color },
+                  textColor === color && styles.selectedColorButton,
+                ]}
+                onPress={() => setTextColor(color)}
+              />
+            ))}
           </View>
-        </ScrollView>
-      )}
+          <View style={styles.textEditorButtons}>
+            <TouchableOpacity 
+              style={styles.textEditorButton} 
+              onPress={() => setIsAddingText(false)}
+            >
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.textEditorButton, styles.saveTextButton]} 
+              onPress={handleSaveText}
+            >
+              <Text style={styles.buttonText}>Add</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )} */}
+
+{isTrimming && (
+  <ScrollView contentContainerStyle={{
+    padding: 16,
+  paddingBottom: 40,
+  }}>
+    <View style={styles.trimContainer}>
+      <Text style={styles.trimTitle}>Trim Video</Text>
+      <View style={styles.timeLabels}>
+        <Text style={styles.timeLabel}>{trimStart.toFixed(1)}s</Text>
+        <Text style={styles.timeLabel}>{trimEnd.toFixed(1)}s</Text>
+      </View>
+      <Slider
+        style={styles.trimSlider}
+        minimumValue={0}
+        maximumValue={duration}
+        value={currentTime}
+        onValueChange={(value) => videoRef.current?.seek(value)}
+        minimumTrackTintColor="#bea063"
+        maximumTrackTintColor="#666"
+        thumbTintColor="#bea063"
+      />
+      <View style={styles.trimControls}>
+        <View style={styles.trimControl}>
+          <Text style={styles.trimLabel}>Start</Text>
+          <Slider
+            style={styles.trimRangeSlider}
+            minimumValue={0}
+            maximumValue={duration}
+            value={trimStart}
+            onValueChange={handleTrimStartChange}
+            minimumTrackTintColor="#bea063"
+            maximumTrackTintColor="#666"
+            thumbTintColor="#bea063"
+          />
+        </View>
+        <View style={styles.trimControl}>
+          <Text style={styles.trimLabel}>End</Text>
+          <Slider
+            style={styles.trimRangeSlider}
+            minimumValue={0}
+            maximumValue={duration}
+            value={trimEnd}
+            onValueChange={handleTrimEndChange}
+            minimumTrackTintColor="#bea063"
+            maximumTrackTintColor="#666"
+            thumbTintColor="#bea063"
+          />
+        </View>
+      </View>
+    </View>
+  </ScrollView>
+)}
+
 
       {selectedOverlay && (
         <View style={styles.timingControls}>
@@ -365,11 +400,6 @@ const ReelEditorScreen: React.FC = () => {
               />
             </View>
           </View>
-        </View>
-      )}
-      {processing && (
-        <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center', zIndex: 10 }}>
-          <ActivityIndicator size="large" color="#bea063" />
         </View>
       )}
     </SafeAreaView>

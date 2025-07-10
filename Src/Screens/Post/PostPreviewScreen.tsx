@@ -67,7 +67,7 @@ const PostPreviewScreen = ({ route, navigation }) => {
         <Text style={styles.location}>{location?.display_name || 'None'}</Text>
       </View>
       <TouchableOpacity style={styles.postButton} onPress={handlePost}>
-        <Text style={styles.postButtonText}>Post</Text>
+        <Text style={[styles.postButtonText, { color: '#fff' }]}>Post</Text>
       </TouchableOpacity>
     </View>
   );
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   captionLabel: {
-    color: '#888',
+    color: '#bea063',
     fontSize: 14,
     marginBottom: 2,
   },
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   locationLabel: {
-    color: '#888',
+    color: '#bea063',
     fontSize: 14,
     marginBottom: 2,
   },
@@ -116,14 +116,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   postButton: {
-    backgroundColor: '#0095f6',
+    backgroundColor: '#bea063',
     borderRadius: 24,
     paddingVertical: 14,
     paddingHorizontal: 60,
     alignSelf: 'center',
   },
   postButtonText: {
-    color: '#fff',
+    color: '#bea063',
     fontSize: 18,
     fontWeight: 'bold',
   },

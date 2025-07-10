@@ -242,11 +242,17 @@ console.log("userdata.... params", signupData);
 
   const handleSelectCategory = (categoryId: number | undefined) => {
     if (categoryId === undefined) return;
-    setSelectedCategories(prev =>
-      prev.includes(categoryId)
-        ? prev.filter(id => id !== categoryId)
-        : [...prev, categoryId],
-    );
+    // If already selected, deselect
+    if (selectedCategories.includes(categoryId)) {
+      setSelectedCategories(prev => prev.filter(id => id !== categoryId));
+      return;
+    }
+    // Only allow up to 3 main categories
+    if (selectedCategories.length >= 3) {
+      Alert.alert('Limit Reached', 'You can select only 3 main categories.');
+      return;
+    }
+    setSelectedCategories(prev => [...prev, categoryId]);
   };
 
   const handleNext = () => {

@@ -105,16 +105,17 @@ const StoryUploadScreen = () => {
       <Modal visible={showInputModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.inputModal}>
-            <Text style={styles.inputLabel}>Add a caption...</Text>
+            <Text style={[styles.inputLabel, { color: '#bea063' }]}>Add a caption...</Text>
             <TextInput
-              style={styles.captionInput}
+              style={[styles.captionInput, { borderColor: '#bea063', color: '#bea063' }]}
               placeholder="Write a caption..."
+              placeholderTextColor="#bea063"
               value={caption}
               onChangeText={setCaption}
               multiline
             />
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-              <Text style={{ fontSize: 16, marginRight: 10 }}>Highlight this story?</Text>
+              <Text style={{ fontSize: 16, marginRight: 10, color: '#bea063' }}>Highlight this story?</Text>
               <Switch
                 value={isHighlighted}
                 onValueChange={setIsHighlighted}
@@ -123,10 +124,10 @@ const StoryUploadScreen = () => {
               />
             </View>
             <TouchableOpacity
-              style={styles.locationButton}
+              style={[styles.locationButton, { borderColor: '#bea063' }]}
               onPress={() => setShowLocationPicker(true)}
             >
-              <Text style={{ color: '#222' }}>{selectedLocation ? selectedLocation.display_name : 'Select Location'}</Text>
+              <Text style={{ color: '#bea063' }}>{selectedLocation ? selectedLocation.display_name : 'Select Location'}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.nextButton}
