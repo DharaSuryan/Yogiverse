@@ -7,7 +7,15 @@ export default function RoleSelectionScreen() {
   const navigation = useNavigation();
 
   return (
+    <><View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12 }}>
+              <TouchableOpacity onPress={() => navigation.navigate('Login')} style={{ paddingHorizontal: 12, paddingVertical: 4 }}>
+                <Text style={{ fontSize: 24, color: '#bea063' }}>{'←'}</Text>
+                {/* Or use <Icon name="arrow-back" size={24} color="#bea063" /> if Ionicons works */}
+              </TouchableOpacity>
+             
+            </View>
     <View style={styles.container}>
+        
       <Text style={styles.title}>Walk Your Path With Yogiverse</Text>
          <Text style={{ textAlign: 'center', color: '#bea063', marginVertical:0,fontSize:18,}}>Everyone is Yogi</Text> 
               <Text style={{ textAlign: 'center', marginVertical: 5, color: '#bea063',fontSize:18 }}>by his/her Karma and Dharma.</Text> 
@@ -34,6 +42,7 @@ export default function RoleSelectionScreen() {
         </TouchableOpacity>
       </View>
     </View>
+    </>
   );
 }
 

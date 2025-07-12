@@ -12,28 +12,20 @@ import {
   Dimensions,
   ActivityIndicator,
 } from 'react-native';
-const Ionicons = require('react-native-vector-icons/Ionicons').default;
 import { SearchStackParamList } from '../../Navigation/types';
 import { useNavigation } from '@react-navigation/native';
 import WarpperComponent from './warppercomponets';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { navigate, push } from '../../Component/Route';
+import { push } from '../../Component/Route';
 import MasonryList from '@react-native-seoul/masonry-list';
+const Ionicons = require('react-native-vector-icons/Ionicons').default;
 
 
 
 const screenWidth = Dimensions.get('window').width;
 const imageSource = require('../../Assets/yoga.jpg');
 
-const suggestions = [
-  { title: 'Lemon recipes', subtitle: 'Food', image: imageSource },
-  { title: 'Heritage Desserts', subtitle: 'Food', image: imageSource },
-  { title: 'Yoga Lifestyle', subtitle: 'Health', image: imageSource },
-  { title: 'Healing Foods', subtitle: 'Ayurveda', image: imageSource },
-  { title: 'Daily Detox', subtitle: 'Health', image: imageSource },
-  { title: 'Organic Choices', subtitle: 'Market', image: imageSource },
-];
 
 type SearchScreenNavigationProp = NativeStackNavigationProp<
   SearchStackParamList,
@@ -51,11 +43,8 @@ const SearchScreen = () => {
   const [trendingPosts, setTrendingPosts] = useState<any[]>([]);
   const [trendingLoading, setTrendingLoading] = useState(false);
   const [trendingError, setTrendingError] = useState<string | null>(null);
-  const NUM_COLUMNS = 2;
-  const ITEM_MARGIN = 10;
-  const { width } = Dimensions.get('window');
 
-  const ITEM_WIDTH = (width - ITEM_MARGIN * (NUM_COLUMNS + 1)) / NUM_COLUMNS;
+console.log("categories",categories);
 
   useEffect(() => {
     fetchCategories();
@@ -72,6 +61,8 @@ const SearchScreen = () => {
       // console.log("here comes resoponse ...",mainCategoryRes.data?.data);
 
       setCategories(mainCategoryRes.data?.data || []);
+      console.log("data. main category",mainCategoryRes.data);
+      
     } catch (err) {
       setError('Failed to load categories');
     } finally {
@@ -132,16 +123,7 @@ const SearchScreen = () => {
     if (item.first_name) {
       // User result - navigate to Profile tab (current user's profile)
       navigation.navigate('UserProfile' as any, { userId: item.id.toString(), isFromSearch: true });
-      // navigate('MainTab', {
-      //   screen: 'ProfileTab',
-      //   params: {
-      //     screen: 'Profile',
-      //     params: {
-      //       userId: item.id.toString(),
-      //       isFromSearch: true
-      //     }
-      //   }
-      // });
+      
     } else {
       // Category or other result - navigate to SubCateGoryDisplay
       push('SubCateGoryDisplay', { item });

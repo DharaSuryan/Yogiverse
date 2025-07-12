@@ -8,10 +8,10 @@ interface CollectionPostDetailParams {
   post: any;
 }
 
-type CollectionPostDetailRouteProp = RouteProp<{ CollectionPostDetail: CollectionPostDetailParams }, 'CollectionPostDetail'>;
+// type CollectionPostDetailRouteProp = RouteProp<{ CollectionPostDetail: CollectionPostDetailParams }, 'CollectionPostDetail'>;
 
-export default function CollectionPostDetailScreen({ navigation }: any) {
-  const route = useRoute<CollectionPostDetailRouteProp>();
+export default function CollectionPostDetailScreen({ navigation ,route }: any) {
+  // const route = useRoute<CollectionPostDetailRouteProp>();
   const { post } = route.params;
 
   return (

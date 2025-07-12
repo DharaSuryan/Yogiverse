@@ -19,11 +19,16 @@ import axios from 'axios';
 import { push } from '../../Component/Route';
 
 const imageSource = require('../../Assets/yoga.jpg');
+const { width } = Dimensions.get('window');
+const CARD_MARGIN = 16; // total horizontal margin per card (adjust as needed)
+const CARD_WIDTH = (width - CARD_MARGIN * 3) / 2; // 2 columns, 3 margins (left, between, right)
 
 type SearchScreenNavigationProp = NativeStackNavigationProp<
   SearchStackParamList,
   'Search'
 >;
+
+
 
 const VenderList = ({navigation}:any) => {
   // const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
@@ -36,7 +41,6 @@ const VenderList = ({navigation}:any) => {
   const [vendorLoading, setVendorLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showVendors, setShowVendors] = useState(false);
-
   useEffect(() => {
     fetchCategories();
   }, []);
@@ -138,7 +142,8 @@ const VenderList = ({navigation}:any) => {
       // Navigate to SubCategory with updated data object
       navigation.navigate('VendorSubCategory', { category: updatedData });
     };
-  
+
+
 
   const renderCategory = ({ item }: any) => {
     const categoryId = item.id !== undefined ? item.id : item.categories;
@@ -244,39 +249,97 @@ const VenderList = ({navigation}:any) => {
     const profilePicture = item.profile?.profile_picture;
     const firstName = item.user?.first_name || item.profile?.first_name || '';
     const lastName = item.user?.last_name || item.profile?.last_name || '';
-    
-    // Create initials from first and last name
+    const phoneNofYogi = item.user?.phone_no || '';
+    const email = item.user?.email || '';
+    const followers = item.followers_count || 0;
+    const following = item.following_count || 0;
     const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-    
+
     return (
-      <TouchableOpacity 
-        style={styles.vendorGridCard}
+      <TouchableOpacity
+        style={{
+          backgroundColor: '#fffbe6',
+          borderColor: '#bea063',
+          borderWidth: 1,
+          borderRadius: 18,
+          padding: 12,
+          marginBottom: CARD_MARGIN,
+          alignItems: 'center',
+          width: CARD_WIDTH,
+          shadowColor: '#bea063',
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+          elevation: 2,
+        }}
         onPress={() => {
-          // Navigate to individual vendor detail
           const userId = item.profile?.user || item.user?.id;
-          console.log('Navigating to UserProfile with userId:', userId);
-          (navigation as any).navigate('UserProfile', { userId: userId ,isFromSearch: true});
+          (navigation as any).navigate('UserProfile', { userId: userId, isFromSearch: true });
         }}
       >
-        <View style={styles.vendorImageContainer}>
+        {/* Initials or Profile Picture */}
+        <View style={{
+          width: 64,
+          height: 64,
+          borderRadius: 32,
+          backgroundColor: '#fff',
+          borderWidth: 2,
+          borderColor: '#bea063',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 10,
+        }}>
           {profilePicture ? (
-            <Image 
-              source={{ uri: profilePicture }} 
-              style={styles.vendorGridImage}
+            <Image
+              source={{ uri: profilePicture }}
+              style={{ width: 60, height: 60, borderRadius: 30 }}
               defaultSource={require('../../Assets/Role.png')}
             />
           ) : (
-            <View style={styles.vendorInitialsContainer}>
-              <Text style={styles.vendorInitials}>{initials}</Text>
-            </View>
+            <Text style={{ color: '#bea063', fontSize: 22, fontWeight: 'bold' }}>{initials}</Text>
           )}
         </View>
-        <Text style={styles.vendorGridName} numberOfLines={2}>
-          {username}
+        {/* Name */}
+        <Text style={{ color: '#bea063', fontWeight: 'bold', fontSize: 18, marginBottom: 2 }}>
+          {firstName} {lastName}
         </Text>
+        {/* Username */}
+        <Text style={{ color: '#bea063', fontSize: 15, marginBottom: 2 }}>
+          @{username}
+        </Text>
+        {/* Email */}
+        <Text style={{ color: '#bea063', fontSize: 13, marginBottom: 2 }}>
+          {email}
+        </Text>
+        {/* Phone */}
+        <Text style={{ color: '#bea063', fontSize: 13, marginBottom: 2 }}>
+          {phoneNofYogi}
+        </Text>
+        {/* Followers/Following */}
+        <Text style={{ color: '#bea063', fontSize: 13, marginBottom: 10 }}>
+          Followers: {followers}  Following: {following}
+        </Text>
+        {/* View Profile Button */}
+        <TouchableOpacity
+          style={{
+            borderColor: '#bea063',
+            borderWidth: 1,
+            borderRadius: 8,
+            paddingVertical: 6,
+            paddingHorizontal: 18,
+            marginTop: 6,
+          }}
+          onPress={() => {
+            const userId = item.profile?.user || item.user?.id;
+            (navigation as any).navigate('UserProfile', { userId: userId, isFromSearch: true });
+          }}
+        >
+          <Text style={{ color: '#bea063', fontWeight: 'bold' }}>View Profile</Text>
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
+
+
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -315,10 +378,13 @@ const VenderList = ({navigation}:any) => {
                 const selectedCat = categories.find(cat => 
                   selectedCategory === (cat.id !== undefined ? cat.id : cat.categories)
                 );
-                console.log('Selected category subcategories:', selectedCat?.sub_categories);
+                const subcategories = selectedCat?.sub_categories || [];
+                // Limit to first 10 items for the slider
+                const limitedSubcategories = subcategories.slice(0, 10);
+                console.log('Selected category subcategories:', limitedSubcategories);
                 return (
                   <FlatList
-                    data={selectedCat?.sub_categories || []}
+                    data={limitedSubcategories}
                     keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
                     renderItem={renderSubcategory}
                     horizontal
@@ -361,15 +427,16 @@ const VenderList = ({navigation}:any) => {
                 <FlatList
                   data={vendors}
                   keyExtractor={(item) => item.user?.id?.toString() || item.id?.toString()}
-                  numColumns={3}
+                  numColumns={2}
                   renderItem={renderVendor}
-                  contentContainerStyle={styles.vendorGridContainer}
+                  contentContainerStyle={{ paddingHorizontal: CARD_MARGIN, paddingBottom: 20 }}
+                  columnWrapperStyle={{ justifyContent: 'space-between' ,alignSelf:'center',gap:10}}
                   showsVerticalScrollIndicator={false}
                   scrollEnabled={false}
                 />
               ) : (
                 <View style={styles.emptyVendorContainer}>
-                  <Text style={styles.emptyVendorText}>No vendors found for selected categories</Text>
+                  <Text style={styles.emptyVendorText}>No Yogic found for selected categories</Text>
                 </View>
               )}
             </View>
@@ -493,6 +560,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 20,
   },
+
   subcategorySection: {
     marginTop: 20,
     paddingHorizontal: 16,
@@ -600,6 +668,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
+
 })
 
 export default VenderList;

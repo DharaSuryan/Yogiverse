@@ -1,30 +1,17 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  ScrollView,
-  FlatList,
+  StyleSheet, FlatList,
   Image,
   TouchableOpacity,
-  Dimensions
+  Dimensions,
+  BackHandler
 } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/Ionicons';
-import { goBack } from '../../Component/Route';
+import { useRoute } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 
-// Static images for different subcategories
-// const subCategoryImages = {
-//   'Karma Yogi': require('../../Assets/karma-yogi.jpg'),
-//   'Bhakti Yogi': require('../../Assets/bhakti-yogi.jpg'),
-//   'Jnana Yogi': require('../../Assets/jnana-yogi.jpg'),
-//   'Raja Yogi': require('../../Assets/raja-yogi.jpg'),
-//   'Practitioners': require('../../Assets/practitioners.jpg'),
-//   'Daily Yogic Routine': require('../../Assets/daily-routine.jpg'),
-//   'Sadhaks': require('../../Assets/sadhaks.jpg'),
-//   // Default image if no match
-//   'default': require('../../Assets/yoga-default.jpg')
-// };
+const Ionicons = require('react-native-vector-icons/Ionicons').default;
 
 const { width } = Dimensions.get('window');
 const NUM_COLUMNS = 2;
@@ -38,18 +25,31 @@ const SubCateGoryDisplay = ({navigation}:any) => {
   const subCategories = item?.sub_categories || [];
   const imageSource = require('../../Assets/yoga.jpg');
   console.log("itemitemitem",item);
-  
 
+  // Android hardware back button support
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        navigation.goBack();
+        return true;
+      };
+      BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+    }, [navigation])
+  );
 
-  //   const getImageSource = (name: string) => {
-  //     return subCategoryImages[name] || subCategoryImages['default'];
-  //   };
 
   const renderSubCategory = ({ item }: { item: any }) => {
+    console.log("mainCategoryId",item);
+    
     return (
       <TouchableOpacity
         style={styles.subCategoryCard}
-      // onPress={() => navigation.navigate('SubCategoryDetail', { subCategory: item })}
+        onPress={() => navigation.navigate('VenderDetail', {
+          mainCategoryId: item.main_category ,
+          subcategoryIds: [item.id],
+          mainCategoryName: item.category_name || item.title,
+        })}
       >
         <View style={{
           flex: 1,
@@ -76,11 +76,8 @@ const SubCateGoryDisplay = ({navigation}:any) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => {
-
-         navigation.navigate('SearchTab')
-        }}>
-          <Icon name="arrow-back" size={24} color="#000" />
+        <TouchableOpacity onPress={() => navigation.navigate('MainTab', { screen: 'SearchTab' })}>
+          {React.createElement(Ionicons, { name: 'arrow-back', size: 24, color: '#000' })}
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {item?.category_name || item?.title || 'Subcategories'}
@@ -97,7 +94,7 @@ const SubCateGoryDisplay = ({navigation}:any) => {
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Icon name="alert-circle-outline" size={48} color="#ccc" />
+            {React.createElement(Ionicons, { name: 'alert-circle-outline', size: 48, color: '#ccc' })}
             <Text style={styles.emptyText}>No subcategories found</Text>
           </View>
         }

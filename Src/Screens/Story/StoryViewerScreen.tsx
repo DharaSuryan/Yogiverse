@@ -36,7 +36,11 @@ interface StoryViewerScreenProps {
 interface Viewer {
   id: number;
   username: string;
-  profile_picture: string;
+  profile_picture: string | null;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  profile_link?: string;
 }
 
 const StoryViewerScreen: React.FC<StoryViewerScreenProps> = ({ route, navigation }) => {
@@ -91,8 +95,9 @@ const StoryViewerScreen: React.FC<StoryViewerScreenProps> = ({ route, navigation
       const res = await fetch(`https://pashuahar.com/stories/${currentStory.id}/viewers/`, {
         headers,
       });
-      console.log("res .....",res);
-      
+      console.log('fetchViewers raw response:', res);
+      console.log('fetchViewers status:', res.status);
+      console.log('fetchViewers headers:', res.headers);
       if (!res.ok) {
         if (res.status === 401) {
           Alert.alert('Unauthorized', 'Please log in again to view story viewers.');
@@ -103,7 +108,24 @@ const StoryViewerScreen: React.FC<StoryViewerScreenProps> = ({ route, navigation
         return;
       }
       const data = await res.json();
-      setViewers(Array.isArray(data) ? data : data.viewers || []);
+      console.log('fetchViewers parsed JSON:', data?.data[0]?.viewer , data?.data[0]?.viewer_profile_data );
+      // Transform API response to viewer list with profile data
+      let viewerList: Viewer[] = [];
+      if (Array.isArray(data?.data)) {
+        viewerList = data.data.map((item: any) => {
+          const profile = item.viewer_profile_data || {};
+          return {
+            id: profile.user || profile.id || item.viewer,
+            username: profile.username || '',
+            profile_picture: profile.profile_picture || null,
+            first_name: profile.first_name || '',
+            last_name: profile.last_name || '',
+            email: profile.email || '',
+            profile_link: profile.profile_link || '',
+          };
+        });
+      }
+      setViewers(viewerList);
       setViewersVisible(true);
       setLoadingViewers(false);
     } catch (e) {
@@ -407,10 +429,24 @@ const StoryViewerScreen: React.FC<StoryViewerScreenProps> = ({ route, navigation
                 data={viewers}
                 keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }: { item: Viewer }) => (
-                  <View style={styles.viewerItem}>
-                    <Image source={{ uri: item.profile_picture }} style={styles.viewerAvatar} />
-                    <Text style={styles.viewerName}>{item.username}</Text>
-                  </View>
+                  <TouchableOpacity
+                    style={styles.viewerItem}
+                    onPress={() => {
+                      navigation.navigate('UserProfile', { userId: item.id, isFromSearch: true });
+                    }}
+                  >
+                    {item.profile_picture ? (
+                      <Image source={{ uri: item.profile_picture }} style={styles.viewerAvatar} />
+                    ) : (
+                      <View style={[styles.viewerAvatar, { backgroundColor: '#f5f5f5', justifyContent: 'center', alignItems: 'center' }]}> 
+                        <Ionicons name="person-circle-outline" size={32} color="#bea063" />
+                      </View>
+                    )}
+                    <View>
+                      <Text style={[styles.viewerName, { color: '#bea063' }]}>{item.username}</Text>
+                      <Text style={{ color: '#bea063', fontSize: 13 }}>{item.first_name} {item.last_name}</Text>
+                    </View>
+                  </TouchableOpacity>
                 )}
               />
             )}

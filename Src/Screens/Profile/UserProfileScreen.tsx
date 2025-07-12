@@ -961,6 +961,7 @@ console.log("datat......" , data);
         onPress={() => {
           if (isCollection) {
             // Navigate to collection details
+             console.log("User profile screen click --------> ");
             navigation.navigate('CollectionDetailScreen', {
               collectionId: item.collection_id,
               collectionName: item.collectionName,

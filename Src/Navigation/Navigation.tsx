@@ -22,7 +22,7 @@ import SubCategoryScreen from '../Screens/Auth/SubCategory';
 import HomeScreen from '../Screens/Home/HomeScreen';
 import NotificationsScreen from '../Screens/Home/NotificationsScreen';
 import SearchScreen from '../Screens/Search/SearchScreen';
-import SearchDetailScreen from '../Screens/Search/SearchDetailScreen';
+// import SearchDetailScreen from '../Screens/Search/SearchDetailScreen';
 import SubCateGoryDisplay from '../Screens/Search/SubCateGoryDisplay';
 import TrendingDetailScreen from '../Screens/Search/TrendingDetailScreen';
 
@@ -61,7 +61,9 @@ import ChatScreen from '../Screens/Home/ChatScreen';
 import MediaPicker from '../Screens/Post/Mediapicker';
 import StoryUploadScreen from '../Screens/Post/StoryUploadScreen';
 import StoryViewerScreen from '../Screens/Story/StoryViewerScreen';
-import CollectionPostDetailScreen from '../Screens/Saved/CollectionPostDetailScreen';
+import CollectionPostDetailScreen from '../Screens/Profile/CollectionPostDetailScreen';
+import VenderList from '../Screens/Vender/VenderList';
+import  vendorDetail  from '../Screens/Search/VenderDetail';
 
 // Navigators
 const Stack = createNativeStackNavigator();
@@ -145,8 +147,9 @@ function MainTabScreen() {
       <MainTabs.Screen name="HomeTab" component={HomeScreen} />
       <MainTabs.Screen name="SearchTab" component={SearchScreen} />
       <MainTabs.Screen name="UploadOptions" component={UploadOptionsScreen} />
-      <MainTabs.Screen name="Vendor" component={VendorNavigator} />
+      <MainTabs.Screen name="Vendor" component={VenderList} />
       <MainTabs.Screen name="Profile" component={ProfileScreen} />
+
     </MainTabs.Navigator>
   );
 }
@@ -182,21 +185,12 @@ const Navigation = () => {
         <Stack.Screen name="SplashScreen" component={SplashScreen} />
         <Stack.Screen name="MainTab" component={MainTabScreen} />
         <Stack.Screen name="Auth" component={AuthStackScreen} />
-        {/* <Stack.Screen name="CommentScreen" component={CommentScreen} /> */}
         <Stack.Screen name="CommentScreen" component={CommentScreen} />
         <Stack.Screen name="PostDetails" component={PostScreen} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
-        {/* <Stack.Screen name="Profile" component={ProfileScreen} /> */}
         <Stack.Screen name="Menu" component={MenuScreen} />
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-        <Stack.Screen
-          name="CollectionDetailScreen"
-          component={CollectionDetailScreen}
-        />
-        <Stack.Screen
-          name="CreateCollectionScreen"
-          component={CreateCollectionScreen}
-        />
+      
         <Stack.Screen name='CollectionPostDetail' component={CollectionPostDetailScreen}/>
         <Stack.Screen
           name="ProfilePostDetailScreen"
@@ -214,7 +208,6 @@ const Navigation = () => {
         <Stack.Screen name="PostPreview" component={PostPreviewScreen} />
         <Stack.Screen name="Post" component={PostScreen} />
         <Stack.Screen name="UploadPost" component={UploadPost} />
-        {/* <Stack.Screen name="StoryCreation" component={StoryCreation} /> */}
         <Stack.Screen name="StoryViewerScreen" component={StoryViewerScreen} />
         <Stack.Screen name="UserProfile" component={UserProfileScreen} />
         <Stack.Screen
@@ -227,16 +220,20 @@ const Navigation = () => {
           component={SubCateGoryDisplay}
         />
         <Stack.Screen name="StoryUpload" component={StoryUploadScreen} />
+        <Stack.Screen name="ChatListScreen" component={ChatListScreen} />
+        <Stack.Screen name="ChatScreen" component={ChatScreen} />
+
+          <Stack.Screen
+          name="CollectionDetailScreen"
+          component={CollectionDetailScreen}
+        />
+        <Stack.Screen
+          name="CreateCollectionScreen"
+          component={CreateCollectionScreen}
+        />
+        <Stack.Screen name="VenderDetail" component={vendorDetail}/>
+
       </Stack.Navigator>
-      <Stack.Screen name="ChatListScreen" component={ChatListScreen} />
-      <Stack.Screen name="ChatScreen" component={ChatScreen} />
-      <Stack.Screen name="MediaPicker" component={MediaPicker} />
-      <Stack.Screen name="ReelEditorScreen" component={ReelEditorScreen} />
-      {/* <Stack.Screen name="StoryCreation" component={StoryCreation} /> */}
-      <Stack.Screen
-        name="UploadPost"
-        component={require('../Screens/Post/UploadPost').default}
-      />
     </NavigationContainer>
   );
 };

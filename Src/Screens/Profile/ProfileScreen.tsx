@@ -52,7 +52,9 @@ interface Post {
   hide_like_count?: boolean;
 }
 
-const ProfileScreen = () => {
+const ProfileScreen = ({navigation} : any) => {
+  // const navigation = useNavigation<any>();
+  
   const [activeTab, setActiveTab] = useState<'posts' | 'reels' | 'saved'>(
     'posts',
   );
@@ -431,7 +433,7 @@ const ProfileScreen = () => {
     }
   };
 
-  const navigation = useNavigation<any>();
+
 
   // Video control functions
   const toggleMute = (itemId: string) => {
@@ -670,11 +672,11 @@ const ProfileScreen = () => {
           `https://pashuahar.com/user_profile/${userId}`,
         );
       }
-      console.log(
-        'responseresponseresponse',
-        isFromSearch,
-        response?.data?.data?.profile,
-      );
+      // console.log(
+      //   'responseresponseresponse',
+      //   isFromSearch,
+      //   response?.data?.data?.profile,
+      // );
 
       // Fetch profile data
       // const profileResponse = isFromSearch
@@ -685,6 +687,8 @@ const ProfileScreen = () => {
       //   isFromSearch ? profileResponse : profileResponse.data?.data?.results,
       // );
       const profileResponse = await getProfile();
+      console.log("profileResponse",profileResponse.data.data.vendor_profile.main_categories);
+      
       setData(profileResponse?.data?.data);
       let followersCount = 0;
       let followingCount = 0;
@@ -699,7 +703,8 @@ const ProfileScreen = () => {
         ]);
       }
 
-      console.log('followersCount', followersCount);
+      setRole(profileResponse?.data?.role);
+      setVendorProfile(profileResponse?.data?.data?.vendor_profile);
 
       if (isFromSearch ? profileResponse : profileResponse.data) {
         const profileData = isFromSearch
@@ -708,11 +713,11 @@ const ProfileScreen = () => {
         // console.log("profileDataprofileData",profileData);
 
         setProfile({
-          username: profileData.username || 'jk',
+          username: profileData.username || '',
           fullName:
             `${profileData.first_name || ''} ${
               profileData.last_name || ''
-            }`.trim() || 'Jay Chhaniyara',
+            }`.trim() || '',
           bio: profileData.bio,
           profileImage:
             profileData.profile_picture || 'https://picsum.photos/200',
@@ -912,6 +917,10 @@ const ProfileScreen = () => {
         onPress={() => {
           if (isCollection) {
             // Navigate to collection details
+
+            console.log("Profilr screen click --------> ");
+            
+
             navigation.navigate('CollectionDetailScreen', {
               collectionId: item.collection_id,
               collectionName: item.collectionName,
@@ -1094,29 +1103,63 @@ const ProfileScreen = () => {
     );
   };
 
-  const renderBio = () => (
-    <View style={styles.bioContainer}>
-      <Text style={[styles.username, {color: '#bea063'}]}>
-        @{profile.username}
-      </Text>
-      <Text style={[styles.fullName, {color: '#bea063'}]}>
-        {profile.fullName}
-      </Text>
-      <Text style={[styles.bioText, {color: '#bea063'}]}>{profile.bio}</Text>
-      {profile.location && (
-        <Text
-          style={{
-            color: '#bea063',
-            flexWrap: 'wrap',
-            width: '100%',
-            marginTop: 4,
-          }}>
-          {profile.location}
-        </Text>
-      )}
-    </View>
-  );
-
+  const renderBio = () => {
+    console.log('renderBio vendorProfile:', vendorProfile);
+    return (
+      <View style={styles.bioContainer}>
+        <Text style={[styles.username, { color: '#bea063' }]}>@{profile.username}</Text>
+        <Text style={[styles.fullName, { color: '#bea063' }]}>{profile.fullName}</Text>
+        {/* Debug: show raw vendorProfile data */}
+        {/* <Text style={{color: 'red', fontSize: 12}}>DEBUG: {JSON.stringify(vendorProfile)}</Text> */}
+        {/* Main Categories */}
+        {vendorProfile && Array.isArray(vendorProfile.main_categories) && vendorProfile.main_categories.length > 0 && (
+          <>
+            {/* <Text style={{ color: '#bea063', fontWeight: 'bold', marginTop: 8, marginBottom: 2 }}>Main Categories</Text> */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 4 }}>
+              {vendorProfile.main_categories.map((cat: {id: number, name: string}) => (
+                <View key={cat.id} style={{
+                  backgroundColor: '#fffbe6',
+                  borderColor: '#bea063',
+                  borderWidth: 1,
+                  borderRadius: 16,
+                  paddingHorizontal: 12,
+                  paddingVertical: 5,
+                  marginRight: 8,
+                  marginBottom: 8,
+                }}>
+                  <Text style={{ color: '#bea063', fontSize: 14, fontWeight: '500' }}>{cat.name}</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+        {/* Sub Categories */}
+        {vendorProfile && Array.isArray(vendorProfile.subcategories) && vendorProfile.subcategories.length > 0 && (
+          <>
+            <Text style={{ color: '#bea063', fontWeight: 'bold', marginTop: 4, marginBottom: 2 }}>Sub Categories</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 4 }}>
+              {vendorProfile.subcategories.map((cat: {id: number, name: string}) => (
+                <View key={cat.id} style={{
+                  backgroundColor: '#fffbe6',
+                  borderColor: '#bea063',
+                  borderWidth: 1,
+                  borderRadius: 16,
+                  paddingHorizontal: 12,
+                  paddingVertical: 5,
+                  marginRight: 8,
+                  marginBottom: 8,
+                }}>
+                  <Text style={{ color: '#bea063', fontSize: 14, fontWeight: '500' }}>{cat.name}</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+        : null
+      </View>
+    );
+  };
+  
   const renderTabBar = () => (
     <View style={styles.tabBar}>
       <TouchableOpacity
@@ -1921,6 +1964,59 @@ const ProfileScreen = () => {
     }
   };
 
+  const [role, setRole] = useState<string | null>(null);
+  const [vendorProfile, setVendorProfile] = useState<any>(null);
+console.log("vendorProfile ------->",vendorProfile);
+
+  const renderVendorCategories = () => {
+    if (role !== 'vendor' || !vendorProfile) return null;
+    console.log("renderVendorCategories",vendorProfile);
+    
+    const mainCategories = vendorProfile.main_categories || [];
+    const subCategories = vendorProfile.subcategories || [];
+console.log("mainCategories",mainCategories);
+
+    // Only show if there is at least one main or sub category
+    if (mainCategories.length === 0 && subCategories.length === 0) return null;
+
+    return (
+      <View style={{paddingHorizontal: 20, marginBottom: 10}}>
+        {mainCategories.length > 0 && (
+          <>
+            <Text style={{fontWeight: 'bold', color: '#bea063', fontSize: 16, marginBottom: 4}}>
+              Main Categories
+            </Text>
+            <View style={{flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8}}>
+              {mainCategories.map((cat: any, idx: number) => (
+                <View key={idx} style={{backgroundColor: '#fff5e0', borderColor: '#bea063', borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 4, marginRight: 8, marginBottom: 8}}>
+                  <Text style={{color: '#bea063', fontSize: 14}}>
+                    {cat.name || cat.category_name || cat.id}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+        {subCategories.length > 0 && (
+          <>
+            <Text style={{fontWeight: 'bold', color: '#bea063', fontSize: 16, marginBottom: 4}}>
+              Sub Categories
+            </Text>
+            <View style={{flexDirection: 'row', flexWrap: 'wrap'}}>
+              {subCategories.map((cat: any, idx: number) => (
+                <View key={idx} style={{backgroundColor: '#fff5e0', borderColor: '#bea063', borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 4, marginRight: 8, marginBottom: 8}}>
+                  <Text style={{color: '#bea063', fontSize: 14}}>
+                    {cat.name || cat.id}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -2032,8 +2128,10 @@ const ProfileScreen = () => {
             <ActivityIndicator size="large" color="#bea063" />
           </View>
         )}
+        {renderVendorCategories()}
         {renderProfileHeader()}
         {renderBio()}
+       {renderVendorCategories()}
         <View style={styles.actionButtons}>
           <TouchableOpacity
             style={styles.editButton}

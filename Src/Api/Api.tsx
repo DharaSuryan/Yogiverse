@@ -613,12 +613,12 @@ export const changePassword  = async ({formData}:any): Promise<ApiResponse> => {
     throw error;
   }
 };
-type VendorListNavigationProp = NativeStackNavigationProp<VendorStackParamList, 'VendorList'>;
+// type VendorListNavigationProp = NativeStackNavigationProp<VendorStackParamList, 'VendorList'>;
 
-export type VendorStackParamList = {
-  VendorList: undefined;
-  VendorDetail: { vendorId: string };
-};
+// export type VendorStackParamList = {
+//   VendorList: undefined;
+//   VendorDetail: { vendorId: string };
+// };
 
 // export const postReels  = async ({formData}:any): Promise<ApiResponse> => {
 //   const authToken = await AsyncStorage.getItem('accessToken');

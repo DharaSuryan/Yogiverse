@@ -86,10 +86,11 @@ const VendorDetailScreen = ({navigation}:any) => {
       
       // Use the correct parameter names from navigation
       const mainCategory = mainCategoryId;
-      const subcategory = subcategoryIds && subcategoryIds.length > 0 ? subcategoryIds[0] : null;
+      const subcategory = subcategoryIds ;
+      console.log("mainCategorymainCategory" ,mainCategory,subcategory);
       
       // Build URL with proper parameters
-      let url = `https://pashuahar.com/vendor_list/?main_category=${mainCategory}`;
+      let url = `https://pashuahar.com/vendor_list/?main_category=${mainCategory}&subcategory=${subcategory}`;
       if (subcategory) {
         url += `&subcategory=${subcategory}`;
       }
@@ -109,11 +110,11 @@ const VendorDetailScreen = ({navigation}:any) => {
         filterVendorsByCategories(data.vendors);
       } else {
         console.log('API response error:', data);
-        setError('Failed to fetch vendors');
+        setError('Failed to fetch yogic');
       }
     } catch (error) {
-      console.error('Error fetching vendors:', error);
-      setError('Something went wrong while loading vendors');
+      console.error('Error fetching Data:', error);
+      setError('Something went wrong while loading Data');
     } finally {
       setLoading(false);
     }
@@ -156,7 +157,7 @@ const VendorDetailScreen = ({navigation}:any) => {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#bea063" />
-          <Text style={styles.loadingText}>Loading vendors...</Text>
+          <Text style={styles.loadingText}>Loading Data...</Text>
         </View>
       </SafeAreaView>
     );

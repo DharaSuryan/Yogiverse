@@ -444,10 +444,19 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12 }}>
+        <TouchableOpacity onPress={() => navigation.navigate('RoleSelection')} style={{ paddingHorizontal: 12, paddingVertical: 4 }}>
+          <Text style={{ fontSize: 24, color: '#bea063' }}>{'←'}</Text>
+          {/* Or use <Icon name="arrow-back" size={24} color="#bea063" /> if Ionicons works */}
+        </TouchableOpacity>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#bea063', marginLeft: 8 }}>
+          Sign Up
+        </Text>
+      </View>
       <ScrollView contentContainerStyle={styles.content}>
         {/* {role !== 'user' ? <Text style={{ textAlign: 'center', color: '#bea063', marginTop: 10 }}>Everyone is Yogi</Text> : null}
         {role !== 'user' ? <Text style={{ textAlign: 'center', marginVertical: 5, color: '#bea063' }}>by his/her Karma and Dharma.</Text> : null} */}
-        <Text style={{ fontSize: 22, fontWeight: 'bold', marginVertical: 16, alignSelf: 'center', color: 'gray' }}>Sign Up as <Text style={styles.header}>{role === 'user' ? 'Seekers' : "Yogi's"}</Text></Text>
+        {/* <Text style={{ fontSize: 22, fontWeight: 'bold', marginVertical: 16, alignSelf: 'center', color: 'gray' }}>Sign Up as <Text style={styles.header}>{role === 'user' ? 'Seekers' : "Yogi's"}</Text></Text> */}
         <Formik
           initialValues={initialValues}
           validationSchema={role === 'user' ? UserSchema : VendorSchema}

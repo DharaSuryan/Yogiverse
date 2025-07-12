@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SectionList,
   TouchableOpacity,
   Image,
   ActivityIndicator,
@@ -11,9 +10,10 @@ import {
   SafeAreaView,
   Dimensions,
   FlatList,
+  BackHandler,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { useNavigation, useRoute, RouteProp, useFocusEffect, CommonActions } from '@react-navigation/native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -43,55 +43,56 @@ interface CollectionDetailScreenRouteProp {
 }
 
 const { width } = Dimensions.get('window');
-const POST_SIZE = width / 3 - 2;
 
-export default function CollectionDetailScreen({navigation}:any) {
-  // const navigation = useNavigation<any>();
+export default function CollectionDetailScreen() {
+  const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<{ params: CollectionDetailScreenRouteProp['params'] }>>();
   const { collectionId, collectionName, postToSave } = route.params;
-  
+
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [savingPost, setSavingPost] = useState(false);
   const [deletingCollection, setDeletingCollection] = useState(false);
-  const [activeCaption, setActiveCaption] = useState<string | null>(null);
+
+  // Hardware and UI back navigation
+  const handleGoBack = () => {
+    navigation.navigate('MainTab', { screen: 'Profile' });
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        handleGoBack();
+        return true; // Prevent default back behavior
+      };
+      BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+    }, [])
+  );
 
   const fetchCollectionPosts = async () => {
     setLoading(true);
     try {
       const authToken = await AsyncStorage.getItem('accessToken');
-      console.log('CollectionDetailScreen - Auth token:', authToken ? 'Present' : 'Missing');
-      
       const headers = {
         'Accept': 'application/json',
         'Authorization': `Bearer ${authToken}`
       };
-      
       const apiUrl = `https://pashuahar.com/collections/${collectionId}/`;
-      console.log('CollectionDetailScreen - Fetching posts from:', apiUrl);
-      
       const response = await axios.get(apiUrl, { headers });
-      console.log('CollectionDetailScreen - API response status:', response.status);
-      console.log('CollectionDetailScreen - API response data:', JSON.stringify(response.data, null, 2));
-      
+
+      // Flexible data handling
       if (response.data?.data?.results) {
-        console.log('CollectionDetailScreen - Found posts:', response.data.data.results.length);
         setPosts(response.data.data.results);
       } else if (response.data?.results) {
-        console.log('CollectionDetailScreen - Found posts (direct results):', response.data.results.length);
         setPosts(response.data.results);
       } else if (Array.isArray(response.data)) {
-        console.log('CollectionDetailScreen - Found posts (array):', response.data.length);
         setPosts(response.data);
       } else {
-        console.log('CollectionDetailScreen - No posts found in response');
         setPosts([]);
       }
     } catch (error: any) {
-      console.error('CollectionDetailScreen - Error fetching collection posts:', error);
-      console.error('CollectionDetailScreen - Error response:', error.response?.data);
-      console.error('CollectionDetailScreen - Error status:', error.response?.status);
       setPosts([]);
     } finally {
       setLoading(false);
@@ -99,8 +100,6 @@ export default function CollectionDetailScreen({navigation}:any) {
   };
 
   useEffect(() => {
-    console.log("collectionId",collectionId);
-    
     fetchCollectionPosts();
   }, [collectionId]);
 
@@ -112,7 +111,6 @@ export default function CollectionDetailScreen({navigation}:any) {
 
   const handleSavePost = async () => {
     if (!postToSave) return;
-    
     setSavingPost(true);
     try {
       const authToken = await AsyncStorage.getItem('accessToken');
@@ -121,26 +119,19 @@ export default function CollectionDetailScreen({navigation}:any) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`
       };
-      
       const payload = {
         collection: parseInt(collectionId),
         content_type: postToSave.content_type,
         object_id: postToSave.object_id,
       };
-      
-      console.log('Saving post to collection from detail screen:', payload);
-      
       await axios.post(
         'https://pashuahar.com/collections/items/',
         payload,
         { headers }
       );
-      
       Alert.alert('Success', 'Post saved to collection!');
-      // Refresh the posts list
       fetchCollectionPosts();
     } catch (error: any) {
-      console.error('Error saving post to collection:', error);
       const errorMessage = error.response?.data?.message || 'Failed to save post';
       Alert.alert('Error', errorMessage);
     } finally {
@@ -153,10 +144,7 @@ export default function CollectionDetailScreen({navigation}:any) {
       'Delete Collection',
       `Are you sure you want to delete "${collectionName}"? This action cannot be undone.`,
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
@@ -168,17 +156,11 @@ export default function CollectionDetailScreen({navigation}:any) {
                 'Accept': 'application/json',
                 'Authorization': `Bearer ${authToken}`
               };
-              
               const deleteUrl = `https://pashuahar.com/collections/${collectionId}/delete/`;
-              console.log('Deleting collection:', deleteUrl);
-              
               await axios.delete(deleteUrl, { headers });
-              
               Alert.alert('Success', 'Collection deleted successfully!');
-              // Navigate back to the previous screen
-              navigation.goBack();
+              handleGoBack();
             } catch (error: any) {
-              console.error('Error deleting collection:', error);
               const errorMessage = error.response?.data?.message || 'Failed to delete collection';
               Alert.alert('Error', errorMessage);
             } finally {
@@ -196,19 +178,12 @@ export default function CollectionDetailScreen({navigation}:any) {
     return null;
   };
 
-  // Create grid data structure for SectionList
-  const createGridData = () => {
-    return [{
-      title: 'Posts',
-      data: posts
-    }];
-  };
-
-  const renderSectionHeader = () => null;
+  // Filter valid posts for FlatList to avoid index errors
+  const validPosts = posts.filter(item => item && item.item_data && item.item_data.id);
 
   const renderGridItem = ({ item }: { item: any }) => {
+    if (!item?.item_data) return null;
     const post = item.item_data;
-    if (!post) return <View style={styles.gridItem} />;
     const firstMedia = post.media?.[0];
     const mediaUri = firstMedia?.media_file;
     return (
@@ -230,12 +205,12 @@ export default function CollectionDetailScreen({navigation}:any) {
       <View style={styles.headerInfo}>
         <Text style={styles.collectionName}>{collectionName}</Text>
         <Text style={styles.postCount}>
-          {posts.length} {posts.length === 1 ? 'post' : 'posts'}
+          {validPosts.length} {validPosts.length === 1 ? 'post' : 'posts'}
         </Text>
       </View>
       {postToSave && (
-        <TouchableOpacity 
-          style={[styles.saveButton, savingPost && styles.saveButtonDisabled]} 
+        <TouchableOpacity
+          style={[styles.saveButton, savingPost && styles.saveButtonDisabled]}
           onPress={handleSavePost}
           disabled={savingPost}
         >
@@ -253,11 +228,11 @@ export default function CollectionDetailScreen({navigation}:any) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.navHeader}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Icon name="arrow-back" size={24} color="#000" />
+          <TouchableOpacity onPress={handleGoBack}>
+            <Text style={{fontSize: 24, color: '#000'}}>{'←'}</Text>
           </TouchableOpacity>
           <Text style={styles.navTitle}>{collectionName}</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={handleDeleteCollection}
             disabled={deletingCollection}
             style={styles.deleteButton}
@@ -265,7 +240,7 @@ export default function CollectionDetailScreen({navigation}:any) {
             {deletingCollection ? (
               <ActivityIndicator size={20} color="#FF3B30" />
             ) : (
-              <Icon name="trash-outline" size={24} color="#FF3B30" />
+              <Text style={{fontSize: 24, color: '#FF3B30'}}>{'🗑️'}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -279,11 +254,11 @@ export default function CollectionDetailScreen({navigation}:any) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.navHeader}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#000" />
+        <TouchableOpacity onPress={handleGoBack}>
+          <Text style={{fontSize: 24, color: '#000'}}>{'←'}</Text>
         </TouchableOpacity>
         <Text style={styles.navTitle}>{collectionName}</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={handleDeleteCollection}
           disabled={deletingCollection}
           style={styles.deleteButton}
@@ -291,16 +266,14 @@ export default function CollectionDetailScreen({navigation}:any) {
           {deletingCollection ? (
             <ActivityIndicator size={20} color="#FF3B30" />
           ) : (
-            <Icon name="trash-outline" size={24} color="#FF3B30" />
+            <Text style={{fontSize: 24, color: '#FF3B30'}}>{'🗑️'}</Text>
           )}
         </TouchableOpacity>
       </View>
-
       {renderHeader()}
-
-      {posts.length === 0 ? (
+      {validPosts.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Icon name="bookmark-outline" size={80} color="#ccc" />
+          <Text style={{fontSize: 80, color: '#ccc'}}>{'🔖'}</Text>
           <Text style={styles.emptyTitle}>No Posts Yet</Text>
           <Text style={styles.emptySubtitle}>
             Posts you save to this collection will appear here
@@ -308,9 +281,9 @@ export default function CollectionDetailScreen({navigation}:any) {
         </View>
       ) : (
         <FlatList
-          data={posts}
+          data={validPosts}
           numColumns={3}
-          keyExtractor={item => item?.item_data?.id?.toString() || Math.random().toString()}
+          keyExtractor={item => item.item_data.id.toString()}
           renderItem={renderGridItem}
           refreshing={refreshing}
           onRefresh={onRefresh}
@@ -416,4 +389,4 @@ const styles = StyleSheet.create({
   deleteButton: {
     padding: 5,
   },
-}); 
+});
