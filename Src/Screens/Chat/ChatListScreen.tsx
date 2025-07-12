@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, Modal, TextInput } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, Modal, TextInput, Image } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from 'Src/Navigation/types';
-import Icon from 'react-native-vector-icons/Feather';
+const Ionicons = require('react-native-vector-icons/Ionicons').default;
+const Feather = require('react-native-vector-icons/Feather').default;
 
 type Follower = {
   id: number;
@@ -39,6 +40,7 @@ const ChatListScreen = () => {
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState('');
   const navigation = useNavigation<ChatListScreenNavigationProp>();
+  const username = 'keval_joshi08'; // Replace with actual username from context if available
 
   useEffect(() => {
     fetchChats();
@@ -115,27 +117,81 @@ const ChatListScreen = () => {
 
   if (loading) return <ActivityIndicator style={{ flex: 1, marginTop: 40 }} />;
 
+  // Filter groups by search (group name or member name/email)
+  const filteredGroups = groups.filter(group => {
+    const searchLower = search.toLowerCase();
+    if (group.group_name && group.group_name.toLowerCase().includes(searchLower)) return true;
+    if (group.group_members && group.group_members.members) {
+      return group.group_members.members.some(member =>
+        (member.first_name && member.first_name.toLowerCase().includes(searchLower)) ||
+        (member.last_name && member.last_name.toLowerCase().includes(searchLower)) ||
+        (member.email && member.email.toLowerCase().includes(searchLower))
+      );
+    }
+    return false;
+  });
+
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      {/* Header with New Chat button */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Chats</Text>
-        <TouchableOpacity onPress={openNewChatModal} style={styles.newChatBtn}>
-          <Icon name="edit-2" size={22} color="#262626" />
+      {/* Header */}
+      <View style={styles.headerContainer}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerIconBtn}>
+          <Ionicons name="arrow-back" size={24} color="#262626" />
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>{username}</Text>
+        <View style={styles.headerRightIcons}>
+          <TouchableOpacity style={styles.headerIconBtn}>
+            <Ionicons name="camera-outline" size={22} color="#bea063" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerIconBtn} onPress={openNewChatModal}>
+            <Feather name="edit-2" size={22} color="#bea063" />
+          </TouchableOpacity>
+        </View>
       </View>
+      {/* Search Bar */}
+      <View style={styles.searchBarContainer}>
+        <Ionicons name="search" size={20} color="#888" style={{ marginRight: 8 }} />
+        <TextInput
+          style={styles.searchBar}
+          placeholder="Search person or group"
+          value={search}
+          onChangeText={setSearch}
+          placeholderTextColor="#aaa"
+        />
+      </View>
+      {/* Chat List */}
       <FlatList
-        data={groups}
+        data={filteredGroups}
         keyExtractor={item => item.chat_id?.toString()}
         renderItem={({ item }: { item: Group }) => (
           <TouchableOpacity onPress={() => handleChatPress(item)} style={styles.chatItem}>
-            <Text style={styles.chatTitle}>{item.group_name || 'Chat'}</Text>
-            <Text style={styles.lastMessage}>{item.last_message?.message || 'No messages yet'}</Text>
+            <View style={styles.chatLeft}>
+              <Image
+                source={{ uri: 'https://randomuser.me/api/portraits/men/1.jpg' }} // Replace with actual user image
+                style={styles.avatar}
+              />
+              <View style={styles.chatTextContainer}>
+                <Text style={[styles.chatTitle, !item.last_message?.message && { fontWeight: 'bold' }]} numberOfLines={1}>
+                  {item.group_name || 'Chat'}
+                </Text>
+                <Text style={styles.lastMessage} numberOfLines={1}>
+                  {item.last_message?.message || 'No messages yet'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.chatRight}>
+              {/* Blue dot for unread (simulate unread for demo) */}
+              <View style={styles.unreadDot} />
+              <Text style={styles.timeText}>2m</Text>
+              <TouchableOpacity>
+                <Ionicons name="camera-outline" size={20} color="#bea063" style={{ marginLeft: 10 }} />
+              </TouchableOpacity>
+            </View>
           </TouchableOpacity>
         )}
         ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40 }}>No chats found.</Text>}
       />
-      {/* New Chat Modal */}
+      {/* New Chat Modal (unchanged except icon fix) */}
       <Modal visible={modalVisible} animationType="slide" onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalContainer}>
           <Text style={styles.modalTitle}>New Message</Text>
@@ -155,7 +211,7 @@ const ChatListScreen = () => {
             renderItem={({ item }) => (
               <TouchableOpacity onPress={() => handleSelect(item.id)} style={[styles.followerItem, selected.includes(item.id) && styles.selectedFollower]}>
                 <Text style={styles.followerName}>{item.first_name} {item.last_name}</Text>
-                {selected.includes(item.id) && <Icon name="check" size={18} color="#3897f0" />}
+                {selected.includes(item.id) && <Feather name="check" size={18} color="#3897f0" />}
               </TouchableOpacity>
             )}
             ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40 }}>No followers found.</Text>}
@@ -190,27 +246,79 @@ const ChatListScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  header: {
+  headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
     borderBottomWidth: 1,
     borderColor: '#eee',
     backgroundColor: '#fff',
   },
+  headerIconBtn: {
+    padding: 6,
+  },
   headerTitle: {
     fontWeight: 'bold',
-    fontSize: 22,
+    fontSize: 20,
     color: '#262626',
+    flex: 1,
+    textAlign: 'center',
   },
-  newChatBtn: {
-    padding: 8,
+  headerRightIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  chatItem: {
-    padding: 16,
+  tabsContainer: {
+    flexDirection: 'row',
     borderBottomWidth: 1,
     borderColor: '#eee',
+    backgroundColor: '#fff',
+  },
+  tabBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  activeTabBtn: {
+    borderBottomWidth: 2,
+    borderColor: '#bea063',
+  },
+  tabText: {
+    fontSize: 16,
+    color: '#888',
+    fontWeight: '500',
+  },
+  activeTabText: {
+    color: '#bea063',
+    fontWeight: 'bold',
+  },
+  chatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderColor: '#eee',
+    backgroundColor: '#fff',
+  },
+  chatLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+    backgroundColor: '#f0f0f0',
+  },
+  chatTextContainer: {
+    flex: 1,
   },
   chatTitle: {
     fontWeight: 'bold',
@@ -219,7 +327,27 @@ const styles = StyleSheet.create({
   },
   lastMessage: {
     color: '#888',
+    fontSize: 14,
     marginTop: 2,
+  },
+  chatRight: {
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+    marginLeft: 8,
+  },
+  unreadDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#3897f0',
+    marginRight: 8,
+    alignSelf: 'center',
+  },
+  timeText: {
+    color: '#888',
+    fontSize: 12,
+    marginRight: 8,
+    alignSelf: 'center',
   },
   modalContainer: {
     flex: 1,
@@ -283,6 +411,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontSize: 16,
     backgroundColor: '#fafafa',
+  },
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#f0f0f0',
+    borderBottomWidth: 1,
+    borderColor: '#eee',
+  },
+  searchBar: {
+    flex: 1,
+    fontSize: 16,
+    color: '#262626',
+    paddingVertical: 0,
   },
 });
 

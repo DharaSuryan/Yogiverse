@@ -26,6 +26,7 @@ import UploadOptionsScreen from 'Src/Screens/Post/UploadOptionsScreen';
 import PreViewForPost from 'Src/Screens/Post/PreViewForPost';
 import FollowersFollowingScreen from 'Src/Screens/Profile/FollowersFollowingScreen';
 import StoryCreation from 'Src/Screens/Story/StoryCreation';
+import ChatListScreen from '../Screens/Chat/ChatListScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -96,6 +97,7 @@ const AppNavigator = () => {
 
         <Stack.Screen name='TrendingDetailScreen' component={TrendingDetailScreen}/>
         <Stack.Screen name="ReelCamera" component={ReelCameraScreen} />
+        <Stack.Screen name= "ChatListScreen" component={ChatListScreen} />
 
 
         {/* <Stack.Screen name="SearchDetail" component={SearchDetailScreen}/> */}
