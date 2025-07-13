@@ -14,7 +14,7 @@ import {
 import Video from 'react-native-video';
 import { useNavigation, useRoute, RouteProp, CommonActions } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Icon from 'react-native-vector-icons/Ionicons';
+const Ionicons = require('react-native-vector-icons/Ionicons').default;
 import { CreatePostStackParamList, RootStackParamList } from '../../Navigation/types';
 import { postStories } from '../../Api/Api';
 
@@ -86,7 +86,7 @@ const StoryPreviewScreen = () => {
     setShowTextEditor(false);
   };
 
-  const handlePost = async (uri) => {
+  const handlePost = async (uri: string) => {
     console.log("uri", uri);
 
     try {
@@ -131,7 +131,7 @@ const StoryPreviewScreen = () => {
           />
           {!isPlaying && (
             <View style={styles.playButtonContainer}>
-              <Icon name="play" size={50} color="#FFFFFF" />
+              <Ionicons name="play" size={50} color="#FFFFFF" />
             </View>
           )}
         </TouchableOpacity>
@@ -146,7 +146,7 @@ const StoryPreviewScreen = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-          <Icon name="close" size={24} color="#FFFFFF" />
+          <Ionicons name="close" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => handlePost(uri)} style={styles.shareButton}>
           <Text style={styles.shareButtonText}>Share</Text>
@@ -197,16 +197,16 @@ const StoryPreviewScreen = () => {
           style={styles.toolbarButton}
           onPress={() => setShowStickerPicker(true)}
         >
-          <Icon name="happy-outline" size={24} color="#FFFFFF" />
+          <Ionicons name="happy-outline" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.toolbarButton}
           onPress={() => setShowTextEditor(true)}
         >
-          <Icon name="text-outline" size={24} color="#FFFFFF" />
+          <Ionicons name="text-outline" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.toolbarButton}>
-          <Icon name="brush-outline" size={24} color="#FFFFFF" />
+          <Ionicons name="brush-outline" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
@@ -260,11 +260,11 @@ const StoryPreviewScreen = () => {
           </View>
           <View style={styles.fontSizeControls}>
             <TouchableOpacity onPress={() => setFontSize(Math.max(16, fontSize - 4))}>
-              <Icon name="remove" size={24} color="#FFFFFF" />
+              <Ionicons name="remove" size={24} color="#FFFFFF" />
             </TouchableOpacity>
             <Text style={styles.fontSizeText}>{fontSize}px</Text>
             <TouchableOpacity onPress={() => setFontSize(Math.min(48, fontSize + 4))}>
-              <Icon name="add" size={24} color="#FFFFFF" />
+              <Ionicons name="add" size={24} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
           <TouchableOpacity style={styles.addTextButton} onPress={addText}>
@@ -295,6 +295,21 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 8,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  nextButton: {
+    backgroundColor: '#0095F6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginRight: 10,
+  },
+  nextButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
   shareButton: {
     backgroundColor: '#0095F6',
     paddingHorizontal: 16,
@@ -312,6 +327,12 @@ const styles = StyleSheet.create({
   mediaContainer: {
     flex: 1,
     position: 'relative',
+  },
+  imageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000000',
   },
   media: {
     width: '100%',

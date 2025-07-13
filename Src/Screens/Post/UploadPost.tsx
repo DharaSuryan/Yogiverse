@@ -15,6 +15,7 @@ import {
   AppState,
   Platform,
   PermissionsAndroid,
+  Linking,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'react-native-image-picker';
@@ -25,36 +26,18 @@ import LocationPicker, { LocationOption } from '../../Components/LocationPicker'
 import PostPreviewScreen from './PostPreviewScreen';
 import { reset } from 'Src/Component/Route';
 import MediaEditModal from './MediaEditModal';
+import { 
+  checkCameraPermissions, 
+  checkPhotoLibraryPermissions,
+  launchCameraWithPermission,
+  launchImageLibraryWithPermission 
+} from '../../Utils/permissions';
 
 // Helper for story API
 const STORY_API_URL = 'https://pashuahar.com/stories';
 
 // VideoPauseContext for global video control
 const VideoPauseContext = React.createContext({ pauseAll: false, setPauseAll: (_: boolean) => {} });
-
-// Add camera permission request function
-const requestCameraPermission = async () => {
-  if (Platform.OS === 'android') {
-    try {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.CAMERA,
-        {
-          title: 'Camera Permission',
-          message: 'App needs access to your camera to take photos and videos.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        },
-      );
-      return granted === PermissionsAndroid.RESULTS.GRANTED;
-    } catch (err) {
-      Alert.alert('Permission error', 'Failed to request camera permission');
-      return false;
-    }
-  }
-  // On iOS, react-native-image-picker will handle it
-  return true;
-};
 
 // Fix props type for navigation/route
 // @ts-ignore
@@ -101,51 +84,43 @@ const UploadPost = ({ navigation, route }) => {
   const handleCameraCapture = async (mediaType: 'photo' | 'video') => {
     setShowCameraOptions(false);
 
-    const hasPermission = await requestCameraPermission();
-    if (!hasPermission) {
-      Alert.alert('Permission Denied', 'Camera permission is required to take photos or videos.');
-      return;
-    }
-
     // Build options object
-    const options: any = {
+    const options: ImagePicker.CameraOptions = {
       mediaType,
       includeBase64: false,
       maxHeight: 2000,
       maxWidth: 2000,
       quality: 0.8,
       videoQuality: 'medium',
+      saveToPhotos: false, // Don't save to camera roll automatically
     };
     if (mediaType === 'video') {
       options.durationLimit = 60; // 60 seconds for video
     }
 
-    ImagePicker.launchCamera(
-      options,
-      (response) => {
-        console.log("Camera response:", response);
+    launchCameraWithPermission(options, (response) => {
+      console.log("Camera response:", response);
 
-        if (response.didCancel) {
-          console.log('User cancelled camera');
-        } else if (response.errorCode) {
-          console.error('Camera error:', response.errorMessage);
-          Alert.alert('Error', response.errorMessage);
-        } else if (response.assets && response.assets.length > 0) {
-          setSelectedMedia(response.assets
-            .filter(asset => asset.uri)
-            .map(asset => ({
-              uri: asset.uri as string,
-              type: asset.type || 'image/jpeg',
-              name: asset.fileName || (asset.type?.startsWith('video') ? 'camera_video.mp4' : 'camera_photo.jpg'),
-            }))
-          );
-          setMediaMeta({
-            type: response.assets[0].type || 'image/jpeg',
-            name: response.assets[0].fileName || (response.assets[0].type?.startsWith('video') ? 'camera_video.mp4' : 'camera_photo.jpg'),
-          });
-        }
+      if (response.didCancel) {
+        console.log('User cancelled camera');
+      } else if (response.errorCode && response.errorCode !== 'permission') {
+        console.error('Camera error:', response.errorMessage);
+        Alert.alert('Camera Error', response.errorMessage || 'Failed to access camera');
+      } else if (response.assets && response.assets.length > 0) {
+        setSelectedMedia(response.assets
+          .filter(asset => asset.uri)
+          .map(asset => ({
+            uri: asset.uri as string,
+            type: asset.type || 'image/jpeg',
+            name: asset.fileName || (asset.type?.startsWith('video') ? 'camera_video.mp4' : 'camera_photo.jpg'),
+          }))
+        );
+        setMediaMeta({
+          type: response.assets[0].type || 'image/jpeg',
+          name: response.assets[0].fileName || (response.assets[0].type?.startsWith('video') ? 'camera_video.mp4' : 'camera_photo.jpg'),
+        });
       }
-    );
+    });
   };
 
   // Unified media picker for both gallery and camera
@@ -155,43 +130,43 @@ const UploadPost = ({ navigation, route }) => {
       return;
     }
 
-    const picker = ImagePicker.launchImageLibrary;
-    picker(
-      {
-        mediaType,
-        includeBase64: false,
-        maxHeight: 2000,
-        maxWidth: 2000,
-        selectionLimit: 10, // allow up to 10 images
-      },
-      (response) => {
-        if (response.didCancel) {
-          // User cancelled
-        } else if (response.errorCode) {
-          Alert.alert('Error', response.errorMessage);
-        } else if (response.assets && response.assets.length > 0) {
-          const newMedia = response.assets
-            .filter(asset => asset.uri)
-            .map(asset => ({
-              uri: asset.uri as string,
-              type: asset.type || 'image/jpeg',
-              name: asset.fileName || (asset.type?.startsWith('video') ? 'camera_video.mp4' : 'camera_photo.jpg'),
-            }));
-          setSelectedMedia(newMedia);
-          if (newMedia.length > 1) {
-            setWizardMode(true);
-            setWizardIndex(0);
-            setEditIndex(0);
-            setEditImage(newMedia[0].uri);
-            setShowEditModal(true);
-          } else if (newMedia.length === 1) {
-            setEditIndex(0);
-            setEditImage(newMedia[0].uri);
-            setShowEditModal(true);
-          }
+    const options: ImagePicker.ImageLibraryOptions = {
+      mediaType,
+      includeBase64: false,
+      maxHeight: 2000,
+      maxWidth: 2000,
+      selectionLimit: 10, // allow up to 10 images
+      quality: 0.8,
+    };
+
+    launchImageLibraryWithPermission(options, (response) => {
+      if (response.didCancel) {
+        // User cancelled
+      } else if (response.errorCode && response.errorCode !== 'permission') {
+        console.error('Gallery picker error:', response.errorMessage);
+        Alert.alert('Gallery Error', response.errorMessage || 'Failed to access photo library');
+      } else if (response.assets && response.assets.length > 0) {
+        const newMedia = response.assets
+          .filter(asset => asset.uri)
+          .map(asset => ({
+            uri: asset.uri as string,
+            type: asset.type || 'image/jpeg',
+            name: asset.fileName || (asset.type?.startsWith('video') ? 'camera_video.mp4' : 'camera_photo.jpg'),
+          }));
+        setSelectedMedia(newMedia);
+        if (newMedia.length > 1) {
+          setWizardMode(true);
+          setWizardIndex(0);
+          setEditIndex(0);
+          setEditImage(newMedia[0].uri);
+          setShowEditModal(true);
+        } else if (newMedia.length === 1) {
+          setEditIndex(0);
+          setEditImage(newMedia[0].uri);
+          setShowEditModal(true);
         }
       }
-    );
+    });
   };
 
   // Handler for when editing is done

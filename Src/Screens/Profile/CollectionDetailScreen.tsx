@@ -13,9 +13,10 @@ import {
   BackHandler,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp, useFocusEffect, CommonActions } from '@react-navigation/native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+const Ionicons = require('react-native-vector-icons/Ionicons').default;
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Post from '../../Component/Post';
 
 interface CollectionPost {
   id: string;
@@ -81,6 +82,8 @@ export default function CollectionDetailScreen() {
       };
       const apiUrl = `https://pashuahar.com/collections/${collectionId}/`;
       const response = await axios.get(apiUrl, { headers });
+      console.log("reson.....", response?.data?.data?.results);
+      
 
       // Flexible data handling
       if (response.data?.data?.results) {
@@ -184,19 +187,36 @@ export default function CollectionDetailScreen() {
   const renderGridItem = ({ item }: { item: any }) => {
     if (!item?.item_data) return null;
     const post = item.item_data;
-    const firstMedia = post.media?.[0];
-    const mediaUri = firstMedia?.media_file;
+    const isReel = post.type === 'reel';
+    const media = isReel
+      ? post.video_file
+        ? [{ media_file: post.video_file, is_video: true }]
+        : []
+      : post.media || [];
     return (
-      <TouchableOpacity
-        style={styles.gridItem}
-        onPress={() => navigation.navigate('CollectionPostDetail', { post })}
-      >
-        <Image
-          source={mediaUri ? { uri: mediaUri } : require('../../Assets/yoga.jpg')}
-          style={styles.gridImage}
-          resizeMode="cover"
+      <View style={styles.gridItem}>
+        <Post
+          id={post.id?.toString()}
+          username={post.profile?.username || ''}
+          media={media}
+          caption={post.caption || ''}
+          likes={post.like_count || 0}
+          userAvatar={post.profile?.profile_picture}
+          isLiked={item.is_like || false}
+          contentType={post.type}
+          navigation={navigation}
+          allowComments={post.allow_comments !== false}
+          commentCount={post.comment_count || 0}
+          hideLikeCount={post.hide_like_count || false}
+          location={post.location || ''}
+          createdAt={post.created_at || ''}
+          profile={post.profile}
+          item={item}
+          is_collection={item.is_collection}
+          collection_id={item.collection}
+          type={post.type}
         />
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -240,7 +260,7 @@ export default function CollectionDetailScreen() {
             {deletingCollection ? (
               <ActivityIndicator size={20} color="#FF3B30" />
             ) : (
-              <Text style={{fontSize: 24, color: '#FF3B30'}}>{'🗑️'}</Text>
+              <Ionicons name="trash" size={24} color="#FF3B30" />
             )}
           </TouchableOpacity>
         </View>
@@ -266,7 +286,7 @@ export default function CollectionDetailScreen() {
           {deletingCollection ? (
             <ActivityIndicator size={20} color="#FF3B30" />
           ) : (
-            <Text style={{fontSize: 24, color: '#FF3B30'}}>{'🗑️'}</Text>
+            <Ionicons name="trash" size={24} color="#FF3B30" />
           )}
         </TouchableOpacity>
       </View>

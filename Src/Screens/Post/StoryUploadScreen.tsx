@@ -11,6 +11,7 @@ import {
   Alert,
   Platform,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'react-native-image-picker';
 import { postStories } from '../../Api/Api';
@@ -24,14 +25,13 @@ const screenHeight = Dimensions.get('window').height;
 const StoryUploadScreen = () => {
   const navigation = useNavigation();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [showInputModal, setShowInputModal] = useState(false);
   const [caption, setCaption] = useState('');
   const [selectedLocation, setSelectedLocation] = useState<LocationOption | null>(null);
-  const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isHighlighted, setIsHighlighted] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [processedImage, setProcessedImage] = useState<string | null>(null);
+  const [activeModal, setActiveModal] = useState<'input' | 'location' | null>(null);
 
   // Step 1: Pick image on mount
   React.useEffect(() => {
@@ -98,11 +98,33 @@ const StoryUploadScreen = () => {
 
   return (
     <View style={styles.container}>
+      {/* Next button in top-right corner */}
+      <TouchableOpacity style={styles.topNextButton} onPress={handleNext} disabled={uploading}>
+        {uploading ? (
+          <ActivityIndicator color="#fff" size="small" />
+        ) : (
+          <Text style={styles.topNextButtonText}>Next</Text>
+        )}
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.imageContainer} activeOpacity={0.95} onPress={() => setShowEditModal(true)}>
         <Image source={{ uri: processedImage || selectedImage }} style={styles.image} resizeMode="cover" />
       </TouchableOpacity>
+
+      {/* Bottom Toolbar */}
+      <View style={styles.toolbar}>
+        <TouchableOpacity style={styles.toolbarButton} onPress={() => setShowEditModal(true)}>
+          <Text style={styles.toolbarButtonText}>Edit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.toolbarButton} onPress={() => setActiveModal('input')}>
+          <Text style={styles.toolbarButtonText}>Caption</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.toolbarButton} onPress={() => setActiveModal('location')}>
+          <Text style={styles.toolbarButtonText}>Location</Text>
+        </TouchableOpacity>
+      </View>
       {/* Input Modal for Caption and Address */}
-      <Modal visible={showInputModal} animationType="slide" transparent>
+      <Modal visible={activeModal === 'input'} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.inputModal}>
             <Text style={[styles.inputLabel, { color: '#bea063' }]}>Add a caption...</Text>
@@ -125,7 +147,7 @@ const StoryUploadScreen = () => {
             </View>
             <TouchableOpacity
               style={[styles.locationButton, { borderColor: '#bea063' }]}
-              onPress={() => setShowLocationPicker(true)}
+              onPress={() => setActiveModal('location')}
             >
               <Text style={{ color: '#bea063' }}>{selectedLocation ? selectedLocation.display_name : 'Select Location'}</Text>
             </TouchableOpacity>
@@ -134,23 +156,27 @@ const StoryUploadScreen = () => {
               onPress={handleNext}
               disabled={uploading}
             >
-              <Text style={styles.nextButtonText}>{uploading ? 'Uploading...' : 'Next'}</Text>
+              {uploading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.nextButtonText}>Next</Text>
+              )}
             </TouchableOpacity>
-            <TouchableOpacity style={styles.cancelButton} onPress={() => setShowInputModal(false)}>
+            <TouchableOpacity style={styles.cancelButton} onPress={() => setActiveModal(null)}>
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
-        {/* Location Picker Modal */}
-        <Modal visible={showLocationPicker} animationType="slide" onRequestClose={() => setShowLocationPicker(false)}>
-          <LocationPicker
-            value={selectedLocation}
-            onChange={location => {
-              setSelectedLocation(location);
-              setShowLocationPicker(false);
-            }}
-          />
-        </Modal>
+      </Modal>
+      {/* Location Picker Modal */}
+      <Modal visible={activeModal === 'location'} animationType="slide" onRequestClose={() => setActiveModal(null)}>
+        <LocationPicker
+          value={selectedLocation}
+          onChange={location => {
+            setSelectedLocation(location);
+            setActiveModal('input'); // Go back to input modal after selecting location
+          }}
+        />
       </Modal>
       {/* Pinch/Filter Edit Modal */}
       <Modal visible={showEditModal} animationType="slide" transparent={false} onRequestClose={() => setShowEditModal(false)}>
@@ -159,11 +185,11 @@ const StoryUploadScreen = () => {
           onApply={({ uri }) => {
             setProcessedImage(uri);
             setShowEditModal(false);
-            setShowInputModal(true); // Open caption/location modal after filter
+            setActiveModal('input'); // Open caption/location modal after filter
           }}
           onCancel={() => {
             setShowEditModal(false);
-            setShowInputModal(true); // Open caption/location modal after cancel
+            setActiveModal('input'); // Open caption/location modal after cancel
           }}
         />
       </Modal>
@@ -184,10 +210,11 @@ const styles = StyleSheet.create({
     height: screenHeight,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#000000',
   },
   image: {
-    width: screenWidth,
-    height: screenHeight,
+    width: '100%',
+    height: '100%',
   },
   modalOverlay: {
     flex: 1,
@@ -201,12 +228,14 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 24,
     alignItems: 'stretch',
+    maxHeight: '80%',
   },
   inputLabel: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 12,
     color: '#222',
+    textAlign: 'center',
   },
   captionInput: {
     borderWidth: 1,
@@ -216,6 +245,7 @@ const styles = StyleSheet.create({
     minHeight: 60,
     marginBottom: 16,
     color: '#222',
+    textAlignVertical: 'top',
   },
   locationButton: {
     backgroundColor: '#f5f5f5',
@@ -245,6 +275,46 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: '#888',
     fontSize: 16,
+  },
+  toolbar: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: 'transparent',
+    borderRadius: 10,
+    padding: 0,
+    zIndex: 10,
+  },
+  toolbarButton: {
+    backgroundColor: '#bea063',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginHorizontal: 5,
+    alignItems: 'center',
+  },
+  toolbarButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  topNextButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    backgroundColor: '#bea063',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    zIndex: 10,
+  },
+  topNextButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

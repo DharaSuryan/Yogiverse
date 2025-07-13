@@ -8,7 +8,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../Navigation/types';
@@ -32,7 +34,16 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ value, onChange, style,
   const [locationOptions, setLocationOptions] = useState<LocationOption[]>([]);
   const [locationLoading, setLocationLoading] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
+  const [dimensions, setDimensions] = useState(Dimensions.get('window'));
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setDimensions(window);
+    });
+
+    return () => subscription?.remove();
+  }, []);
 
   useEffect(() => {
     if (!locationInput.trim()) {
@@ -84,45 +95,65 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ value, onChange, style,
     onChange(item);
   };
 
-  const screenHeight = Dimensions.get('window').height;
-  const pickerHeight = isFromUserProfile ? screenHeight * 0.5 : screenHeight;
+  const screenHeight = dimensions.height;
+  const screenWidth = dimensions.width;
+  const isIOS = Platform.OS === 'ios';
+  
+  // Calculate responsive dimensions
+  const pickerHeight = isFromUserProfile 
+    ? Math.min(screenHeight * 0.5, screenHeight - 200) 
+    : screenHeight - (isIOS ? 100 : 80);
+  
+  const listMaxHeight = Math.min(320, screenHeight * 0.4);
+  const isLandscape = screenWidth > screenHeight;
+
   return (
-    <View style={[styles.container, style, isFromUserProfile ? { height: pickerHeight, maxHeight: pickerHeight } : { flex: 1 }]}> 
-      <TextInput
-        placeholder="Search for a location"
-        placeholderTextColor="#bea063"
-        value={locationInput}
-        onChangeText={text => {
-          setLocationInput(text);
-          setShowOptions(true);
-        }}
-        style={styles.input}
-        onFocus={() => setShowOptions(true)}
-      />
-      {locationLoading && <ActivityIndicator size="small" color="#bea063" style={{marginVertical: 8}} />}
-      {!locationLoading && showOptions && locationOptions.length === 0 && locationInput.trim().length === 0 && (
-        <Text style={{ color: '#bea063', textAlign: 'center', marginVertical: 12 }}>
-          Start typing to search for locations...
-        </Text>
-      )}
-      {showOptions && locationOptions.length > 0 && (
-        <FlatList
-          data={locationOptions}
-          keyExtractor={(item, index) => index.toString()}
-          renderItem={({ item }) => (
-            <TouchableOpacity onPress={() => handleSelect(item)}>
-              <View style={styles.itemContainer}>
-                <Text style={styles.itemTitle}>{item.display_name.split(',')[0]}</Text>
-                {item.display_name.split(',').length > 1 && (
-                  <Text style={styles.itemSubtitle}>{item.display_name.split(',').slice(1).join(',').trim()}</Text>
-                )}
-              </View>
-            </TouchableOpacity>
-          )}
-          style={styles.list}
+    <SafeAreaView style={[styles.safeArea, style]}>
+      <View style={[
+        styles.container, 
+        isFromUserProfile 
+          ? { height: pickerHeight, maxHeight: pickerHeight } 
+          : { flex: 1 },
+        isLandscape && styles.landscapeContainer
+      ]}> 
+        <TextInput
+          placeholder="Search for a location"
+          placeholderTextColor="#bea063"
+          value={locationInput}
+          onChangeText={text => {
+            setLocationInput(text);
+            setShowOptions(true);
+          }}
+          style={[styles.input, isLandscape && styles.landscapeInput]}
+          onFocus={() => setShowOptions(true)}
         />
-      )}
-    </View>
+        {locationLoading && <ActivityIndicator size="small" color="#bea063" style={styles.loader} />}
+        {!locationLoading && showOptions && locationOptions.length === 0 && locationInput.trim().length === 0 && (
+          <Text style={styles.placeholderText}>
+            Start typing to search for locations...
+          </Text>
+        )}
+        {showOptions && locationOptions.length > 0 && (
+          <FlatList
+            data={locationOptions}
+            keyExtractor={(item, index) => index.toString()}
+            renderItem={({ item }) => (
+              <TouchableOpacity onPress={() => handleSelect(item)}>
+                <View style={styles.itemContainer}>
+                  <Text style={styles.itemTitle}>{item.display_name.split(',')[0]}</Text>
+                  {item.display_name.split(',').length > 1 && (
+                    <Text style={styles.itemSubtitle}>{item.display_name.split(',').slice(1).join(',').trim()}</Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            )}
+            style={[styles.list, { maxHeight: listMaxHeight }]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          />
+        )}
+      </View>
+    </SafeAreaView>
   );
 };
 
@@ -131,12 +162,21 @@ export default LocationPicker;
 export type { LocationOption };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
   container: {
     width: '100%',
     zIndex: 10,
     backgroundColor: '#fff',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 8 : 16,
+    paddingBottom: Platform.OS === 'ios' ? 16 : 16,
     flex: 1,
+  },
+  landscapeContainer: {
+    paddingHorizontal: 20,
   },
   input: {
     borderWidth: 0,
@@ -146,6 +186,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     color: '#bea063',
     fontSize: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  landscapeInput: {
+    fontSize: 18,
+    padding: 16,
+  },
+  loader: {
+    marginVertical: 8,
+  },
+  placeholderText: {
+    color: '#bea063', 
+    textAlign: 'center', 
+    marginVertical: 12,
+    fontSize: 14,
   },
   itemContainer: {
     paddingVertical: 14,
@@ -164,9 +225,16 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   list: {
-    maxHeight: 320,
     backgroundColor: '#fff',
     borderWidth: 0,
     borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
 }); 

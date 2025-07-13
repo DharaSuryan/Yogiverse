@@ -26,6 +26,7 @@ import {
 } from '@react-navigation/native';
 import {getProfile, getUserPosts, getUserReels} from '../../Api/Api';
 import LocationPicker, {LocationOption} from '../../Components/LocationPicker';
+import {getAccounts, switchAccount} from '../../Utils/accountManager';
 //  import { Image as Compressor } from 'react-native-compressor';
 
 const {width} = Dimensions.get('window');
@@ -592,6 +593,8 @@ const ProfileScreen = ({navigation} : any) => {
             collection_id: item.collection_id || 1,
             mediaCount: mediaFiles.length > 1 ? mediaFiles.length : undefined,
             allMedia: mediaFiles,
+            allow_comments: item.allow_comments,
+            hide_like_count: item.hide_like_count,
           };
 
           processedPosts.push(post);
@@ -687,7 +690,7 @@ const ProfileScreen = ({navigation} : any) => {
       //   isFromSearch ? profileResponse : profileResponse.data?.data?.results,
       // );
       const profileResponse = await getProfile();
-      console.log("profileResponse",profileResponse.data.data.vendor_profile.main_categories);
+      console.log("profileResponse",profileResponse?.data?.data?.vendor_profile?.main_categories);
       
       setData(profileResponse?.data?.data);
       let followersCount = 0;
@@ -704,29 +707,29 @@ const ProfileScreen = ({navigation} : any) => {
       }
 
       setRole(profileResponse?.data?.role);
-      setVendorProfile(profileResponse?.data?.data?.vendor_profile);
+      setVendorProfile(profileResponse?.data?.data?.vendor_profile || null);
 
       if (isFromSearch ? profileResponse : profileResponse.data) {
         const profileData = isFromSearch
           ? profileResponse
-          : profileResponse.data.data?.profile;
+          : profileResponse?.data?.data?.profile;
         // console.log("profileDataprofileData",profileData);
 
         setProfile({
-          username: profileData.username || '',
+          username: profileData?.username || '',
           fullName:
-            `${profileData.first_name || ''} ${
-              profileData.last_name || ''
+            `${profileData?.first_name || ''} ${
+              profileData?.last_name || ''
             }`.trim() || '',
-          bio: profileData.bio,
+          bio: profileData?.bio || '',
           profileImage:
-            profileData.profile_picture || 'https://picsum.photos/200',
+            profileData?.profile_picture || 'https://picsum.photos/200',
           postsCount: isFromSearch
             ? response?.data?.data?.post_reels_count
-            : profileData.posts_count || 8,
+            : profileData?.posts_count || 8,
           followersCount,
           followingCount,
-          id: profileData.user,
+          id: profileData?.user || '',
           location: '',
         });
         // setUserId()
@@ -757,17 +760,21 @@ const ProfileScreen = ({navigation} : any) => {
         // const postsData = postsResponse.data.data.results;
         // console.log("postsDatapostsDatapostsData",postsData);
 
-        const processedPosts = await processMediaData(postsData, 'image');
-        allMedia = [...allMedia, ...processedPosts];
+        if (postsData && Array.isArray(postsData)) {
+          const processedPosts = await processMediaData(postsData, 'image');
+          allMedia = [...allMedia, ...processedPosts];
+        }
       }
 
       // Transform reels data with compression and multiple media detection
-      if (!isFromSearch ? reelsResponse.data : reelsResponse) {
+      if (!isFromSearch ? reelsResponse?.data : reelsResponse) {
         const reelsData = isFromSearch
           ? reelsResponse?.reels
           : reelsResponse?.data?.data?.results;
-        const processedReels = await processMediaData(reelsData, 'reel');
-        allMedia = [...allMedia, ...processedReels];
+        if (reelsData && Array.isArray(reelsData)) {
+          const processedReels = await processMediaData(reelsData, 'reel');
+          allMedia = [...allMedia, ...processedReels];
+        }
       }
 
       // console.log('allMedia........', allMedia);
@@ -780,6 +787,20 @@ const ProfileScreen = ({navigation} : any) => {
       initializePostStates(allMedia);
     } catch (error) {
       console.error('Error fetching data:', error);
+      // Set default values to prevent crashes
+      setProfile({
+        username: '',
+        fullName: '',
+        bio: '',
+        profileImage: 'https://picsum.photos/200',
+        postsCount: 0,
+        followersCount: 0,
+        followingCount: 0,
+        id: '',
+        location: '',
+      });
+      setVendorProfile(null);
+      setPosts([]);
     } finally {
       setLoading(false);
     }
@@ -926,7 +947,9 @@ const ProfileScreen = ({navigation} : any) => {
               collectionName: item.collectionName,
             });
           } else {
-            setSelectedIndex(index);
+            // Ensure index matches filteredPosts
+            const filteredIndex = filteredPosts.findIndex(p => p.id === item.id);
+            setSelectedIndex(filteredIndex !== -1 ? filteredIndex : index);
             setFullscreenVisible(true);
           }
         }}
@@ -1112,11 +1135,11 @@ const ProfileScreen = ({navigation} : any) => {
         {/* Debug: show raw vendorProfile data */}
         {/* <Text style={{color: 'red', fontSize: 12}}>DEBUG: {JSON.stringify(vendorProfile)}</Text> */}
         {/* Main Categories */}
-        {vendorProfile && Array.isArray(vendorProfile.main_categories) && vendorProfile.main_categories.length > 0 && (
+        {vendorProfile && Array.isArray(vendorProfile?.main_categories) && vendorProfile?.main_categories.length > 0 && (
           <>
             {/* <Text style={{ color: '#bea063', fontWeight: 'bold', marginTop: 8, marginBottom: 2 }}>Main Categories</Text> */}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 4 }}>
-              {vendorProfile.main_categories.map((cat: {id: number, name: string}) => (
+              {vendorProfile?.main_categories.map((cat: {id: number, name: string}) => (
                 <View key={cat.id} style={{
                   backgroundColor: '#fffbe6',
                   borderColor: '#bea063',
@@ -1134,13 +1157,13 @@ const ProfileScreen = ({navigation} : any) => {
           </>
         )}
         {/* Sub Categories */}
-        {vendorProfile && Array.isArray(vendorProfile.subcategories) && vendorProfile.subcategories.length > 0 && (
+        {vendorProfile && Array.isArray(vendorProfile?.subcategories) && vendorProfile?.subcategories.length > 0 && (
           <>
             <Text style={{ color: '#bea063', fontWeight: 'bold', marginTop: 4, marginBottom: 2 }}>Sub Categories</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 4 }}>
-              {vendorProfile.subcategories.map((cat: {id: number, name: string}) => (
+              {vendorProfile?.subcategories.map((cat: {id: number, name: string}) => (
                 <View key={cat.id} style={{
-                  backgroundColor: '#fffbe6',
+                  backgroundColor: '#fff5e0',
                   borderColor: '#bea063',
                   borderWidth: 1,
                   borderRadius: 16,
@@ -1197,14 +1220,11 @@ const ProfileScreen = ({navigation} : any) => {
   const renderFullscreenItem = ({item, index}: {item: any; index: number}) => {
     const windowHeight = Dimensions.get('window').height;
     const windowWidth = Dimensions.get('window').width;
-    const isCurrentVideo = currentFullscreenIndex === index;
     const postState = postStates[item.id] || {
       isLiked: false,
       likesCount: item.likes,
       likeLoading: false,
     };
-
-    // Get all media items for this post
     const mediaItems = item.allMedia || [item.uri];
     const currentMediaIndexForPost = postMediaIndices[item.id] || 0;
     const currentMedia = mediaItems[currentMediaIndexForPost];
@@ -1213,8 +1233,6 @@ const ProfileScreen = ({navigation} : any) => {
       (currentMedia.includes('.mp4') ||
         currentMedia.includes('.mov') ||
         currentMedia.includes('.avi'));
-
-    // Get the correct video state for the current media item
     const videoId =
       mediaItems.length > 1
         ? `${item.id}-${currentMediaIndexForPost}`
@@ -1223,328 +1241,89 @@ const ProfileScreen = ({navigation} : any) => {
       isPlaying: false,
       isMuted: true,
     };
-
     return (
-      <View style={{flex: 1, backgroundColor: '#000'}}>
-        {/* Top bar */}
-        {/* <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 40, paddingBottom: 10, paddingHorizontal: 10, backgroundColor: '#111', justifyContent: 'space-between' }}>
-          <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>Posts</Text>
-        </View> */}
-
-        {/* User info */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 14,
-            paddingBottom: 8,
-            justifyContent: 'space-between',
-            marginTop: 20,
-          }}>
-          <View style={{flexDirection: 'row', alignItems: 'center'}}>
-            <Image
-              source={{uri: profile.profileImage}}
-              style={{width: 36, height: 36, borderRadius: 18, marginRight: 10}}
-            />
-            <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 15}}>
-              {profile.username}
-            </Text>
+      <View style={{backgroundColor: '#000', width: windowWidth}}>
+        {/* Header: Profile, location, options */}
+        <View style={{flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingTop: 8, paddingBottom: 2}}>
+          <Image source={{uri: profile.profileImage}} style={{width: 32, height: 32, borderRadius: 16, marginRight: 8}} />
+          <View style={{flex: 1}}>
+            <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 15}}>{profile.username}</Text>
+            {item.location ? (
+              <Text style={{color: '#aaa', fontSize: 12}}>{item.location}</Text>
+            ) : null}
           </View>
-
-          {/* Options button for fullscreen */}
+          
           {isFromSearch ? null : (
-            <TouchableOpacity
-              onPress={() => handleOptions(item)}
-              style={{padding: 8}}>
+            <TouchableOpacity onPress={() => handleOptions(item)} style={{padding: 2}}>
               <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
             </TouchableOpacity>
           )}
         </View>
-
-        {/* Main media with horizontal scroll for multiple items */}
-        <View
-          style={{
-            width: windowWidth,
-            height: windowHeight * 0.5,
-            alignSelf: 'center',
-            backgroundColor: '#000',
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}>
-          {mediaItems.length > 1 ? (
-            <FlatList
-              data={mediaItems}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={event => {
-                const newIndex = Math.round(
-                  event.nativeEvent.contentOffset.x / windowWidth,
-                );
-                setPostMediaIndices(prev => ({
-                  ...prev,
-                  [item.id]: newIndex,
-                }));
-              }}
-              renderItem={({item: mediaItem, index: mediaIndex}) => (
-                <View style={{width: windowWidth, height: windowHeight * 0.5}}>
-                  {isVideo ? (
-                    <View
-                      style={{width: windowWidth, height: windowHeight * 0.5}}>
-                      {videoLoading && (
-                        <ActivityIndicator
-                          size="large"
-                          color="#fff"
-                          style={{
-                            position: 'absolute',
-                            alignSelf: 'center',
-                            top: '45%',
-                          }}
-                        />
-                      )}
-                      <Video
-                        ref={ref =>
-                          handleVideoRef(ref, `${item.id}-${mediaIndex}`)
-                        }
-                        source={{uri: mediaItem}}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          backgroundColor: '#000',
-                        }}
-                        muted={
-                          videoStates[`${item.id}-${mediaIndex}`]?.isMuted ||
-                          true
-                        }
-                        repeat
-                        resizeMode="cover"
-                        paused={
-                          !videoStates[`${item.id}-${mediaIndex}`]?.isPlaying ||
-                          !isCurrentVideo
-                        }
-                        onLoadStart={() => setVideoLoading(true)}
-                        onLoad={() => setVideoLoading(false)}
-                        onError={() => setVideoLoading(false)}
-                      />
-
-                      {/* Video controls for fullscreen */}
-                      <View style={styles.fullscreenVideoControls}>
-                        <TouchableOpacity
-                          style={styles.fullscreenControlButton}
-                          onPress={() =>
-                            togglePlayPause(`${item.id}-${mediaIndex}`)
-                          }>
-                          <Ionicons
-                            name={
-                              videoStates[`${item.id}-${mediaIndex}`]?.isPlaying
-                                ? 'pause'
-                                : 'play'
-                            }
-                            size={24}
-                            color="#fff"
-                          />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={styles.fullscreenControlButton}
-                          onPress={() =>
-                            toggleMute(`${item.id}-${mediaIndex}`)
-                          }>
-                          <Ionicons
-                            name={
-                              videoStates[`${item.id}-${mediaIndex}`]?.isMuted
-                                ? 'volume-mute'
-                                : 'volume-high'
-                            }
-                            size={24}
-                            color="#fff"
-                          />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ) : (
-                    <Image
-                      source={{uri: mediaItem}}
-                      style={{
-                        width: windowWidth,
-                        height: windowHeight * 0.5,
-                        resizeMode: 'cover',
-                        backgroundColor: '#000',
-                      }}
-                    />
-                  )}
-                </View>
-              )}
-              keyExtractor={(mediaItem, mediaIndex) =>
-                `${item.id}-${mediaIndex}`
-              }
+        {/* Date under header, left-aligned */}
+        {item.createdAt && (
+          <Text style={{color: '#aaa', fontSize: 11, marginLeft: 48, marginBottom: 2}}>
+            {new Date(item.createdAt).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})}
+          </Text>
+        )}
+        {/* Main media - dynamic height, no aspect ratio */}
+        <View style={{width: '100%', backgroundColor: '#111', justifyContent: 'center', alignItems: 'center'}}>
+          {isVideo ? (
+            <Video
+              ref={ref => handleVideoRef(ref, videoId)}
+              source={{uri: currentMedia}}
+              style={{width: '100%', height: undefined, aspectRatio: 1, backgroundColor: '#000'}}
+              muted={videoState.isMuted}
+              repeat
+              resizeMode="contain"
+              paused={!videoState.isPlaying}
+              onLoadStart={() => setVideoLoading(true)}
+              onLoad={() => setVideoLoading(false)}
+              onError={() => setVideoLoading(false)}
             />
-          ) : // Single media item
-          isVideo ? (
-            <View style={{width: windowWidth, height: windowHeight * 0.5}}>
-              {videoLoading && (
-                <ActivityIndicator
-                  size="large"
-                  color="#fff"
-                  style={{
-                    position: 'absolute',
-                    alignSelf: 'center',
-                    top: '45%',
-                  }}
-                />
-              )}
-              <Video
-                ref={ref => handleVideoRef(ref, item.id)}
-                source={{uri: currentMedia}}
-                style={{width: '100%', height: '100%', backgroundColor: '#000'}}
-                muted={videoState.isMuted}
-                repeat
-                resizeMode="cover"
-                paused={!videoState.isPlaying || !isCurrentVideo}
-                onLoadStart={() => setVideoLoading(true)}
-                onLoad={() => setVideoLoading(false)}
-                onError={() => setVideoLoading(false)}
-              />
-
-              {/* Video controls for fullscreen single video */}
-              <View style={styles.fullscreenVideoControls}>
-                <TouchableOpacity
-                  style={styles.fullscreenControlButton}
-                  onPress={() => togglePlayPause(item.id)}>
-                  <Ionicons
-                    name={videoState.isPlaying ? 'pause' : 'play'}
-                    size={24}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.fullscreenControlButton}
-                  onPress={() => toggleMute(item.id)}>
-                  <Ionicons
-                    name={videoState.isMuted ? 'volume-mute' : 'volume-high'}
-                    size={24}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
           ) : (
             <Image
               source={{uri: currentMedia}}
-              style={{
-                width: windowWidth,
-                height: windowHeight * 0.5,
-                resizeMode: 'cover',
-                backgroundColor: '#000',
-              }}
+              style={{width: '100%', height: undefined, aspectRatio: 1, resizeMode: 'contain', backgroundColor: '#000'}}
             />
           )}
-
-          {/* Media indicator dots for multiple items */}
-          {mediaItems.length > 1 && (
-            <View
-              style={{
-                position: 'absolute',
-                bottom: 20,
-                left: 0,
-                right: 0,
-                flexDirection: 'row',
-                justifyContent: 'center',
-              }}>
-              {mediaItems.map((_: string, dotIndex: number) => (
-                <View
-                  key={dotIndex}
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor:
-                      dotIndex === currentMediaIndexForPost
-                        ? '#fff'
-                        : 'rgba(255,255,255,0.5)',
-                    marginHorizontal: 4,
-                  }}
-                />
-              ))}
-            </View>
+        </View>
+        {/* Action row: like, comment, share, bookmark */}
+        <View style={{flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4}}>
+          {/* Like button: only show if hide_like_count is false */}
+          {item.hide_like_count === false && (
+            <TouchableOpacity onPress={() => handleLike(item)} disabled={postState.likeLoading} style={{marginRight: 10}}>
+              {postState.likeLoading ? (
+                <ActivityIndicator size={18} color="#FF3B30" />
+              ) : (
+                <Ionicons name={postState.isLiked ? 'heart' : 'heart-outline'} size={22} color={postState.isLiked ? '#FF3B30' : '#fff'} />
+              )}
+            </TouchableOpacity>
           )}
-        </View>
-
-        {/* Like/comment counts row (interactive) */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 14,
-            marginTop: 12,
-            marginBottom: 2,
-          }}>
-          <TouchableOpacity
-            onPress={() => handleLike(item)}
-            disabled={postState.likeLoading}
-            style={{flexDirection: 'row', alignItems: 'center'}}>
-            {postState.likeLoading ? (
-              <ActivityIndicator size={20} color="#FF3B30" />
-            ) : (
-              <Ionicons
-                name={postState.isLiked ? 'heart' : 'heart-outline'}
-                size={22}
-                color={postState.isLiked ? '#FF3B30' : '#fff'}
-              />
-            )}
-            <Text
-              style={{
-                color: '#fff',
-                fontSize: 15,
-                marginLeft: 6,
-                marginRight: 18,
-              }}>
-              {postState.likesCount || item.likes}
-            </Text>
+          {/* Comment button: only show if allow_comments is false */}
+          {item.allow_comments === false && (
+            <TouchableOpacity onPress={() => handleComment(item)} style={{marginRight: 10}}>
+              <Ionicons name="chatbubble-outline" size={20} color="#fff" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={{marginRight: 10}}>
+            <Ionicons name="paper-plane-outline" size={20} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => handleComment(item)}
-            style={{flexDirection: 'row', alignItems: 'center'}}>
-            <Ionicons name="chatbubble-outline" size={20} color="#fff" />
-            <Text style={{color: '#fff', fontSize: 15, marginLeft: 6}}>
-              {item.comments}
-            </Text>
+          <View style={{flex: 1}} />
+          <TouchableOpacity>
+            <Ionicons name="bookmark-outline" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
-
-        {/* Username, caption, emojis */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 14,
-            marginBottom: 2,
-            flexWrap: 'wrap',
-          }}>
-          <Text style={{color: '#bea063', fontWeight: 'bold', fontSize: 14}}>
-            {profile.username}
+        {/* Likes row */}
+        {item.hide_like_count === false && postState.likesCount > 0 && (
+          <Text style={{color: '#fff', fontWeight: '600', fontSize: 13, paddingHorizontal: 10, marginBottom: 1}}>
+            Liked by <Text style={{fontWeight: 'bold'}}>user</Text> and others
           </Text>
-          {item.caption ? (
-            <Text style={{color: '#bea063', fontSize: 14, marginLeft: 6}}>
-              {item.caption}
-            </Text>
-          ) : null}
-        </View>
-
-        {/* Date */}
-        {item.createdAt && (
-          <Text
-            style={{
-              color: '#aaa',
-              fontSize: 13,
-              paddingHorizontal: 14,
-              marginTop: 2,
-            }}>
-            {new Date(item.createdAt).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-            })}
+        )}
+        {/* Caption row */}
+        {item.caption && (
+          <Text style={{color: '#fff', fontSize: 13, paddingHorizontal: 10, marginBottom: 1}}>
+            <Text style={{fontWeight: 'bold'}}>{profile.username} </Text>
+            {item.caption}
           </Text>
         )}
       </View>
@@ -1831,12 +1610,15 @@ const ProfileScreen = ({navigation} : any) => {
   const [storySelectLoading, setStorySelectLoading] = useState(false);
   const [storySelectError, setStorySelectError] = useState<string | null>(null);
   const [accountsModalVisible, setAccountsModalVisible] = useState(false);
-  const [accountsList, setAccountsList] = useState([]);
+  const [accountsList, setAccountsList] = useState<any[]>([]);
   // Open story selection modal after highlight click
   useEffect(() => {
     // Whenever modal opens, load users
     if (accountsModalVisible) {
-      getAccounts().then(setAccountsList);
+      getAccounts().then(setAccountsList).catch(error => {
+        console.error('Error loading accounts:', error);
+        setAccountsList([]);
+      });
     }
   }, [accountsModalVisible]);
   // Save selected stories to highlight
@@ -1972,8 +1754,8 @@ console.log("vendorProfile ------->",vendorProfile);
     if (role !== 'vendor' || !vendorProfile) return null;
     console.log("renderVendorCategories",vendorProfile);
     
-    const mainCategories = vendorProfile.main_categories || [];
-    const subCategories = vendorProfile.subcategories || [];
+    const mainCategories = vendorProfile?.main_categories || [];
+    const subCategories = vendorProfile?.subcategories || [];
 console.log("mainCategories",mainCategories);
 
     // Only show if there is at least one main or sub category
@@ -2057,7 +1839,7 @@ console.log("mainCategories",mainCategories);
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              paddingTop: 40,
+              paddingTop: 20,
               paddingBottom: 10,
               paddingHorizontal: 10,
 
@@ -2089,18 +1871,13 @@ console.log("mainCategories",mainCategories);
               data={filteredPosts}
               renderItem={renderFullscreenItem}
               keyExtractor={item => item.id}
-              pagingEnabled
+              // pagingEnabled removed for Instagram-like smooth scroll
               initialScrollIndex={selectedIndex}
-              getItemLayout={(data, index) => {
-                const mediaHeight = Dimensions.get('window').height * 0.5;
-                const contentHeight = 150; // Approximate height for user info, likes, comments, caption
-                const totalItemHeight = mediaHeight + contentHeight;
-                return {
-                  length: totalItemHeight,
-                  offset: totalItemHeight * index,
-                  index,
-                };
-              }}
+              getItemLayout={(data, index) => ({
+                length: Dimensions.get('window').height,
+                offset: Dimensions.get('window').height * index,
+                index,
+              })}
               showsVerticalScrollIndicator={false}
               viewabilityConfig={viewabilityConfig}
               onViewableItemsChanged={onViewableItemsChanged}
@@ -2259,7 +2036,9 @@ console.log("mainCategories",mainCategories);
                     color="#E74C3C"
                     style={{marginRight: 8}}
                   />
-                ) : null}
+                ) : (
+                  <Ionicons name="trash" size={20} color="#E74C3C" style={{marginRight: 8}} />
+                )}
                 <Text style={{fontSize: 16, color: '#E74C3C'}}>Delete</Text>
               </TouchableOpacity>
               {/* Toggle Comments Button */}
@@ -2547,10 +2326,15 @@ console.log("mainCategories",mainCategories);
                   marginBottom: 14,
                 }}
                 onPress={async () => {
-                  await switchAccount(acc.userId);
-                  setAccountsModalVisible(false);
-                  // Reload app state or navigate accordingly
-                  // You might want to call a global refresh function here
+                  try {
+                    await switchAccount(acc.userId);
+                    setAccountsModalVisible(false);
+                    // Reload app state or navigate accordingly
+                    // You might want to call a global refresh function here
+                  } catch (error) {
+                    console.error('Error switching account:', error);
+                    Alert.alert('Error', 'Failed to switch account');
+                  }
                 }}>
                 <Image
                   source={{uri: acc.avatarUrl || 'https://picsum.photos/60'}}

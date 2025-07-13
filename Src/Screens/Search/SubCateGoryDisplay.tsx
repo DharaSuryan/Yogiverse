@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,8 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
-  BackHandler
+  BackHandler,
+  Animated,
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -18,13 +19,127 @@ const NUM_COLUMNS = 2;
 const ITEM_MARGIN = 10;
 const ITEM_WIDTH = (width - ITEM_MARGIN * (NUM_COLUMNS + 1)) / NUM_COLUMNS;
 
+// Shimmer Component
+const ShimmerEffect = ({ width, height, borderRadius = 0 }: { width: number; height: number; borderRadius?: number }) => {
+  const animatedValue = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(animatedValue, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(animatedValue, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: false,
+        }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [animatedValue]);
+
+  const opacity = animatedValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        {
+          width,
+          height,
+          borderRadius,
+          backgroundColor: '#E1E9EE',
+          opacity,
+        },
+        styles.shimmerContainer,
+      ]}
+    />
+  );
+};
+
+// Text Shimmer Component
+const TextShimmer = ({ width, height }: { width: number; height: number }) => {
+  return <ShimmerEffect width={width} height={height} borderRadius={4} />;
+};
+
+// Image Component with Shimmer
+const ImageWithShimmer = ({ uri, style, fallbackSource }: { uri?: string; style: any; fallbackSource: any }) => {
+  const [imageError, setImageError] = useState(false);
+
+  const handleImageError = () => {
+    console.log('Image failed to load:', uri);
+    setImageError(true);
+  };
+
+  const handleImageLoad = () => {
+    console.log('Image loaded successfully:', uri);
+  };
+
+  // If no URI provided, show fallback immediately
+  if (!uri) {
+    console.log('No URI provided, showing fallback');
+    return (
+      <Image
+        source={fallbackSource}
+        style={style}
+        resizeMode="cover"
+      />
+    );
+  }
+
+  // If image failed to load, show fallback
+  if (imageError) {
+    console.log('Showing fallback due to image error');
+    return (
+      <Image
+        source={fallbackSource}
+        style={style}
+        resizeMode="cover"
+      />
+    );
+  }
+
+  // Show the actual image
+  console.log('Rendering image with URI:', uri);
+  return (
+    <Image
+      source={{ uri }}
+      style={style}
+      resizeMode="cover"
+      onLoad={handleImageLoad}
+      onError={handleImageError}
+    />
+  );
+};
+
 const SubCateGoryDisplay = ({navigation}:any) => {
   const route = useRoute();
   // const navigation = useNavigation();
   const { item } = route.params as { item: any };
   const subCategories = item?.sub_categories || [];
   const imageSource = require('../../Assets/yoga.jpg');
+  const [isDataLoading, setIsDataLoading] = useState(false);
   console.log("itemitemitem",item);
+
+  // Only show loading if we don't have data yet
+  React.useEffect(() => {
+    if (subCategories.length === 0) {
+      setIsDataLoading(true);
+      // If no data after 2 seconds, stop loading
+      const timer = setTimeout(() => {
+        setIsDataLoading(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    } else {
+      setIsDataLoading(false);
+    }
+  }, [subCategories.length]);
 
   // Android hardware back button support
   useFocusEffect(
@@ -41,6 +156,8 @@ const SubCateGoryDisplay = ({navigation}:any) => {
 
   const renderSubCategory = ({ item }: { item: any }) => {
     console.log("mainCategoryId",item);
+    console.log("sub_category_image:", item.sub_category_image);
+    console.log("isDataLoading:", isDataLoading);
     
     return (
       <TouchableOpacity
@@ -56,14 +173,15 @@ const SubCateGoryDisplay = ({navigation}:any) => {
           justifyContent: 'center',
           alignItems: 'center',
         }}>
-          <Image
-            source={item.sub_category_image ? { uri: item.sub_category_image } : imageSource}
+          <ImageWithShimmer
+            uri={item.sub_category_image}
             style={{
               width: 80,
               height: 80,
               borderRadius: 40,
               marginBottom: 6,
             }}
+            fallbackSource={imageSource}
           />
           <Text style={[styles.subCategoryName, { textAlign: 'center', marginTop: 4 }]} numberOfLines={2}>
             {item.name}
@@ -76,7 +194,7 @@ const SubCateGoryDisplay = ({navigation}:any) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate('MainTab', { screen: 'SearchTab' })}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
           {React.createElement(Ionicons, { name: 'arrow-back', size: 24, color: '#000' })}
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
@@ -85,25 +203,53 @@ const SubCateGoryDisplay = ({navigation}:any) => {
         <View style={{ width: 24 }} />
       </View>
 
-      <FlatList
-        data={subCategories}
-        renderItem={renderSubCategory}
-        keyExtractor={(item) => item.id.toString()}
-        numColumns={NUM_COLUMNS}
-        columnWrapperStyle={styles.columnWrapper}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            {React.createElement(Ionicons, { name: 'alert-circle-outline', size: 48, color: '#ccc' })}
-            <Text style={styles.emptyText}>No subcategories found</Text>
-          </View>
-        }
-        ListHeaderComponent={
-          <Text style={styles.sectionTitle}>
-            {subCategories.length} Subcategories
-          </Text>
-        }
-      />
+      {isDataLoading ? (
+        <View style={styles.loadingContainer}>
+          <FlatList
+            data={Array.from({ length: 6 }, (_, i) => ({ id: i }))}
+            renderItem={() => (
+              <View style={styles.subCategoryCard}>
+                <View style={{
+                  flex: 1,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <ShimmerEffect
+                    width={80}
+                    height={80}
+                    borderRadius={40}
+                  />
+                  <TextShimmer width={60} height={16} />
+                </View>
+              </View>
+            )}
+            keyExtractor={(item) => item.id.toString()}
+            numColumns={NUM_COLUMNS}
+            columnWrapperStyle={styles.columnWrapper}
+            contentContainerStyle={styles.listContent}
+          />
+        </View>
+      ) : (
+        <FlatList
+          data={subCategories}
+          renderItem={renderSubCategory}
+          keyExtractor={(item) => item.id.toString()}
+          numColumns={NUM_COLUMNS}
+          columnWrapperStyle={styles.columnWrapper}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              {React.createElement(Ionicons, { name: 'alert-circle-outline', size: 48, color: '#ccc' })}
+              <Text style={styles.emptyText}>No subcategories found</Text>
+            </View>
+          }
+          ListHeaderComponent={
+            <Text style={styles.sectionTitle}>
+              {subCategories.length} Subcategories
+            </Text>
+          }
+        />
+      )}
     </View>
   );
 };
@@ -188,6 +334,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#888',
     marginTop: 16,
+  },
+  shimmerContainer: {
+    backgroundColor: '#E1E9EE',
+    overflow: 'hidden',
+  },
+  loadingContainer: {
+    flex: 1,
   },
 });
 

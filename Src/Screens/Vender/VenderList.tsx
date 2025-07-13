@@ -198,6 +198,7 @@ const VenderList = ({navigation}:any) => {
   const renderSubcategory = ({ item }: any) => {
     console.log('Subcategory item:', item);
     const isSelected = selectedSubcategories.includes(item.id);
+    
     return (
       <TouchableOpacity
         style={[
@@ -379,18 +380,31 @@ const VenderList = ({navigation}:any) => {
                   selectedCategory === (cat.id !== undefined ? cat.id : cat.categories)
                 );
                 const subcategories = selectedCat?.sub_categories || [];
-                // Limit to first 10 items for the slider
-                const limitedSubcategories = subcategories.slice(0, 10);
-                console.log('Selected category subcategories:', limitedSubcategories);
+                console.log('Selected category subcategories:', subcategories);
+                
+                // Split subcategories into chunks of 10 for multiple horizontal rows
+                const chunkSize = 10;
+                const subcategoryChunks = [];
+                for (let i = 0; i < subcategories.length; i += chunkSize) {
+                  subcategoryChunks.push(subcategories.slice(i, i + chunkSize));
+                }
+                
                 return (
-                  <FlatList
-                    data={limitedSubcategories}
-                    keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
-                    renderItem={renderSubcategory}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.subcategoryList}
-                  />
+                  <View>
+                    {subcategoryChunks.map((chunk, chunkIndex) => (
+                      <View key={`chunk-${chunkIndex}`} style={styles.subcategoryRow}>
+                        <FlatList
+                          key={`horizontal-row-${chunkIndex}`}
+                          data={chunk}
+                          keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+                          renderItem={renderSubcategory}
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={styles.subcategoryList}
+                        />
+                      </View>
+                    ))}
+                  </View>
                 );
               })()}
             </View>
@@ -536,6 +550,23 @@ const styles = StyleSheet.create({
     width: 120,
     height: 140,
   },
+  subcategoryGridCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: 6,
+    paddingVertical: 18,
+    paddingHorizontal: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 2,
+    minWidth: 0,
+    maxWidth: '32%',
+  },
   categoryImageWrapperNew: {
     width: 80,
     height: 80,
@@ -572,6 +603,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   subcategoryList: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  subcategoryGridList: {
     paddingHorizontal: 16,
     paddingBottom: 20,
   },
@@ -667,6 +702,9 @@ const styles = StyleSheet.create({
   emptyVendorText: {
     fontSize: 16,
     color: '#666',
+  },
+  subcategoryRow: {
+    marginBottom: 10, // Add some space between rows
   },
 
 })

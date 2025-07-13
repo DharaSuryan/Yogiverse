@@ -352,9 +352,7 @@ console.log("categories",categories);
   );
 };
 
-
 const styles = StyleSheet.create({
-
 
   searchResultBlock: {
     marginVertical: 10,

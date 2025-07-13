@@ -18,6 +18,7 @@ import {
   Button,
   findNodeHandle,
   BackHandler,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 const Ionicons = require('react-native-vector-icons/Ionicons').default;
@@ -64,6 +65,8 @@ const VendorDetailScreen = ({navigation}:any) => {
   useEffect(() => {
     fetchVendors();
   }, []);
+ console.log("vendors ---->",vendors);
+ 
 
   // Back handler for mobile back button
   useFocusEffect(
@@ -106,11 +109,10 @@ const VendorDetailScreen = ({navigation}:any) => {
       if (data.status === true && data.vendors) {
         console.log('Vendors from API:', data.vendors);
         setVendors(data.vendors);
-        // Apply filtering after fetching
-        filterVendorsByCategories(data.vendors);
+        setFilteredVendors(data.vendors); // Show all vendors initially
       } else {
         console.log('API response error:', data);
-        setError('Failed to fetch yogic');
+        setError('Failed to fetch vendors');
       }
     } catch (error) {
       console.error('Error fetching Data:', error);
@@ -129,14 +131,14 @@ const VendorDetailScreen = ({navigation}:any) => {
     // Filter vendors based on main categories and subcategories
     const filtered = allVendors.filter((vendor: any) => {
       // Check if vendor belongs to the selected main category
-      const hasMainCategory = vendor.category_id === mainCategoryId || 
-                             vendor.main_category_id === mainCategoryId;
+      const hasMainCategory = vendor.vendor_profile?.main_categories?.some((cat: any) => 
+        cat.id === mainCategoryId || cat.main_category_id === mainCategoryId
+      );
       
       // Check if vendor has any of the selected subcategories
-      const hasSubcategory = vendor.sub_categories && 
-                            vendor.sub_categories.some((sub: any) => 
-                              subcategoryIds.includes(sub.id)
-                            );
+      const hasSubcategory = vendor.vendor_profile?.subcategories?.some((sub: any) => 
+        subcategoryIds.includes(sub.id)
+      );
       
       return hasMainCategory || hasSubcategory;
     });
@@ -189,20 +191,31 @@ const VendorDetailScreen = ({navigation}:any) => {
         >
           <Ionicons name="arrow-back" size={24} color="#bea063" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Yogi's</Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>{mainCategoryName || 'Yogi'}</Text>
+          <Text style={styles.headerSubtitle}>{filteredVendors.length} Yogic found</Text>
+        </View>
         <View style={styles.placeholder} />
       </View>
+
+      {/* Search Input */}
+   
+     
 
       {/* Vendor Grid */}
       <FlatList
         data={filteredVendors}
-        keyExtractor={(item) => item.user?.id?.toString() || item.id?.toString()}
-        numColumns={3}
+        keyExtractor={(item) => item.user?.id?.toString() || item.profile?.user?.toString()}
+        numColumns={2}
         renderItem={({ item }) => {
           const username = item.user?.username || item.profile?.username || 'Unknown';
-          const profilePicture = item.profile?.profile_picture;
+          const profilePicture = item.user?.profile_picture || item.profile?.profile_picture;
           const firstName = item.user?.first_name || item.profile?.first_name || '';
           const lastName = item.user?.last_name || item.profile?.last_name || '';
+          const businessName = item.vendor_profile?.business_name || '';
+          const postCount = item.post_reels_count || 0;
+          const followersCount = item.followers_count || 0;
+          const vendorStatus = item.vendor_profile?.vendor_status || '';
           
           // Create initials from first and last name
           const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -224,10 +237,32 @@ const VendorDetailScreen = ({navigation}:any) => {
                     <Text style={styles.vendorInitials}>{initials}</Text>
                   </View>
                 )}
+                {vendorStatus === 'verified' && (
+                  <View style={styles.verifiedBadge}>
+                    <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                  </View>
+                )}
               </View>
-              <Text style={styles.vendorGridName} numberOfLines={2}>
-                {username}
+              
+              <Text style={styles.businessName} numberOfLines={1}>
+                {businessName || username}
               </Text>
+              
+              <Text style={styles.vendorGridName} numberOfLines={1}>
+                @{username}
+              </Text>
+              
+              <View style={styles.vendorStats}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>{postCount}</Text>
+                  <Text style={styles.statLabel}>Posts</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>{followersCount}</Text>
+                  <Text style={styles.statLabel}>Followers</Text>
+                </View>
+              </View>
             </TouchableOpacity>
           );
         }}
@@ -237,7 +272,9 @@ const VendorDetailScreen = ({navigation}:any) => {
 
       {filteredVendors.length === 0 && !loading && (
         <View style={styles.emptyContainer}>
+          <Ionicons name="people-outline" size={48} color="#ccc" />
           <Text style={styles.emptyText}>No vendors found for selected categories</Text>
+          <Text style={styles.emptySubtext}>Try selecting different categories</Text>
         </View>
       )}
     </SafeAreaView>
@@ -575,6 +612,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
+  headerContent: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
   placeholder: {
     width: 40,
   },
@@ -629,7 +675,13 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
   },
-  // Grid styles for 3-column layout
+  emptySubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 5,
+    textAlign: 'center',
+  },
+  // Grid styles for 2-column layout
   gridContainer: {
     padding: 16,
   },
@@ -645,7 +697,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    minWidth: (width - 80) / 3, // Account for margins and padding
+    minWidth: (width - 80) / 2, // Account for margins and padding for 2 columns
   },
   vendorImageContainer: {
     width: 80,
@@ -655,6 +707,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f5f5f5',
+    position: 'relative',
   },
   vendorGridImage: {
     width: 80,
@@ -675,11 +728,56 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   vendorGridName: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  businessName: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: '#333',
+    marginTop: 5,
     textAlign: 'center',
     lineHeight: 18,
+  },
+  vendorStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 10,
+    width: '100%',
+    paddingHorizontal: 10,
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statNumber: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#bea063',
+  },
+  statLabel: {
+    fontSize: 10,
+    color: '#666',
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#eee',
+    marginHorizontal: 8,
+  },
+  verifiedBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 2,
+    borderWidth: 2,
+    borderColor: '#4CAF50',
   },
 });
 
