@@ -145,7 +145,8 @@ const SubCateGoryDisplay = ({navigation}:any) => {
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
-        navigation.goBack();
+        (navigation as any).navigate('MainTab', { screen: 'SearchTab' });
+
         return true;
       };
       BackHandler.addEventListener('hardwareBackPress', onBackPress);
@@ -194,8 +195,11 @@ const SubCateGoryDisplay = ({navigation}:any) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          {React.createElement(Ionicons, { name: 'arrow-back', size: 24, color: '#000' })}
+        <TouchableOpacity onPress={() => {
+              (navigation as any).navigate('MainTab', { screen: 'SearchTab' });
+
+        }}>
+          {React.createElement(Ionicons, { name: 'arrow-back', size: 24, color: '#bea063' })}
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {item?.category_name || item?.title || 'Subcategories'}
@@ -270,7 +274,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#bea063',
   },
   listContent: {
     padding: ITEM_MARGIN,

@@ -26,7 +26,7 @@ import {
 } from '@react-navigation/native';
 import {getProfile, getUserPosts, getUserReels} from '../../Api/Api';
 import LocationPicker, {LocationOption} from '../../Components/LocationPicker';
-import {getAccounts, switchAccount} from '../../Utils/accountManager';
+// import {getAccounts, switchAccount} from '../../Utils/accountManager';
 //  import { Image as Compressor } from 'react-native-compressor';
 
 const {width} = Dimensions.get('window');
@@ -149,8 +149,13 @@ const ProfileScreen = ({navigation} : any) => {
                 ? `${currentItem.id}-${currentMediaIndex}`
                 : currentItem.id;
 
+            // Pause all videos except the current one
             pauseAllVideosExcept(videoId);
+            // Play only the current video
             playCurrentVideo(videoId);
+          } else {
+            // If not a reel, pause all videos
+            pauseAllVideosExcept("");
           }
         }
       }
@@ -484,13 +489,11 @@ const ProfileScreen = ({navigation} : any) => {
     } = {};
     mediaItems.forEach(item => {
       if (item.type === 'reel') {
-        // Initialize for single video
+        // In grid, videos are always paused; in fullscreen, we control playback
         newVideoStates[item.id] = {
-          isPlaying: false,
+          isPlaying: false, // grid: always paused; fullscreen: set to true when shown
           isMuted: true,
         };
-
-        // Initialize for multiple media items if they exist
         if (item.allMedia && item.allMedia.length > 1) {
           item.allMedia.forEach((_, index) => {
             const mediaId = `${item.id}-${index}`;
@@ -938,10 +941,7 @@ const ProfileScreen = ({navigation} : any) => {
         onPress={() => {
           if (isCollection) {
             // Navigate to collection details
-
             console.log("Profilr screen click --------> ");
-            
-
             navigation.navigate('CollectionDetailScreen', {
               collectionId: item.collection_id,
               collectionName: item.collectionName,
@@ -955,7 +955,17 @@ const ProfileScreen = ({navigation} : any) => {
         }}
         activeOpacity={0.9}>
         {/* Main media display - use compressed image for better performance */}
-        {!isReel ? (
+        {isCollection ? (
+          <Image
+            source={
+              profile.profileImage && profile.profileImage !== '' && profile.profileImage !== null && profile.profileImage !== undefined
+                ? { uri: profile.profileImage }
+                : imageSource
+            }
+            style={styles.postImage}
+            resizeMode="cover"
+          />
+        ) : !isReel ? (
           <Image
             source={{uri: item.compressedUri || item.uri}}
             style={styles.postImage}
@@ -966,44 +976,14 @@ const ProfileScreen = ({navigation} : any) => {
               ref={ref => handleVideoRef(ref, item.id)}
               source={{uri: item.uri}}
               style={styles.postImage}
-              muted={videoState.isMuted}
+              muted={true} // always muted in grid
               repeat
               resizeMode="cover"
-              paused={!videoState.isPlaying || shouldPauseAllVideos}
+              paused={true} // always paused in grid
               onLoad={() => setVideoLoading(false)}
               onError={() => setVideoLoading(false)}
             />
-
-            {/* Video controls overlay - only show when on reels tab */}
-            {shouldShowVideoControls && (
-              <View style={styles.videoControls}>
-                <TouchableOpacity
-                  style={styles.videoControlButton}
-                  onPress={e => {
-                    e.stopPropagation();
-                    togglePlayPause(item.id);
-                  }}>
-                  <Ionicons
-                    name={videoState.isPlaying ? 'pause' : 'play'}
-                    size={20}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.videoControlButton}
-                  onPress={e => {
-                    e.stopPropagation();
-                    toggleMute(item.id);
-                  }}>
-                  <Ionicons
-                    name={videoState.isMuted ? 'volume-mute' : 'volume-high'}
-                    size={20}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
-              </View>
-            )}
+            {/* Video controls overlay removed for grid layout */}
           </View>
         )}
 
@@ -1242,87 +1222,102 @@ const ProfileScreen = ({navigation} : any) => {
       isMuted: true,
     };
     return (
-      <View style={{backgroundColor: '#000', width: windowWidth}}>
+      <View style={{backgroundColor: '#fff', width: windowWidth}}>
         {/* Header: Profile, location, options */}
         <View style={{flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingTop: 8, paddingBottom: 2}}>
           <Image source={{uri: profile.profileImage}} style={{width: 32, height: 32, borderRadius: 16, marginRight: 8}} />
           <View style={{flex: 1}}>
-            <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 15}}>{profile.username}</Text>
+            <Text style={{color: '#bea063', fontWeight: 'bold', fontSize: 15}}>{profile.username}</Text>
             {item.location ? (
-              <Text style={{color: '#aaa', fontSize: 12}}>{item.location}</Text>
+              <Text style={{color: '#bea063', fontSize: 12}}>{item.location}</Text>
             ) : null}
           </View>
-          
           {isFromSearch ? null : (
             <TouchableOpacity onPress={() => handleOptions(item)} style={{padding: 2}}>
-              <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
+              <Ionicons name="ellipsis-vertical" size={20} color="#bea063" />
             </TouchableOpacity>
           )}
         </View>
         {/* Date under header, left-aligned */}
         {item.createdAt && (
-          <Text style={{color: '#aaa', fontSize: 11, marginLeft: 48, marginBottom: 2}}>
+          <Text style={{color: '#bea063', fontSize: 11, marginLeft: 48, marginBottom: 2}}>
             {new Date(item.createdAt).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})}
           </Text>
         )}
         {/* Main media - dynamic height, no aspect ratio */}
-        <View style={{width: '100%', backgroundColor: '#111', justifyContent: 'center', alignItems: 'center'}}>
+        <View style={{width: '100%', backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center'}}>
           {isVideo ? (
-            <Video
-              ref={ref => handleVideoRef(ref, videoId)}
-              source={{uri: currentMedia}}
-              style={{width: '100%', height: undefined, aspectRatio: 1, backgroundColor: '#000'}}
-              muted={videoState.isMuted}
-              repeat
-              resizeMode="contain"
-              paused={!videoState.isPlaying}
-              onLoadStart={() => setVideoLoading(true)}
-              onLoad={() => setVideoLoading(false)}
-              onError={() => setVideoLoading(false)}
-            />
+            <>
+              <Video
+                ref={ref => handleVideoRef(ref, videoId)}
+                source={{uri: currentMedia}}
+                style={{width: '100%', height: undefined, aspectRatio: 1, backgroundColor: '#fff'}}
+                muted={videoState.isMuted}
+                repeat
+                resizeMode="contain"
+                paused={!videoState.isPlaying} // only control with isPlaying in fullscreen
+                onLoadStart={() => setVideoLoading(true)}
+                onLoad={() => setVideoLoading(false)}
+                onError={() => setVideoLoading(false)}
+              />
+            </>
           ) : (
             <Image
               source={{uri: currentMedia}}
-              style={{width: '100%', height: undefined, aspectRatio: 1, resizeMode: 'contain', backgroundColor: '#000'}}
+              style={{width: '100%', height: undefined, aspectRatio: 1, resizeMode: 'contain', backgroundColor: '#fff'}}
             />
           )}
         </View>
-        {/* Action row: like, comment, share, bookmark */}
-        <View style={{flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4}}>
+        {/* Action row: like, comment, share, play/pause, mute/unmute, bookmark */}
+        <View style={{flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, justifyContent: 'center'}}>
           {/* Like button: only show if hide_like_count is false */}
           {item.hide_like_count === false && (
             <TouchableOpacity onPress={() => handleLike(item)} disabled={postState.likeLoading} style={{marginRight: 10}}>
               {postState.likeLoading ? (
-                <ActivityIndicator size={18} color="#FF3B30" />
+                <ActivityIndicator size={18} color="#bea063" />
               ) : (
-                <Ionicons name={postState.isLiked ? 'heart' : 'heart-outline'} size={22} color={postState.isLiked ? '#FF3B30' : '#fff'} />
+                <Ionicons name={postState.isLiked ? 'heart' : 'heart-outline'} size={22} color={postState.isLiked ? '#bea063' : '#bea063'} />
               )}
             </TouchableOpacity>
           )}
           {/* Comment button: only show if allow_comments is false */}
           {item.allow_comments === false && (
             <TouchableOpacity onPress={() => handleComment(item)} style={{marginRight: 10}}>
-              <Ionicons name="chatbubble-outline" size={20} color="#fff" />
+              <Ionicons name="chatbubble-outline" size={20} color="#bea063" />
             </TouchableOpacity>
           )}
+          {/* Share button */}
           <TouchableOpacity style={{marginRight: 10}}>
-            <Ionicons name="paper-plane-outline" size={20} color="#fff" />
+            <Ionicons name="paper-plane-outline" size={20} color="#bea063" />
           </TouchableOpacity>
+          {/* Play/Pause button */}
+          {isVideo && (
+            <TouchableOpacity onPress={() => togglePlayPause(videoId)} style={{marginRight: 10}}>
+              <Ionicons name={videoState.isPlaying ? 'pause' : 'play'} size={22} color="#bea063" />
+            </TouchableOpacity>
+          )}
+          {/* Mute/Unmute button */}
+          {isVideo && (
+            <TouchableOpacity onPress={() => toggleMute(videoId)} style={{marginRight: 10}}>
+              <Ionicons name={videoState.isMuted ? 'volume-mute' : 'volume-high'} size={22} color="#bea063" />
+            </TouchableOpacity>
+          )}
+          {/* Bookmark button */}
           <View style={{flex: 1}} />
           <TouchableOpacity>
-            <Ionicons name="bookmark-outline" size={20} color="#fff" />
+            <Ionicons name="bookmark-outline" size={20} color="#bea063" />
           </TouchableOpacity>
         </View>
         {/* Likes row */}
         {item.hide_like_count === false && postState.likesCount > 0 && (
-          <Text style={{color: '#fff', fontWeight: '600', fontSize: 13, paddingHorizontal: 10, marginBottom: 1}}>
-            Liked by <Text style={{fontWeight: 'bold'}}>user</Text> and others
+          <Text style={{color: '#bea063', fontWeight: '600', fontSize: 13, paddingHorizontal: 10, marginBottom: 1}}>
+            {postState.likesCount} {postState.likesCount === 1 ? 'like' : 'likes'}
           </Text>
         )}
         {/* Caption row */}
         {item.caption && (
           <Text style={{color: '#fff', fontSize: 13, paddingHorizontal: 10, marginBottom: 1}}>
-            <Text style={{fontWeight: 'bold'}}>{profile.username} </Text>
+            <Text style={{fontWeight: 'bold', color:'gray'}}>{profile.username} </Text>
             {item.caption}
           </Text>
         )}
@@ -1813,7 +1808,7 @@ console.log("mainCategories",mainCategories);
             }}>
             <Ionicons name="add" size={28} color="#bea063" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Menu')}>
+          <TouchableOpacity onPress={() => navigation.navigate('Menu',{data: data})}>
             <Ionicons
               name="menu-outline"
               size={24}
@@ -1842,7 +1837,7 @@ console.log("mainCategories",mainCategories);
               paddingTop: 20,
               paddingBottom: 10,
               paddingHorizontal: 10,
-
+               backgroundColor:'#fff',
               // position: 'absolute',
               top: 0,
               left: 0,
@@ -1852,9 +1847,9 @@ console.log("mainCategories",mainCategories);
             <TouchableOpacity
               onPress={() => setFullscreenVisible(false)}
               style={{padding: 6, marginRight: 10}}>
-              <Ionicons name="arrow-back" size={26} color="#fff" />
+              <Ionicons name="arrow-back" size={26} color="#bea063" />
             </TouchableOpacity>
-            <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 18}}>
+            <Text style={{color: '#bea063', fontWeight: 'bold', fontSize: 18}}>
               Posts
             </Text>
           </View>
@@ -2030,7 +2025,7 @@ console.log("mainCategories",mainCategories);
                   flexDirection: 'row',
                   alignItems: 'center',
                 }}>
-                {deleteLoading ? (
+                {/* {deleteLoading ? (
                   <ActivityIndicator
                     size={18}
                     color="#E74C3C"
@@ -2038,8 +2033,8 @@ console.log("mainCategories",mainCategories);
                   />
                 ) : (
                   <Ionicons name="trash" size={20} color="#E74C3C" style={{marginRight: 8}} />
-                )}
-                <Text style={{fontSize: 16, color: '#E74C3C'}}>Delete</Text>
+                )} */}
+                <Text style={{fontSize: 16, color: 'black'}}>Delete</Text>
               </TouchableOpacity>
               {/* Toggle Comments Button */}
               <TouchableOpacity
@@ -2122,22 +2117,23 @@ console.log("mainCategories",mainCategories);
                   padding: 12,
                   marginRight: 10,
                   borderWidth: 1,
-                  borderColor: '#ddd',
+                  borderColor: '#bea063',
                   borderRadius: 5,
                   alignItems: 'center',
+                  backgroundColor: '#fff',
                 }}
                 onPress={() => {
                   setCreateCollectionModalVisible(false);
                   setNewCollectionName('');
                 }}>
-                <Text style={{fontSize: 16}}>Cancel</Text>
+                <Text style={{fontSize: 16, color: '#bea063', fontWeight: '600'}}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={{
                   flex: 1,
                   padding: 12,
-                  backgroundColor: '#000',
+                  backgroundColor: '#bea063',
                   borderRadius: 5,
                   alignItems: 'center',
                 }}
@@ -2161,7 +2157,7 @@ console.log("mainCategories",mainCategories);
                 {createCollectionLoading ? (
                   <ActivityIndicator size={20} color="#fff" />
                 ) : (
-                  <Text style={{fontSize: 16, color: '#fff'}}>Create</Text>
+                  <Text style={{fontSize: 16, color: '#fff', fontWeight: '600'}}>Create</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -2178,7 +2174,7 @@ console.log("mainCategories",mainCategories);
         <TouchableOpacity
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.3)',
+            backgroundColor: '#fff',
             justifyContent: 'center',
             alignItems: 'center',
           }}

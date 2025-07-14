@@ -103,7 +103,7 @@ const FollowersFollowingScreen = () => {
         style={styles.userRow}
         activeOpacity={0.8}
         onPress={() => {
-          navigation.navigate('UserProfile', { userId: userObj?.id, username });
+          // navigation.navigate('UserProfile', { userId: userObj?.id,isFromSearch: true, username,isFromFollower:true });
         }}
       >
         <Image source={{ uri: avatar }} style={styles.avatar} />
@@ -130,7 +130,7 @@ const FollowersFollowingScreen = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={26} color="#fff" />
+          <Icon name="arrow-back" size={26} color="#bea063" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{username}</Text>
       </View>
@@ -168,17 +168,17 @@ const FollowersFollowingScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#181818' },
+  container: { flex: 1, backgroundColor: '#fff' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#181818',
+    backgroundColor: '#fff',
   },
   headerTitle: {
     flex: 1,
     textAlign: 'center',
-    color: '#fff',
+    color: '#bea063',
     fontSize: 20,
     fontWeight: 'bold',
     marginRight: 32,
@@ -186,8 +186,8 @@ const styles = StyleSheet.create({
   tabs: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
-    backgroundColor: '#181818',
+    borderBottomColor: '#bea063',
+    backgroundColor: '#fff',
   },
   tab: {
     flex: 1,
@@ -196,19 +196,19 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     borderBottomWidth: 2,
-    borderBottomColor: '#fff',
+    borderBottomColor: '#bea063',
   },
   tabText: {
-    color: '#aaa',
+    color: '#bea063',
     fontSize: 16,
     fontWeight: '600',
   },
   activeTabText: {
-    color: '#fff',
+    color: '#bea063',
     fontWeight: 'bold',
   },
   sectionTitle: {
-    color: '#fff',
+    color: '#bea063',
     fontSize: 15,
     fontWeight: 'bold',
     marginVertical: 16,
@@ -220,37 +220,37 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
-    backgroundColor: '#181818',
+    borderBottomColor: '#bea063',
+    backgroundColor: '#fff',
   },
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
     marginRight: 14,
-    backgroundColor: '#333',
+    backgroundColor: '#bea06333',
   },
   username: {
-    color: 'white',
+    color: '#bea063',
     fontWeight: 'bold',
     fontSize: 16,
   },
   fullName: {
-    color: '#aaa',
+    color: '#bea063',
     fontSize: 13,
   },
   followButton: {
     paddingHorizontal: 18,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#222',
+    backgroundColor: '#bea063',
     marginRight: 8,
   },
   followingButton: {
-    backgroundColor: '#333',
+    backgroundColor: '#bea06399',
   },
   requestedButton: {
-    backgroundColor: '#444',
+    backgroundColor: '#bea06355',
   },
   followButtonText: {
     color: '#fff',

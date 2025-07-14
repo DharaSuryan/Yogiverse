@@ -191,8 +191,8 @@ const CommentScreen = () => {
         <Text style={styles.commentText}>{item.text}</Text>
         <View style={styles.commentFooter}>
           <Text style={styles.commentTime}>{formatTime(item.created_at)}</Text>
-          <Text style={styles.commentLikes}>{item.likes_count || 0} likes</Text>
-          <Text style={styles.commentReply}>Reply</Text>
+          {/* <Text style={styles.commentLikes}>{item.likes_count || 0} likes</Text> */}
+          {/* <Text style={styles.commentReply}>Reply</Text> */}
         </View>
       </View>
       <TouchableOpacity onPress={() => toggleLike(item.id , item)} style={styles.likeButton}>
@@ -235,7 +235,7 @@ const CommentScreen = () => {
                  
                   // navigation.navigate('UserProfile' as any, { userId: undefined });
           }} style={styles.backButton}>
-            <Icon name="arrow-back" size={24} color="#000" />
+            <Icon name="arrow-back" size={24} color="#bea063" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Comments</Text>
           <View style={styles.headerRight} />
@@ -294,7 +294,7 @@ const CommentScreen = () => {
           >
             <Text style={[
               styles.postButtonText,
-              { color: newComment.trim() ? '#3897f0' : '#c5e3fc' }
+              { color: newComment.trim() ? '#bea063' : '#c5e3fc' }
             ]}>
               {posting ? 'Posting...' : 'Post'}
             </Text>
@@ -328,6 +328,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
+    color:'#bea063'
   },
   headerRight: {
     width: 24,

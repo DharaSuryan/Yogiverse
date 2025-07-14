@@ -143,10 +143,10 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
           <Image source={require('../../Assets/LogoLogin.png')} style={styles.logo} resizeMode="contain" />
         </View>
         <Formik
-          initialValues={{ username: 'dhara2__', password: 'Dhara12345' }}
+          initialValues={{ username: '', password: '' }}
           validationSchema={LoginSchema}
           onSubmit={handleLogin}
-        >
+        > 
           {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
             <View style={styles.formContainer}>
               <TextInput

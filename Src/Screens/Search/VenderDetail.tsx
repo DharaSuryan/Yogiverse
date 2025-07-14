@@ -19,6 +19,7 @@ import {
   findNodeHandle,
   BackHandler,
   TextInput,
+  SectionList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 const Ionicons = require('react-native-vector-icons/Ionicons').default;
@@ -47,6 +48,14 @@ const { width, height } = Dimensions.get('window');
 
 
 // --- SCREEN COMPONENT ---
+
+function chunkArray(array: any[], size: number): any[][] {
+  const chunked: any[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunked.push(array.slice(i, i + size));
+  }
+  return chunked;
+}
 
 const VendorDetailScreen = ({navigation}:any) => {
   const route = useRoute();
@@ -151,7 +160,9 @@ const VendorDetailScreen = ({navigation}:any) => {
     // Navigate to individual vendor detail
     const userId = vendor.profile?.user || vendor.user?.id;
     console.log('Navigating to UserProfile with userId:', userId);
-    (navigation as any).navigate('UserProfile', { userId: userId });
+    navigation.navigate('UserProfile', { userId: userId, isFromSearch: true,isFromVendor:true });
+
+    // (navigation as any).navigate('UserProfile', { userId: userId });
   };
 
   if (loading) {
@@ -178,6 +189,9 @@ const VendorDetailScreen = ({navigation}:any) => {
     );
   }
 
+  const vendorRows = chunkArray(filteredVendors, 2);
+  const sections = [{ title: '', data: vendorRows }];
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -198,74 +212,66 @@ const VendorDetailScreen = ({navigation}:any) => {
         <View style={styles.placeholder} />
       </View>
 
-      {/* Search Input */}
-   
-     
-
-      {/* Vendor Grid */}
-      <FlatList
-        data={filteredVendors}
-        keyExtractor={(item) => item.user?.id?.toString() || item.profile?.user?.toString()}
-        numColumns={2}
-        renderItem={({ item }) => {
-          const username = item.user?.username || item.profile?.username || 'Unknown';
-          const profilePicture = item.user?.profile_picture || item.profile?.profile_picture;
-          const firstName = item.user?.first_name || item.profile?.first_name || '';
-          const lastName = item.user?.last_name || item.profile?.last_name || '';
-          const businessName = item.vendor_profile?.business_name || '';
-          const postCount = item.post_reels_count || 0;
-          const followersCount = item.followers_count || 0;
-          const vendorStatus = item.vendor_profile?.vendor_status || '';
-          
-          // Create initials from first and last name
-          const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-          
-          return (
-            <TouchableOpacity 
-              style={styles.vendorGridCard}
-              onPress={() => handleVendorPress(item)}
-            >
-              <View style={styles.vendorImageContainer}>
-                {profilePicture ? (
-                  <Image 
-                    source={{ uri: profilePicture }} 
-                    style={styles.vendorGridImage}
-                    defaultSource={require('../../Assets/Role.png')}
-                  />
-                ) : (
-                  <View style={styles.vendorInitialsContainer}>
-                    <Text style={styles.vendorInitials}>{initials}</Text>
+      {/* Vendor Grid (SectionList) */}
+      <SectionList
+        sections={sections}
+        keyExtractor={(row: any[], rowIndex: number) =>
+          row.map((item: any) => item?.user?.id || item?.profile?.user).join('-') + '-' + rowIndex
+        }
+        renderItem={({ item: row }: { item: any[] }) => (
+          <View style={{ flexDirection: 'row' }}>
+            {row.map((item: any, colIndex: number) =>
+              item ? (
+                <TouchableOpacity 
+                  key={item.user?.id?.toString() || item.profile?.user?.toString()}
+                  style={styles.vendorGridCard}
+                  onPress={() => handleVendorPress(item)}
+                >
+                  <View style={styles.vendorImageContainer}>
+                    {item.user?.profile_picture || item.profile?.profile_picture ? (
+                      <Image 
+                        source={{ uri: item.user?.profile_picture || item.profile?.profile_picture }} 
+                        style={styles.vendorGridImage}
+                        defaultSource={require('../../Assets/Role.png')}
+                      />
+                    ) : (
+                      <View style={styles.vendorInitialsContainer}>
+                        <Text style={styles.vendorInitials}>
+                          {`${(item.user?.first_name || item.profile?.first_name || '').charAt(0)}${(item.user?.last_name || item.profile?.last_name || '').charAt(0)}`.toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                    {/* {item.vendor_profile?.vendor_status === 'verified' && (
+                      <View style={styles.verifiedBadge}>
+                        <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                      </View>
+                    )} */}
                   </View>
-                )}
-                {vendorStatus === 'verified' && (
-                  <View style={styles.verifiedBadge}>
-                    <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                  <Text style={styles.businessName} numberOfLines={1}>
+                    {item.vendor_profile?.business_name || item.user?.username || item.profile?.username || 'Unknown'}
+                  </Text>
+                  <Text style={styles.vendorGridName} numberOfLines={1}>
+                    @{item.user?.username || item.profile?.username || 'Unknown'}
+                  </Text>
+                  <View style={styles.vendorStats}>
+                    <View style={styles.statItem}>
+                      <Text style={styles.statNumber}>{item.post_reels_count || 0}</Text>
+                      <Text style={styles.statLabel}>Posts</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                      <Text style={styles.statNumber}>{item.followers_count || 0}</Text>
+                      <Text style={styles.statLabel}>Followers</Text>
+                    </View>
                   </View>
-                )}
-              </View>
-              
-              <Text style={styles.businessName} numberOfLines={1}>
-                {businessName || username}
-              </Text>
-              
-              <Text style={styles.vendorGridName} numberOfLines={1}>
-                @{username}
-              </Text>
-              
-              <View style={styles.vendorStats}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>{postCount}</Text>
-                  <Text style={styles.statLabel}>Posts</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Text style={styles.statNumber}>{followersCount}</Text>
-                  <Text style={styles.statLabel}>Followers</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          );
-        }}
+                </TouchableOpacity>
+              ) : (
+                // Empty cell for alignment if row has only 1 item
+                <View key={`empty-${colIndex}`} style={[styles.vendorGridCard, { backgroundColor: 'transparent', elevation: 0 }]} />
+              )
+            )}
+          </View>
+        )}
         contentContainerStyle={styles.gridContainer}
         showsVerticalScrollIndicator={false}
       />

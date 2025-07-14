@@ -195,13 +195,13 @@ const CommentScreen = () => {
           <Text style={styles.commentReply}>Reply</Text>
         </View>
       </View>
-      <TouchableOpacity onPress={() => toggleLike(item.id , item)} style={styles.likeButton}>
+      {/* <TouchableOpacity onPress={() => toggleLike(item.id , item)} style={styles.likeButton}>
         <Icon
           name={item.is_liked ? "heart" : "heart-outline"}
           size={16}
           color={item.is_liked ? "#ff3040" : "#333"}
         />
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </View>
   );
 

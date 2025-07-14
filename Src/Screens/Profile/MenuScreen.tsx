@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal, Image, Switch, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal, Image, Alert, ActivityIndicator } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useDispatch } from 'react-redux';
 import { logoutUser } from '../../Api/Api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList, AuthStackParamList } from '../../Navigation/types';
-import { CommonActions } from '@react-navigation/native';
+import { Linking } from 'react-native';
 const MENU_SECTIONS = [
   {
     title: 'Account Center',
@@ -37,16 +35,14 @@ const MENU_SECTIONS = [
   {
     title: 'More',
     data: [
-      { icon: 'lock-outline', label: 'Change Password', action: 'ChangePassword' },
-      { icon: 'person-add-outline', label: 'Add Account', action: 'AddAccount' },
+      { icon: 'lock-open-outline', label: 'Change Password', action: 'ChangePassword' },
+      // { icon: 'person-add-outline', label: 'Add Account', action: 'AddAccount' },
       { icon: 'help-circle-outline', label: 'Help & Support', action: 'Help' },
       { icon: 'log-out-outline', label: 'Log Out', action: 'Logout' },
 
     ],
   },
 ];
-
-
 
 const ACCOUNT_CENTER_DATA = {
   user: {
@@ -79,12 +75,15 @@ const ACCOUNT_CENTER_DATA = {
 // type MenuScreenProps = {
 //   navigation: NativeStackNavigationProp<RootStackParamList>;
 // };
-export default function MenuScreen({ navigation }) {
+export default function MenuScreen({ navigation ,route }) {
   const [accountCenterModal, setAccountCenterModal] = useState(false);
   const [twoFA, setTwoFA] = useState(ACCOUNT_CENTER_DATA.security.twoFactorEnabled);
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
-
+  const userData = route.params.data
+  console.log("userData  ------>",userData);
+  const profile = userData?.profile || {};
+  
   // If you want other items to navigate, you can handle here
   
   const handleLogout = async () => {
@@ -105,37 +104,18 @@ export default function MenuScreen({ navigation }) {
 
               if (res.status === 200) {
                 // 2. Clear AsyncStorage
-                // await AsyncStorage.clear();
+                await AsyncStorage.removeItem('accessToken');
+                await AsyncStorage.removeItem('refreshToken');
+                // Optionally clear all: await AsyncStorage.clear();
 
                 // 3. Reset Redux store (dispatch logout action)
                 dispatch({ type: 'AUTH_LOGOUT' }); // Adjust this according to your Redux action type
 
-                // 4. Reset to Auth stack
-                // setTimeout(() => {
-                //   navigation.dispatch(
-                //   CommonActions.reset({
-                //     index: 0,
-                //     routes: [{
-                //       name: 'Auth',
-                //       params: {
-                //         screen: 'Login'
-                //       }
-                //     }]
-                //   })
-                // );
-
-                // }, 300);
-
-                navigation.navigate('Auth')
-
-                
-
-                // // Ensure navigation is complete
-                // setTimeout(() => {
-                //   navigation.navigate('Auth', {
-                //     screen: 'Login'
-                //   });
-                // }, 100);
+                // 4. Reset to Auth stack (Login screen)
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Auth' }],
+                });
               } else {
                 throw new Error('Logout failed');
               }
@@ -157,6 +137,10 @@ export default function MenuScreen({ navigation }) {
   }
   if (action === 'ChangePassword') {
     navigation.navigate('ChangePassword');
+    return;
+  }
+  if (action === 'Ei') {
+    Linking.openURL('https://ethicalintelligence.in/');
     return;
   }
   if (action) {
@@ -185,7 +169,7 @@ export default function MenuScreen({ navigation }) {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backIconWrapper}>
-          <Ionicons name="arrow-back" size={26} color="#222" />
+          <Ionicons name="arrow-back" size={26} color="#bea063" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
         <View style={{ width: 32 }} /> {/* for symmetrical spacing */}
@@ -234,34 +218,16 @@ export default function MenuScreen({ navigation }) {
             </View>
             {/* Profile */}
             <View style={styles.profileRow}>
-              <Image source={{ uri: ACCOUNT_CENTER_DATA.user.profilePicture }} style={styles.avatar} />
+              <Image source={{ uri: profile.profile_picture }} style={styles.avatar} />
               <View>
-                <Text style={styles.username}>{ACCOUNT_CENTER_DATA.user.username}</Text>
-                <Text style={styles.email}>{ACCOUNT_CENTER_DATA.user.email}</Text>
-                <Text style={styles.bio}>{ACCOUNT_CENTER_DATA.user.bio}</Text>
+                <Text style={styles.username}>{profile.username}</Text>
+                <Text style={styles.info}> {profile.first_name || 'N/A'}</Text>
+                <Text style={styles.info}> {profile.phone_no || 'N/A'}</Text>
+                <Text style={styles.info}> {profile.email || 'N/A'}</Text>
               </View>
             </View>
             {/* Linked Accounts */}
-            <Text style={[styles.modalSectionTitle, { marginTop: 8 }]}>Linked Accounts</Text>
-            {ACCOUNT_CENTER_DATA.linkedAccounts.map(acc => (
-              <View key={acc.id} style={styles.linkedRow}>
-                <Image source={{ uri: acc.profilePicture }} style={styles.linkedAvatar} />
-                <Text style={styles.linkedUsername}>{acc.username}</Text>
-                <TouchableOpacity style={styles.switchBtn}>
-                  <Ionicons name="swap-horizontal-outline" size={18} color="#555" />
-                  <Text style={styles.switchBtnText}>Switch</Text>
-                </TouchableOpacity>
-              </View>
-            ))} 
-            {/* Security */}
-            <Text style={[styles.modalSectionTitle, { marginTop: 8 }]}>Security</Text>
-            <View style={styles.row}>
-              <Text>Two-Factor Authentication</Text>
-              <Switch value={twoFA} onValueChange={setTwoFA} />
-            </View>
-            <Text style={styles.info}>Backup Email: {ACCOUNT_CENTER_DATA.security.backupEmail}</Text>
-            <Text style={styles.info}>Backup Phone: {ACCOUNT_CENTER_DATA.security.backupPhone}</Text>
-            <Text style={styles.info}>Last Password Change: {ACCOUNT_CENTER_DATA.security.lastPasswordChange}</Text>
+           
           </View>
         </View>
       </Modal>
@@ -306,7 +272,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#222',
+    color: '#bea063',
   },
   sectionTitle: {
     fontSize: 13,
@@ -340,7 +306,7 @@ const styles = StyleSheet.create({
     padding: 18,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
-    minHeight: 400,
+    // minHeight: 400,
     elevation: 12,
   },
   modalTitle: {

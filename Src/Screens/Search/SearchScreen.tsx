@@ -285,7 +285,7 @@ console.log("categories",categories);
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        {React.createElement(Ionicons, { name: "search", size: 20, color: "#000", style: styles.searchIcon })}
+        {React.createElement(Ionicons, { name: "search", size: 20, color: "#bea063", style: styles.searchIcon })}
         <TextInput
           placeholder="Search for Yogic"
           placeholderTextColor="black"
@@ -294,7 +294,6 @@ console.log("categories",categories);
           onChangeText={handleSearchChange}
         />
       </View>
-
       {loading ? (
         <ActivityIndicator size="large" color="#000" style={{ marginTop: 20 }} />
       ) : error ? (
@@ -325,7 +324,7 @@ console.log("categories",categories);
           ) : trendingError ? (
             <Text style={{ color: 'red', textAlign: 'center' }}>{trendingError}</Text>
           ) : trendingPosts.length > 0 && (
-            <View style={{ marginTop: 30, marginBottom: 10 }}>
+            <View style={{ marginTop:5, marginBottom: 10 }}>
           
               <MasonryList
                 data={trendingPosts}
@@ -555,7 +554,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    margin: 6,
+    margin: 3,
     paddingVertical: 18,
     paddingHorizontal: 8,
     shadowColor: '#000',
@@ -583,12 +582,12 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   categoryTitleNew: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '400',
     color: '#222',
     textAlign: 'center',
     marginTop: 2,
-    lineHeight: 20,
+    // lineHeight: 20,
   },
 })
 

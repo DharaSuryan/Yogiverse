@@ -196,7 +196,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
     }
     // Navigate to user profile or post
     if (user_id) {
-      navigation.navigate('UserProfile' as any, { userId: user_id?.toString(),isFromSearch:true });
+      navigation.navigate('UserProfile' as any, { userId: user_id?.toString(),isFromSearch:true,isFromNotification:true,  });
       // navigate('MainTab', {
       //   screen: 'ProfileTab',
       //   params: {
@@ -263,7 +263,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color="#bea063" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
       </View>
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#222',
+    color: '#bea063',
   },
   listContainer: {
     padding: 10,

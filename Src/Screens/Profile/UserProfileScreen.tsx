@@ -13,13 +13,16 @@ import {
   Modal,
   Alert,
   TextInput,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+  BackHandler,
 } from 'react-native';
 const Ionicons = require('react-native-vector-icons/Ionicons').default;
 import Video from 'react-native-video';
 import Post from '../../Component/Post';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import {useNavigation, useFocusEffect, useRoute} from '@react-navigation/native';
+import {useNavigation, useFocusEffect, useRoute, CommonActions} from '@react-navigation/native';
 import {getProfile, getUserPosts, getUserReels} from '../../Api/Api';
 //  import { Image as Compressor } from 'react-native-compressor';
 
@@ -44,6 +47,8 @@ interface Post {
   collectionName?: string;
   allMedia?: string[]; // All media files for this post
 }
+
+const defaultAvatar = require('../../Assets/userProfile.png');
 
 const UserProfileScreen = ({navigation}:any) => {
   const [activeTab, setActiveTab] = useState<'posts' | 'reels' | 'saved'>(
@@ -475,7 +480,7 @@ const UserProfileScreen = ({navigation}:any) => {
         // Initialize for single video
         newVideoStates[item.id] = {
           isPlaying: false,
-          isMuted: true,
+          isMuted: false,
         };
 
         // Initialize for multiple media items if they exist
@@ -484,7 +489,7 @@ const UserProfileScreen = ({navigation}:any) => {
             const mediaId = `${item.id}-${index}`;
             newVideoStates[mediaId] = {
               isPlaying: false,
-              isMuted: true,
+              isMuted: false,
             };
           });
         }
@@ -677,6 +682,39 @@ const UserProfileScreen = ({navigation}:any) => {
         setLoading(true);
       };
     }, [route?.params?.userId, route?.params?.isFromSearch])
+  );
+
+  // Hardware back press handling
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        const params = route?.params || {};
+        if (params.isFromHome) {
+          navigation.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [{
+                name: 'MainTab',
+                params: { screen: 'HomeTab' }
+              }]
+            })
+          );
+        } else if (params.isFromVendor) {
+          navigation.navigate('VenderDetail');
+        } else if (params.isFromVendorList) {
+          navigation.navigate('VenderList');
+        } else if (params.isFromNotification) {
+          navigation.navigate('Notifications');
+        } else if (params.isFromFollower) {
+          navigation.navigate('FollowersFollowingScreen');
+        } else {
+          (navigation as any).navigate('MainTab', { screen: 'SearchTab' });
+        }
+        return true;
+      };
+      BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+    }, [navigation, route?.params])
   );
 
   const fetchData = async () => {
@@ -947,9 +985,12 @@ console.log("datat......" , data);
         });
 
   const renderPostItem = ({item, index}: {item: any; index: number}) => {
+    if (!item) {
+      // Render a blank cell for empty grid slots
+      return <View style={styles.postItem} />;
+    }
     const isReel = item.type === 'reel';
     const isCollection = item.isCollection;
-    const shouldShowVideoControls = isReel && activeTab === 'reels';
     const videoState = videoStates[item.id] || {
       isPlaying: false,
       isMuted: true,
@@ -960,71 +1001,40 @@ console.log("datat......" , data);
         style={styles.postItem}
         onPress={() => {
           if (isCollection) {
-            // Navigate to collection details
-             console.log("User profile screen click --------> ");
             navigation.navigate('CollectionDetailScreen', {
               collectionId: item.collection_id,
               collectionName: item.collectionName,
             });
           } else {
-            setSelectedIndex(index);
+            const filteredIndex = filteredPosts.findIndex(p => p.id === item.id);
+            setSelectedIndex(filteredIndex !== -1 ? filteredIndex : index);
             setFullscreenVisible(true);
           }
         }}
         activeOpacity={0.9}>
-        {/* Main media display - use compressed image for better performance */}
-        {!isReel ? (
-          <Image
-            source={{uri: item.compressedUri || item.uri}}
-            style={styles.postImage}
-          />
-        ) : (
-          <View style={styles.videoContainer}>
-            <Video
-              ref={ref => handleVideoRef(ref, item.id)}
-              source={{uri: item.uri}}
+        <View style={{ position: 'relative', width: '100%', height: '100%' }}>
+          {!isReel ? (
+            <Image
+              source={{uri: item.compressedUri || item.uri}}
               style={styles.postImage}
-              muted={videoState.isMuted}
-              repeat
-              resizeMode="cover"
-              paused={!videoState.isPlaying || shouldPauseAllVideos}
-              onLoad={() => setVideoLoading(false)}
-              onError={() => setVideoLoading(false)}
             />
-
-            {/* Video controls overlay - only show when on reels tab */}
-            {shouldShowVideoControls && (
-              <View style={styles.videoControls}>
-                <TouchableOpacity
-                  style={styles.videoControlButton}
-                  onPress={e => {
-                    e.stopPropagation();
-                    togglePlayPause(item.id);
-                  }}>
-                  <Ionicons
-                    name={videoState.isPlaying ? 'pause' : 'play'}
-                    size={20}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.videoControlButton}
-                  onPress={e => {
-                    e.stopPropagation();
-                    toggleMute(item.id);
-                  }}>
-                  <Ionicons
-                    name={videoState.isMuted ? 'volume-mute' : 'volume-high'}
-                    size={20}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        )}
-
+          ) : (
+            <>
+              <Video
+                ref={ref => handleVideoRef(ref, item.id)}
+                source={{uri: item.uri}}
+                style={styles.postImage}
+                muted={videoState.isMuted}
+                repeat
+                resizeMode="cover"
+                paused={!videoState.isPlaying || shouldPauseAllVideos}
+                onLoad={() => setVideoLoading(false)}
+                onError={() => setVideoLoading(false)}
+              />
+              {/* Play icon overlay for reels in grid REMOVED */}
+            </>
+          )}
+        </View>
         {/* Collection indicator */}
         {isCollection && (
           <View style={styles.collectionIndicator}>
@@ -1032,7 +1042,6 @@ console.log("datat......" , data);
             <Text style={styles.collectionText}>{item.collectionName}</Text>
           </View>
         )}
-
         {/* Multiple media indicator */}
         {item.mediaCount && item.mediaCount > 1 && (
           <View style={styles.multipleMediaIndicator}>
@@ -1040,33 +1049,15 @@ console.log("datat......" , data);
             <Text style={styles.multipleMediaText}>{item.mediaCount}</Text>
           </View>
         )}
-
         {/* Top-right options icon */}
-       {isFromSearch ? null : <TouchableOpacity
+        {isFromSearch ? null : <TouchableOpacity
           style={{position: 'absolute', top: 8, right: 8, zIndex: 2}}
           onPress={e => {
             e.stopPropagation();
             handleOptions(item);
           }}>
-          <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
+          <Ionicons name="ellipsis-vertical" size={20} color="#bea063" />
         </TouchableOpacity>}
-
-        {/* Like/comment counts overlay */}
-        {/* <View style={styles.postOverlay}>
-          <View style={styles.postStat}>
-            <Ionicons name="heart" size={14} color="#fff" />
-            <Text style={styles.postStatText}>{item.likes}</Text>
-          </View>
-          <View style={styles.postStat}>
-            <Ionicons name="chatbubble" size={14} color="#fff" />
-            <Text style={styles.postStatText}>{item.comments}</Text>
-          </View>
-          <View style={styles.postStat}>
-            <TouchableOpacity onPress={() => handleShare(item)}>
-              <Ionicons name="paper-plane-outline" size={20} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        </View> */}
       </TouchableOpacity>
     );
   };
@@ -1074,8 +1065,8 @@ console.log("datat......" , data);
   const renderStats = () => (
     <View style={styles.statsContainer}>
       <View style={styles.statItem}>
-        <Text style={styles.statNumber}>{profile.postsCount}</Text>
-        <Text style={styles.statLabel}>Posts</Text>
+        <Text style={[styles.statNumber, { color: '#bea063' }]}>{profile.postsCount}</Text>
+        <Text style={[styles.statLabel, { color: '#bea063' }]}>Posts</Text>
       </View>
       <TouchableOpacity
         style={styles.statItem}
@@ -1087,8 +1078,8 @@ console.log("datat......" , data);
             username: profile.username,
           })
         }>
-        <Text style={styles.statNumber}>{profile.followersCount}</Text>
-        <Text style={styles.statLabel}>Followers</Text>
+        <Text style={[styles.statNumber, { color: '#bea063' }]}>{profile.followersCount}</Text>
+        <Text style={[styles.statLabel, { color: '#bea063' }]}>Followers</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.statItem}
@@ -1100,24 +1091,43 @@ console.log("datat......" , data);
             username: profile.username,
           })
         }>
-        <Text style={styles.statNumber}>{profile.followingCount}</Text>
-        <Text style={styles.statLabel}>Following</Text>
+        <Text style={[styles.statNumber, { color: '#bea063' }]}>{profile.followingCount}</Text>
+        <Text style={[styles.statLabel, { color: '#bea063' }]}>Following</Text>
       </TouchableOpacity>
     </View>
   );
 
-  const renderProfileHeader = () => (
-    <View style={styles.profileHeader}>
-      <Image source={{uri: profile.profileImage}} style={styles.profileImage} />
-      {renderStats()}
-    </View>
-  );
+  const renderProfileHeader = () => {
+    const showDefaultImage =
+      !profile.profileImage ||
+      profile.profileImage === '' ||
+      profile.profileImage === null ||
+      profile.profileImage === undefined ||
+      profile.profileImage.includes('picsum.photos') ||
+      profile.profileImage.includes('placeholder.com');
+    return (
+      <View style={styles.profileHeader}>
+        <Image
+          source={
+            showDefaultImage
+              ? defaultAvatar
+              : {uri: profile.profileImage}
+          }
+          style={[
+            styles.profileImage,
+            showDefaultImage && { borderWidth: 2, borderColor: '#bea063' }
+          ]}
+        />{' '}
+        {renderStats()}
+      </View>
+    );
+  };
 
   const renderBio = () => (
     <View style={styles.bioContainer}>
-      <Text style={styles.username}>@{profile.username}</Text>
-      <Text style={styles.fullName}>{profile.fullName}</Text>
-      <Text style={styles.bioText}>{profile.bio}</Text>
+      <Text style={[styles.username, { color: '#bea063' }]}>@{profile.username}</Text>
+      <Text style={[styles.fullName, { color: '#bea063' }]}>{profile.fullName}</Text>
+      <Text style={[styles.bioText, { color: '#bea063' }]}>{profile.bio}</Text>
     </View>
   );
 
@@ -1129,7 +1139,7 @@ console.log("datat......" , data);
         <Ionicons
           name="grid-outline"
           size={24}
-          color={activeTab === 'posts' ? '#000' : '#888'}
+          color={activeTab === 'posts' ? '#bea063' : '#888'}
         />
       </TouchableOpacity>
       <TouchableOpacity
@@ -1138,7 +1148,7 @@ console.log("datat......" , data);
         <Ionicons
           name="play-outline"
           size={24}
-          color={activeTab === 'reels' ? '#000' : '#888'}
+          color={activeTab === 'reels' ? '#bea063' : '#888'}
         />
       </TouchableOpacity>
       {isFromSearch ? null : <TouchableOpacity
@@ -1147,7 +1157,7 @@ console.log("datat......" , data);
         <Ionicons
           name="bookmark-outline"
           size={24}
-          color={activeTab === 'saved' ? '#000' : '#888'}
+          color={activeTab === 'saved' ? '#bea063' : '#888'}
         />
       </TouchableOpacity>}
     </View>
@@ -1185,7 +1195,7 @@ console.log("datat......" , data);
     };
 
     return (
-      <View style={{flex: 1, backgroundColor: '#000'}}>
+      <View style={{flex: 1, backgroundColor: '#fff', marginTop: index > 0 ? 5 : 0}}>
         {/* Top bar */}
         {/* <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 40, paddingBottom: 10, paddingHorizontal: 10, backgroundColor: '#111', justifyContent: 'space-between' }}>
           <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>Posts</Text>
@@ -1202,10 +1212,17 @@ console.log("datat......" , data);
           }}>
           <View style={{flexDirection: 'row', alignItems: 'center'}}>
             <Image
-              source={{uri: profile.profileImage}}
-              style={{width: 36, height: 36, borderRadius: 18, marginRight: 10}}
+              source={
+                !profile.profileImage || profile.profileImage === '' || profile.profileImage === null || profile.profileImage === undefined || profile.profileImage.includes('picsum.photos') || profile.profileImage.includes('placeholder.com')
+                  ? defaultAvatar
+                  : {uri: profile.profileImage}
+              }
+              style={[
+                {width: 36, height: 36, borderRadius: 18, marginRight: 10},
+                (!profile.profileImage || profile.profileImage === '' || profile.profileImage === null || profile.profileImage === undefined || profile.profileImage.includes('picsum.photos') || profile.profileImage.includes('placeholder.com')) && { borderWidth: 2, borderColor: '#bea063' }
+              ]}
             />
-            <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 15}}>
+            <Text style={{color: '#bea063', fontWeight: 'bold', fontSize: 15}}>
               {profile.username}
             </Text>
           </View>
@@ -1214,7 +1231,7 @@ console.log("datat......" , data);
          {isFromSearch ? null : <TouchableOpacity
             onPress={() => handleOptions(item)}
             style={{padding: 8}}>
-            <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
+            <Ionicons name="ellipsis-vertical" size={20} color="#bea063" />
           </TouchableOpacity>}
         </View>
 
@@ -1224,7 +1241,7 @@ console.log("datat......" , data);
             width: windowWidth,
             height: windowHeight * 0.5,
             alignSelf: 'center',
-            backgroundColor: '#000',
+            backgroundColor: '#fff',
             justifyContent: 'center',
             alignItems: 'center',
           }}>
@@ -1244,10 +1261,10 @@ console.log("datat......" , data);
                 }));
               }}
               renderItem={({item: mediaItem, index: mediaIndex}) => (
-                <View style={{width: windowWidth, height: windowHeight * 0.5}}>
+                <View style={{width: windowWidth, height: windowHeight * 0.5, backgroundColor: '#fff'}}>
                   {isVideo ? (
                     <View
-                      style={{width: windowWidth, height: windowHeight * 0.5}}>
+                      style={{width: windowWidth, height: windowHeight * 0.5, backgroundColor: '#fff'}}>
                       {videoLoading && (
                         <ActivityIndicator
                           size="large"
@@ -1267,7 +1284,7 @@ console.log("datat......" , data);
                         style={{
                           width: '100%',
                           height: '100%',
-                          backgroundColor: '#000',
+                          backgroundColor: '#fff',
                         }}
                         muted={
                           videoStates[`${item.id}-${mediaIndex}`]?.isMuted ||
@@ -1326,7 +1343,7 @@ console.log("datat......" , data);
                         width: windowWidth,
                         height: windowHeight * 0.5,
                         resizeMode: 'cover',
-                        backgroundColor: '#000',
+                        backgroundColor: '#fff',
                       }}
                     />
                   )}
@@ -1338,7 +1355,7 @@ console.log("datat......" , data);
             />
           ) : // Single media item
           isVideo ? (
-            <View style={{width: windowWidth, height: windowHeight * 0.5}}>
+            <View style={{width: windowWidth, height: windowHeight * 0.5, backgroundColor: '#fff'}}>
               {videoLoading && (
                 <ActivityIndicator
                   size="large"
@@ -1353,7 +1370,7 @@ console.log("datat......" , data);
               <Video
                 ref={ref => handleVideoRef(ref, item.id)}
                 source={{uri: currentMedia}}
-                style={{width: '100%', height: '100%', backgroundColor: '#000'}}
+                style={{width: '100%', height: '100%', backgroundColor: '#fff'}}
                 muted={videoState.isMuted}
                 repeat
                 resizeMode="cover"
@@ -1393,7 +1410,7 @@ console.log("datat......" , data);
                 width: windowWidth,
                 height: windowHeight * 0.5,
                 resizeMode: 'cover',
-                backgroundColor: '#000',
+                backgroundColor: '#fff',
               }}
             />
           )}
@@ -1474,19 +1491,54 @@ console.log("datat......" , data);
         <View
           style={{
             flexDirection: 'row',
-            alignItems: 'center',
+            alignItems: 'flex-start',
             paddingHorizontal: 14,
             marginBottom: 2,
             flexWrap: 'wrap',
+            flex: 1,
           }}>
-          <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 14}}>
-            {profile.username}
-          </Text>
           {item.caption ? (
-            <Text style={{color: '#fff', fontSize: 14, marginLeft: 6}}>
-              {item.caption}
-            </Text>
-          ) : null}
+            <>
+              {expandedCaptions[item.id] ? (
+                <Text
+                  style={{color: 'gray', fontSize: 14, flex: 1}}
+                  numberOfLines={undefined}
+                  ellipsizeMode="tail"
+                >
+                  <Text style={{color: '#bea063', fontWeight: 'bold', fontSize: 14}}>{profile.username} </Text>
+                  {item.caption}
+                  <Text
+                    onPress={() => setExpandedCaptions(prev => ({ ...prev, [item.id]: false }))}
+                    style={{color: '#bea063', fontSize: 14, fontWeight: 'bold'}}>
+                    {' '}See less
+                  </Text>
+                </Text>
+              ) : (
+                <>
+                  <Text
+                    style={{color: 'gray', fontSize: 14, flex: 1}}
+                    numberOfLines={2}
+                    ellipsizeMode="tail"
+                    onTextLayout={e => {
+                      if (e.nativeEvent.lines.length > 2 && !captionTruncated[item.id]) {
+                        setCaptionTruncated(prev => ({ ...prev, [item.id]: true }));
+                      }
+                    }}
+                  >
+                    <Text style={{color: '#bea063', fontWeight: 'bold', fontSize: 14}}>{profile.username} </Text>
+                    {item.caption}
+                  </Text>
+                  {captionTruncated[item.id] && (
+                    <TouchableOpacity onPress={() => setExpandedCaptions(prev => ({ ...prev, [item.id]: true }))}>
+                      <Text style={{color: '#bea063', fontSize: 14, marginLeft: 4, fontWeight: 'bold'}}> See more</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
+            </>
+          ) : (
+            <Text style={{color: '#bea063', fontWeight: 'bold', fontSize: 14}}>{profile.username}</Text>
+          )}
         </View>
 
         {/* Date */}
@@ -1538,6 +1590,33 @@ console.log("datat......" , data);
     });
   };
 
+  // Before the FlatList in the fullscreen modal, define itemHeight
+  const mediaHeight = Dimensions.get('window').height * 0.5;
+  const contentHeight = 150; // Approximate height for user info, likes, comments, caption
+  const itemHeight = mediaHeight + contentHeight;
+
+  // Add the handler above the FlatList
+  const handleMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const index = Math.round(offsetY / itemHeight);
+    fullscreenFlatListRef.current?.scrollToIndex({ index, animated: true });
+  };
+
+  // Add this state near the top, after other useState hooks
+  const [expandedCaptions, setExpandedCaptions] = useState<{ [postId: string]: boolean }>({});
+  const [captionTruncated, setCaptionTruncated] = useState<{ [postId: string]: boolean }>({});
+
+  // Add this state near the top, after other useState hooks
+  const [optionsModalVisible, setOptionsModalVisible] = useState(false);
+
+  useEffect(() => {
+    if (route?.params?.showOptionsModal) {
+      setOptionsModalVisible(true);
+      // Optionally reset the param so it doesn't show again on back navigation
+      navigation.setParams({ showOptionsModal: false });
+    }
+  }, [route?.params?.showOptionsModal]);
+
   return (
     <SafeAreaView style={styles.container}>
        {/* <View style={styles.header}>
@@ -1553,12 +1632,29 @@ console.log("datat......" , data);
         animationType="slide"
         onRequestClose={() => setFullscreenVisible(false)}
         transparent={false}>
-        <SafeAreaView style={{flex: 1, backgroundColor: '#000'}}>
-          <TouchableOpacity
-            style={{position: 'absolute', top: 40, right: 20, zIndex: 1}}
-            onPress={() => setFullscreenVisible(false)}>
-            <Ionicons name="close" size={30} color="#fff" />
-          </TouchableOpacity>
+        <SafeAreaView style={{flex: 1, backgroundColor: '#fff'}}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingTop: 20,
+              paddingBottom: 10,
+              paddingHorizontal: 10,
+              backgroundColor: '#fff',
+              top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 10,
+            }}>
+            <TouchableOpacity
+              onPress={() => setFullscreenVisible(false)}
+              style={{padding: 6, marginRight: 10}}>
+              <Ionicons name="arrow-back" size={26} color="#bea063" />
+            </TouchableOpacity>
+            <Text style={{color: '#bea063', fontWeight: 'bold', fontSize: 18}}>
+              Posts
+            </Text>
+          </View>
           {filteredPosts.length === 0 ? (
             <View
               style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
@@ -1572,23 +1668,18 @@ console.log("datat......" , data);
               data={filteredPosts}
               renderItem={renderFullscreenItem}
               keyExtractor={item => item.id}
-              pagingEnabled
               initialScrollIndex={selectedIndex}
-              getItemLayout={(data, index) => {
-                const mediaHeight = Dimensions.get('window').height * 0.5;
-                const contentHeight = 150; // Approximate height for user info, likes, comments, caption
-                const totalItemHeight = mediaHeight + contentHeight;
-                return {
-                  length: totalItemHeight,
-                  offset: totalItemHeight * index,
-                  index,
-                };
-              }}
+              getItemLayout={(data, index) => ({
+                length: Dimensions.get('window').height,
+                offset: Dimensions.get('window').height * index,
+                index,
+              })}
               showsVerticalScrollIndicator={false}
               viewabilityConfig={viewabilityConfig}
               onViewableItemsChanged={onViewableItemsChanged}
               initialNumToRender={3}
               windowSize={5}
+              contentContainerStyle={{backgroundColor: '#fff'}}
             />
           )}
         </SafeAreaView>
@@ -1611,11 +1702,34 @@ console.log("datat......" , data);
           </View>
         )}
         <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16 }}>
-            <TouchableOpacity onPress={()=> navigation.goBack()} style={{ marginRight: 16 }}>
-              <Ionicons name="arrow-back" size={28} color="#333" />
+          <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16 ,marginTop:5}}>
+            <TouchableOpacity onPress={()=> {
+               const params = route?.params || {};
+               if (params.isFromHome) {
+                 navigation.dispatch(
+                   CommonActions.reset({
+                     index: 0,
+                     routes: [{
+                       name: 'MainTab',
+                       params: { screen: 'HomeTab' }
+                     }]
+                   })
+                 );
+               } else if (params.isFromVendor) {
+                 navigation.navigate('VenderDetail');
+               } else if (params.isFromVendorList) {
+                 navigation.navigate('VenderList');
+               } else if (params.isFromNotification) {
+                 navigation.navigate('Notifications');
+               } else if (params.isFromFollower) {
+                 navigation.navigate('FollowersFollowingScreen');
+               } else {
+                 (navigation as any).navigate('MainTab', { screen: 'SearchTab' });
+               }
+            }} style={{ marginRight: 16 }}>
+              <Ionicons name="arrow-back" size={28} color="#bea063" />
             </TouchableOpacity>
-          
+           <Text style={[styles.username, { color: '#bea063',alignSelf:'center' }]}>@{profile.username}</Text>
           </View>
         </SafeAreaView>
         {renderProfileHeader()}
@@ -1625,12 +1739,13 @@ console.log("datat......" , data);
           
         }
         {userId && (
-          <View style={{ alignItems: 'center', marginTop: 8 }}>
+          <View style={{ alignItems: 'center', marginTop: 0 }}>
             <TouchableOpacity
               style={[
                 styles.followButton,
-                isFollowing && followStatus !== 'pending' ? styles.unfollowButton : null,
-                followStatus === 'pending' ? styles.pendingButton : null,
+                { backgroundColor: '#bea063', borderColor: '#bea063' },
+                isFollowing && followStatus !== 'pending' ? { backgroundColor: '#fff', borderColor: '#bea063', borderWidth: 1 } : null,
+                followStatus === 'pending' ? { backgroundColor: '#fff', borderColor: '#bea063', borderWidth: 1 } : null,
               ]}
               disabled={followStatus === 'pending' || followLoading}
               onPress={async () => {
@@ -1678,23 +1793,18 @@ console.log("datat......" , data);
                 }
               }}
             >
-              {followLoading ? (
-                <ActivityIndicator color={isFollowing ? '#0095f6' : '#fff'} size="small" />
-              ) : (
-                <Text style={
-                  isFollowing && followStatus !== 'pending'
-                    ? styles.unfollowButtonText
-                    : followStatus === 'pending'
-                      ? styles.pendingButtonText
-                      : styles.followButtonText
-                }>
+              <Text style={{
+                  color: isFollowing || followStatus === 'pending' ? '#bea063' : '#fff',
+                  fontWeight: 'bold',
+                  fontSize: 16,
+                  letterSpacing: 0.5,
+                }}>
                   {isFollowing
                     ? followStatus === 'pending'
                       ? 'Requested'
                       : 'Unfollow'
                     : 'Follow'}
                 </Text>
-              )}
             </TouchableOpacity>
           </View>
         )}
@@ -1995,6 +2105,34 @@ console.log("datat......" , data);
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Place the modal at the end so it overlays everything */}
+      {optionsModalVisible && (
+        <View style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 100
+        }}>
+          <View style={{
+            backgroundColor: '#fff', borderRadius: 16, padding: 24, width: 300, alignItems: 'center'
+          }}>
+            <TouchableOpacity onPress={() => {
+              setOptionsModalVisible(false);
+              navigation.navigate('ContactUs');
+            }}>
+              <Text style={{ color: '#ed4956', fontWeight: 'bold', fontSize: 16, marginBottom: 16 }}>Report</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => {
+              setOptionsModalVisible(false);
+              navigation.navigate('UserProfile', { userId: userId?.toString(), isFromSearch: true, isFromHome: true });
+            }}>
+              <Text style={{ fontSize: 16, marginBottom: 16, color: '#222' }}>About this account</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setOptionsModalVisible(false)}>
+              <Text style={{ fontSize: 16, color: '#888', marginTop: 8 }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -2104,7 +2242,7 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     borderBottomWidth: 2,
-    borderBottomColor: '#000',
+    borderBottomColor: '#bea063',
   },
   postsGrid: {
     padding: 1,
@@ -2138,11 +2276,14 @@ const styles = StyleSheet.create({
   },
   reelIndicator: {
     position: 'absolute',
-    top: 8,
+    bottom: 8,
     right: 8,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 12,
-    padding: 4,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderRadius: 16,
+    padding: 2,
+    zIndex: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   postOverlay: {
     position: 'absolute',

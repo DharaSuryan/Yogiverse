@@ -106,6 +106,8 @@ const ChatScreen = () => {
       const res = await axios.get(`https://pashuahar.com/chat_app/chats/${chatId}/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      console.log("resresres",res);
+
       if (Array.isArray(res.data.messages)) {
         setMessages(res.data.messages);
       }

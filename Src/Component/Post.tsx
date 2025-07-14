@@ -53,31 +53,56 @@ interface PostProps {
   item?: any;
   onDelete?: (id: string) => void;
   isdrmoDetails?: boolean;
+  is_collection?: boolean;
+  collection_id?: number | null;
+  type?: string;
+  hideActions?: boolean;
+  hideAllDetails?: boolean;
+  hideHeaderAndControls?: boolean;
+  showVideoControlsInActionsRow?: boolean;
+  onPlayPausePress?: () => void;
+  onMuteUnmutePress?: () => void;
+  isPlaying?: boolean;
+  isMuted?: boolean;
+  onRemovedFromCollection?: () => void;
 }
 
 const fallbackAvatar = require('../Assets/yoga.jpg');
 const fallbackPostImage = require('../Assets/yoga.jpg');
 
-const Post: React.FC<PostProps> = ({
-  id,
-  username,
-  media = [],
-  caption,
-  likes,
-  userAvatar,
-  isLiked: initialIsLiked,
-  contentType,
-  navigation,
-  allowComments = true,
-  commentCount = 0,
-  hideLikeCount = false,
-  location = '',
-  createdAt = '',
-  profile = {},
-  item,
-  onDelete,
-  isdrmoDetails = false,
-}) => {
+const Post: React.FC<PostProps> = (props) => {
+  const {
+    id,
+    username,
+    media = [],
+    caption,
+    likes,
+    userAvatar,
+    isLiked: initialIsLiked,
+    contentType,
+    navigation,
+    allowComments = true,
+    commentCount = 0,
+    hideLikeCount = false,
+    location = '',
+    createdAt = '',
+    profile = {},
+    item,
+    onDelete,
+    isdrmoDetails = false,
+    is_collection,
+    collection_id,
+    type,
+    hideActions = false,
+    hideAllDetails = false,
+    hideHeaderAndControls = false,
+    showVideoControlsInActionsRow = false,
+    onPlayPausePress,
+    onMuteUnmutePress,
+    isPlaying,
+    isMuted,
+    onRemovedFromCollection,
+  } = props;
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [likesCount, setLikesCount] = useState(likes);
   const [likeLoading, setLikeLoading] = useState(false);
@@ -94,17 +119,19 @@ const Post: React.FC<PostProps> = ({
   const [savingToCollectionId, setSavingToCollectionId] = useState<number | null>(null);
   const navigations = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [showFullCaption, setShowFullCaption] = useState(false);
+  // Add state for save (collection) loading
+  const [saveCollectionLoading, setSaveCollectionLoading] = useState(false);
 
   const getMediaUri = (item: any) => {
     if (item.media_file) return item.media_file.startsWith('http') ? item.media_file : `http://192.168.1.160:9001${item.media_file}`;
     if (item.file) return item.file.startsWith('http') ? item.file : `http://192.168.1.160:9001${item.file}`;
     return null;
   };
-console.log("id.....", item?.profile?.id , id);
+// console.log("id.....", item?.profile?.id , id);
 
   const handleLike = async () => {
     const authToken = await AsyncStorage.getItem('accessToken');
-    console.log("isdrmoDetails",isdrmoDetails);
+    // console.log("isdrmoDetails",isdrmoDetails);
     
       const headers = {
         'Accept': 'application/json',
@@ -119,7 +146,7 @@ console.log("id.....", item?.profile?.id , id);
       
       let like = await axios.post('https://pashuahar.com/like-toggle/', {
         content_type: contentType == "reel" ? "reel" : "post",
-        object_id: item?.profile?.id && !isdrmoDetails ? item?.profile?.id : id,
+        object_id:  id,
       },{headers});
       console.log("like .....",like);
       
@@ -141,7 +168,7 @@ console.log("id.....", item?.profile?.id , id);
     // Navigate to CommentScreen with correct params
     navigations.navigate('CommentScreen', {
       content_type: contentType === 'reel' ? 'reel' : 'post',
-      object_id: item?.profile?.id ? item?.profile?.id : id,
+      object_id:  id,
     });
   };
 
@@ -202,20 +229,21 @@ console.log("id.....", item?.profile?.id , id);
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`
       };
-      
+      console.log("here comes .....", item.profile.id, id,item);
+      // return
       const payload = {
         collection: collection.id,
         content_type: contentType === 'reel' ? 'reel' : 'post',
-        object_id: item?.profile?.id ? item?.profile?.id : id,
+        object_id:  id,
       };
       
-      console.log('Saving post to collection:', payload);
-      
-      await axios.post(
+      console.log('Saving post to collection. Payload:', payload);
+      const response = await axios.post(
         'https://pashuahar.com/collections/items/',
         payload,
         { headers }
       );
+      console.log('API response from collections/items:', response && typeof response === 'object' ? JSON.stringify(response, null, 2) : response);
       
       Alert.alert('Success', 'Post saved to collection!');
       setSaveModalVisible(false);
@@ -265,9 +293,13 @@ console.log("id.....", item?.profile?.id , id);
       await axios.delete(`https://pashuahar.com/collections/${collectionId}/post/${postId}/`, { headers });
       setOptionsVisible(false);
       if (onDelete) onDelete(id);
+      // await fetchCollections();
+
       Alert.alert('Deleted', 'Post deleted successfully.');
     } catch (err) {
       Alert.alert('Error', 'Failed to delete post.');
+      // await fetchCollections();
+
     } finally {
       setDeleteLoading(false);
     }
@@ -277,6 +309,35 @@ console.log("id.....", item?.profile?.id , id);
     setOptionsVisible(false);
     // You can navigate to an edit screen or call the edit API here
     Alert.alert('Edit', 'Edit functionality coming soon!');
+  };
+
+  const handleRemoveFromCollection = async () => {
+    const collectionId = typeof props.collection_id !== 'undefined' ? props.collection_id : item?.collection_id;
+    const contentTypeForApi = props.type || item?.type;
+    const objectId = id;
+    if (!item?.is_collection || !collectionId || !objectId) return;
+    setSaveCollectionLoading(true);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      };
+      const apiContentType = contentTypeForApi === 'reel' ? 'reel' : 'post';
+      const url = `https://pashuahar.com/collections/${collectionId}/${apiContentType}/${objectId}/`;
+      console.log('Removing from collection:', { url, collectionId, apiContentType, objectId });
+      await axios.delete(url, { headers });
+      if (props.onRemovedFromCollection) {
+        props.onRemovedFromCollection();
+      }
+      // Update local state to reflect removal
+      if (item) item.is_collection = false;
+      Alert.alert('Removed', 'Removed from collection');
+    } catch (err) {
+      Alert.alert('Error', 'Failed to remove from collection');
+    } finally {
+      setSaveCollectionLoading(false);
+    }
   };
 
   const renderCollectionItem = ({ item }: { item: Collection }) => (
@@ -329,18 +390,111 @@ console.log("id.....", item?.profile?.id , id);
     }];
   };
 
+  const renderMedia = () => (
+    <SectionList
+      horizontal
+      pagingEnabled
+      sections={sections}
+      showsHorizontalScrollIndicator={false}
+      keyExtractor={(_, idx) => idx.toString()}
+      contentContainerStyle={{ flexDirection: 'row' }}
+      onMomentumScrollEnd={e => {
+        const index = Math.round(
+          e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width
+        );
+        setActiveIndex(index);
+        // Auto play the new active video, pause others
+        setVideoStates(prev => {
+          const newStates: { [index: number]: { paused: boolean; muted: boolean } } = {};
+          media.forEach((_, idx) => {
+            newStates[idx] = { paused: idx !== index, muted: prev[idx]?.muted ?? true };
+          });
+          return newStates;
+        });
+      }}
+      renderItem={({ item, index }) => {
+        const uri = getMediaUri(item);
+        const isActive = index === activeIndex;
+        const videoState = videoStates[index] || { paused: !isActive, muted: true };
+
+        if (item.is_video && uri) {
+          return (
+            <View style={styles.postImage}>
+              <Video
+                source={{ uri }}
+                style={styles.postImage}
+                resizeMode="cover"
+                paused={showVideoControlsInActionsRow ? !isPlaying : videoState.paused}
+                muted={showVideoControlsInActionsRow ? isMuted : videoState.muted}
+                repeat
+              />
+              {/* Play/Pause and Mute/Unmute Controls */}
+              {!hideHeaderAndControls && !showVideoControlsInActionsRow && (
+                <View style={{ position: 'absolute', bottom: 16, left: 16, flexDirection: 'row', gap: 16 }}>
+                  <TouchableOpacity
+                    onPress={() => setVideoStates(prev => ({
+                      ...prev,
+                      [index]: { ...videoState, paused: !videoState.paused }
+                    }))}
+                    style={{ marginRight: 16, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 }}
+                  >
+                    <Ionicons name={videoState.paused ? 'play' : 'pause'} size={24} color="#fff" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setVideoStates(prev => ({
+                      ...prev,
+                      [index]: { ...videoState, muted: !videoState.muted }
+                    }))}
+                    style={{ backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 }}
+                  >
+                    <Ionicons name={videoState.muted ? 'volume-mute' : 'volume-high'} size={24} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              )}
+              {!isActive && (
+                <View style={{ position: 'absolute', top: '45%', left: '45%' }}>
+                  {React.createElement(Ionicons, { name: "play-circle", size: 48, color: "#fff" })}
+                </View>
+              )}
+            </View>
+          );
+        }
+    
+        return (
+          <Image
+            source={uri ? { uri } : fallbackPostImage}
+            style={styles.postImage}
+            onError={() => setShowFallbackPostImage(true)}
+          />
+        );
+      }}
+      renderSectionHeader={() => null}
+    />
+  );
+
+  // If hideAllDetails is true, only render the media
+  if (hideAllDetails) {
+    return (
+      <View style={styles.container}>
+        {/* Only render media */}
+        {renderMedia()}
+      </View>
+    );
+  }
+  
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.userInfo}>
+      {!hideHeaderAndControls && (
+        <View style={styles.header}>
           <TouchableOpacity
+            style={styles.userInfo}
             onPress={() => {
-              // Use profile.id or item.profile.id as userId
               const userId = profile?.id || item?.profile?.id;
               if (userId) {
-                navigation.navigate('UserProfile', { userId: userId.toString(), isFromSearch: true });
+                navigation.navigate('UserProfile', { userId: userId.toString(), isFromSearch: true,isFromHome:true });
               }
             }}
+            activeOpacity={0.7}
           >
             {(!userAvatar || userAvatar === 'null' || userAvatar === '' || userAvatar.includes('placeholder.com')) ? (
               <View style={{
@@ -364,140 +518,19 @@ console.log("id.....", item?.profile?.id , id);
                 onError={() => setShowFallbackAvatar(true)}
               />
             )}
+            <View>
+              <Text style={styles.username}>{username}</Text>
+              {!!location && <Text style={styles.location}>{location}</Text>}
+            </View>
           </TouchableOpacity>
-          <View>
-            <Text style={styles.username}>{username}</Text>
-            {!!location && <Text style={styles.location}>{location}</Text>}
-          </View>
+          <TouchableOpacity onPress={handleOptions}>
+            {React.createElement(Ionicons, { name: "ellipsis-vertical", size: 20, color: "#000" })}
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={handleOptions}>
-          {React.createElement(Ionicons, { name: "ellipsis-vertical", size: 20, color: "#000" })}
-        </TouchableOpacity>
-      </View>
+      )}
 
       {media.length > 0 ? (
-        <SectionList
-        horizontal
-        pagingEnabled
-        sections={sections}
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(_, idx) => idx.toString()}
-        contentContainerStyle={{ flexDirection: 'row' }}
-        onMomentumScrollEnd={e => {
-          const index = Math.round(
-            e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width
-          );
-          setActiveIndex(index);
-          // Auto play the new active video, pause others
-          setVideoStates(prev => {
-            const newStates: { [index: number]: { paused: boolean; muted: boolean } } = {};
-            media.forEach((_, idx) => {
-              newStates[idx] = { paused: idx !== index, muted: prev[idx]?.muted ?? true };
-            });
-            return newStates;
-          });
-        }}
-        renderItem={({ item, index }) => {
-          const uri = getMediaUri(item);
-          const isActive = index === activeIndex;
-          const videoState = videoStates[index] || { paused: !isActive, muted: true };
-
-          if (item.is_video && uri) {
-            return (
-              <View style={styles.postImage}>
-                <Video
-                  source={{ uri }}
-                  style={styles.postImage}
-                  resizeMode="cover"
-                  paused={videoState.paused}
-                  repeat
-                  muted={videoState.muted}
-                />
-                {/* Play/Pause and Mute/Unmute Controls */}
-                {isActive && (
-                  <View style={{ position: 'absolute', bottom: 16, left: 16, flexDirection: 'row', gap: 16 }}>
-                    <TouchableOpacity
-                      onPress={() => setVideoStates(prev => ({
-                        ...prev,
-                        [index]: { ...videoState, paused: !videoState.paused }
-                      }))}
-                      style={{ marginRight: 16, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 }}
-                    >
-                      <Ionicons name={videoState.paused ? 'play' : 'pause'} size={24} color="#fff" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => setVideoStates(prev => ({
-                        ...prev,
-                        [index]: { ...videoState, muted: !videoState.muted }
-                      }))}
-                      style={{ backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 }}
-                    >
-                      <Ionicons name={videoState.muted ? 'volume-mute' : 'volume-high'} size={24} color="#fff" />
-                    </TouchableOpacity>
-                  </View>
-                )}
-                {!isActive && (
-                  <View style={{ position: 'absolute', top: '45%', left: '45%' }}>
-                    {React.createElement(Ionicons, { name: "play-circle", size: 48, color: "#fff" })}
-                  </View>
-                )}
-              </View>
-            );
-          }
-      
-          return (
-            <Image
-              source={uri ? { uri } : fallbackPostImage}
-              style={styles.postImage}
-              onError={() => setShowFallbackPostImage(true)}
-            />
-          );
-        }}
-        renderSectionHeader={() => null}
-      />
-        // <FlatList
-        //   data={media}
-        //   horizontal
-        //   pagingEnabled
-        //   showsHorizontalScrollIndicator={false}
-        //   keyExtractor={(_, idx) => idx.toString()}
-        //   onMomentumScrollEnd={e => {
-        //     const index = Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width);
-        //     setActiveIndex(index);
-        //   }}
-        //   renderItem={({ item, index }) => {
-        //     const uri = getMediaUri(item);
-        //     if (item.is_video && uri) {
-        //       const isActive = index === activeIndex;
-        //       return (
-        //         <View style={styles.postImage}>
-        //           <Video
-        //             source={{ uri }}
-        //             style={styles.postImage}
-        //             resizeMode="cover"
-        //             paused={!isActive}
-        //             repeat
-        //           />
-        //           {!isActive && (
-        //             <View style={{ position: 'absolute', top: '45%', left: '45%' }}>
-        //               <>
-        //                 {/* @ts-ignore */}
-        //                 <Icon name="play-circle" size={48} color="#fff" />
-        //               </>
-        //             </View>
-        //           )}
-        //         </View>
-        //       );
-        //     }
-        //     return (
-        //       <Image
-        //         source={uri ? { uri } : fallbackPostImage}
-        //         style={styles.postImage}
-        //         onError={() => setShowFallbackPostImage(true)}
-        //       />
-        //     );
-        //   }}
-        // />
+        renderMedia()
       ) : null}
       {/* Pagination dots */}
       {media.length > 1 && (
@@ -517,31 +550,59 @@ console.log("id.....", item?.profile?.id , id);
         </View>
       )}
 
-      <View style={styles.actions}>
-        <TouchableOpacity onPress={handleLike} disabled={likeLoading}>
-          {likeLoading ? (
-            <ActivityIndicator size={20} color="#bea063" />
-          ) : (
+      {/* Only show actions if hideActions is false */}
+      {!hideActions && (
+        <View style={styles.actions}>
+          {/* Like button: only show if hideLikeCount is false */}
+          {!hideLikeCount && (
+            <TouchableOpacity onPress={handleLike} disabled={likeLoading}>
+              {likeLoading ? (
+                <ActivityIndicator size={20} color="#bea063" />
+              ) : (
+                <>
+                  {React.createElement(Ionicons, { name: isLiked ? 'heart' : 'heart-outline', size: 28, color: isLiked ? '#bea063' : '#bea063' })}
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+          {/* Comment button: only show if allowComments is false */}
+          {!allowComments && (
+            <TouchableOpacity style={styles.actionButton} onPress={handleComment}>
+              {React.createElement(Ionicons, { name: "chatbubble-outline", size: 24, color: "#bea063" })}
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
+            {React.createElement(Ionicons, { name: "share-social-outline", size: 24, color: "#bea063" })}
+          </TouchableOpacity>
+          {/* Save icon on the right */}
+          {!isdrmoDetails ? (
+            item?.is_collection ? (
+              <TouchableOpacity style={{position:'absolute',right:10}} onPress={handleRemoveFromCollection} disabled={saveCollectionLoading}>
+                {saveCollectionLoading ? (
+                  <ActivityIndicator size={20} color="#bea063" />
+                ) : (
+                  React.createElement(Ionicons, { name: "bookmark", size: 24, color: "#bea063" })
+                )}
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={{position:'absolute',right:10}} onPress={handleSave}>
+                {React.createElement(Ionicons, { name: "bookmark-outline", size: 24, color: "#bea063" })}
+              </TouchableOpacity>
+            )
+          ) : null}
+          {/* Video controls in actions row if enabled */}
+          {showVideoControlsInActionsRow && (
             <>
-              {React.createElement(Ionicons, { name: isLiked ? 'heart' : 'heart-outline', size: 28, color: isLiked ? '#bea063' : '#bea063' })}
+              <TouchableOpacity style={styles.actionButton} onPress={onPlayPausePress}>
+                <Ionicons name={isPlaying ? 'pause' : 'play'} size={24} color="#bea063" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionButton} onPress={onMuteUnmutePress}>
+                <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={24} color="#bea063" />
+              </TouchableOpacity>
             </>
           )}
-        </TouchableOpacity>
-        {allowComments && (
-          <TouchableOpacity style={styles.actionButton} onPress={handleComment}>
-            {React.createElement(Ionicons, { name: "chatbubble-outline", size: 24, color: "#bea063" })}
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
-          {React.createElement(Ionicons, { name: "share-social-outline", size: 24, color: "#bea063" })}
-        </TouchableOpacity>
-        {/* Save icon on the right */}
-        {!isdrmoDetails ? (
-          <TouchableOpacity style={{position:'absolute',right:10}} onPress={handleSave}>
-            {React.createElement(Ionicons, { name: "bookmark-outline", size: 24, color: "#bea063" })}
-          </TouchableOpacity>
-        ) : null}
-      </View>
+        </View>
+      )}
 
       {/* Save to Collection Modal */}
       <Modal
@@ -614,28 +675,32 @@ console.log("id.....", item?.profile?.id , id);
       </Modal>
 
       {/* Options Modal */}
-      {/* <Modal
-        visible={optionsVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setOptionsVisible(false)}
-      >
-        <TouchableOpacity
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }}
-          activeOpacity={1}
-          onPressOut={() => setOptionsVisible(false)}
-        >
-          <View style={{ backgroundColor: '#fff', borderRadius: 10, padding: 20, minWidth: 180 }}>
-            <TouchableOpacity onPress={handleEdit} style={{ paddingVertical: 10 }}>
-              <Text style={{ fontSize: 16 }}>Edit</Text>
+      {optionsVisible && (
+        <View style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 100
+        }}>
+          <View style={{
+            backgroundColor: '#fff', borderRadius: 16, padding: 24, width: 300, alignItems: 'center'
+          }}>
+            <TouchableOpacity onPress={() => {
+              setOptionsVisible(false);
+              navigation.navigate('ContactUs');
+            }}>
+              <Text style={{ color: '#ed4956', fontWeight: 'bold', fontSize: 16, marginBottom: 16 }}>Report</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleDelete} style={{ paddingVertical: 10, flexDirection: 'row', alignItems: 'center' }}>
-              {deleteLoading ? <ActivityIndicator size={18} color="#E74C3C" style={{ marginRight: 8 }} /> : null}
-              <Text style={{ fontSize: 16, color: '#E74C3C' }}>Delete</Text>
+            <TouchableOpacity onPress={() => {
+              setOptionsVisible(false);
+              navigation.navigate('UserProfile', { userId: profile?.id || item?.profile?.id, isFromSearch: true, isFromHome: true });
+            }}>
+              <Text style={{ fontSize: 16, marginBottom: 16, color: '#222' }}>About this account</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setOptionsVisible(false)}>
+              <Text style={{ fontSize: 16, color: '#888', marginTop: 8 }}>Cancel</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-      </Modal> */}
+        </View>
+      )}
 
       <View style={styles.likesContainer}>
         {!hideLikeCount && <Text style={styles.likes}>{likesCount} likes</Text>}
@@ -707,7 +772,7 @@ const styles = StyleSheet.create({
   },
   postImage: {
     width: Dimensions.get('window').width,
-    height: Dimensions.get('window').width,
+    height: Dimensions.get('window').width + 120,
   },
   actions: {
     flexDirection: 'row',

@@ -57,7 +57,7 @@ const HighlightViewer = ({ route, navigation }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#000" />
+          <Icon name="arrow-back" size={24} color="#bea063" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{currentHighlight.title}</Text>
         <TouchableOpacity>

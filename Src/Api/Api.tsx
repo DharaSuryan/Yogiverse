@@ -131,14 +131,14 @@ export const editProfile  = async (userId: number, formData: FormData): Promise<
   try {
     const url = `/profile/${userId}/`;
     console.log(`Editprofile  user at URL: ${api.defaults.baseURL}${url}`);
-    const response = await api.post(url, formData, {
+    const response = await api.patch(url, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
     return response.data;
-  } catch (error: any) {
-    console.error("Registration API Error:", error.response?.data || error.message);
+  } catch (error: unknown) {
+    console.error("Registration API Error:", (error as any)?.response?.data || (error as Error)?.message);
     throw error;
   }
 }
@@ -168,7 +168,7 @@ export const loginUser = async (credentials: { username: string; password: strin
       user: response.data.user,
       token: response.data.token
     };
-  } catch (error) {
+  } catch (error: unknown) {
     throw error;
   }
 };
@@ -185,7 +185,7 @@ export const getStories = async (userId?: string): Promise<ApiResponse> => {
       status: response.status,
       message: 'Stories fetched successfully',
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.log("here comes error",error);
     throw error;
   }
@@ -199,8 +199,8 @@ export const logoutUser = async () => {
       status: response.status,
       message: 'Logout successful',
     };
-  } catch (error) {
-    console.error('Logout Error:', error.response?.data || error.message);
+  } catch (error: unknown) {
+    console.error('Logout Error:', (error as any)?.response?.data || (error as Error)?.message);
     throw error;
   }
 }
@@ -319,7 +319,7 @@ export const fetchCountries = async (page = 1, limit = 10): Promise<ApiResponse>
       status: response.status,
       message: 'Countries fetched successfully'
     };
-  } catch (error) {
+  } catch (error: unknown) {
     throw error;
   }
 };
@@ -332,7 +332,7 @@ export const fetchStates = async (countryId: number, page = 1, limit = 10): Prom
       status: response.status,
       message: 'States fetched successfully'
     };
-  } catch (error) {
+  } catch (error: unknown) {
     throw error;
   }
 };
@@ -345,7 +345,7 @@ export const fetchCities = async (stateId: number, page = 1, limit = 10): Promis
       status: response.status,
       message: 'Cities fetched successfully'
     };
-  } catch (error) {
+  } catch (error: unknown) {
     throw error;
   }
 };
@@ -362,7 +362,7 @@ export const vendorList  = async (): Promise<ApiResponse> => {
       status: response.status,
       message: 'Cities fetched successfully'
     };
-  } catch (error) {
+  } catch (error: unknown) {
     throw error;
   }
 }
@@ -400,8 +400,7 @@ export const postStories  = async ({formData}:any): Promise<ApiResponse> => {
       user: response.data.user,
       token: response.data.token
     };
-  } catch
-   (error) {
+  } catch (error: unknown) {
     throw error;
   }
 };
@@ -432,7 +431,7 @@ export const postPosts  = async ({formData}:any): Promise<ApiResponse> => {
       user: response.data.user,
       token: response.data.token
     };
-  } catch (error) {
+  } catch (error: unknown) {
     throw error;
   }
 };

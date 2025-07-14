@@ -22,6 +22,7 @@ import api, {
 } from '../../Api/Api';
 import {MultiSelect} from 'react-native-element-dropdown';
 import DocumentPicker from 'react-native-document-picker';
+const Ionicons = require('react-native-vector-icons/Ionicons').default;
 
 // Types
 interface Location {
@@ -149,11 +150,9 @@ const EditProfile = ({navigation, route}: any) => {
   const [pan_number, setPanNumber] = useState('');
   const [pan_document, setPanDocument] = useState<string | null>(null);
   const [perma_link, setPermaLink] = useState('');
-
   // Add this state at the top with other useState hooks:
   const [availableSubCategories, setAvailableSubCategories] = useState<any[]>([]);
   const [selectedSubCategoryIds, setSelectedSubCategoryIds] = useState<number[]>([]);
-
   // Add to state:
   const [logoFile, setLogoFile] = useState<any>(null);
   const [bannerFile, setBannerFile] = useState<any>(null);
@@ -179,6 +178,7 @@ const EditProfile = ({navigation, route}: any) => {
       setSelectedCountry(data?.profile?.country);
       setSelectedState(data?.profile?.state);
       setSelectedCity(data?.profile?.city);
+      setProfileImage(data?.profile?.profile_picture || null);
       
       if (data.role === 'vendor' && data.vendor_profile) {
         setBusinessName(data.vendor_profile.business_name || '');
@@ -351,10 +351,19 @@ const EditProfile = ({navigation, route}: any) => {
         });
       }
 
+      // Add profile image only if it's a new local file (not a URL)
+      if (profileImage && !profileImage.startsWith('http')) {
+        formData.append('profile_picture', {
+          uri: profileImage,
+          type: 'image/jpeg',
+          name: 'profile.jpg',
+        });
+      }
+
       const response = await api.patch(`/profile/${userId}/`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-console.log("response",response);
+       console.log("response of post edit api data",response);
 
       if (response.data) {
         Alert.alert('Success', 'Profile updated successfully');
@@ -428,8 +437,19 @@ console.log("response",response);
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      {/* Header with Back Arrow */}
+      <View style={styles.headerContainer}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#bea063" />
+        </TouchableOpacity>
         <Text style={styles.header}>Edit Profile</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+      
+      <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.formContainer}>
           {/* Profile Image */}
           <View style={styles.profileImageContainer}>
@@ -670,11 +690,11 @@ const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: '#fff'},
   content: {padding: 20, paddingBottom: 40},
   header: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
-    marginVertical: 16,
-    alignSelf: 'center',
     color: '#bea063',
+    flex: 1,
+    textAlign: 'center',
   },
   sectionTitle: {
     fontSize: 18,
@@ -866,6 +886,22 @@ const styles = StyleSheet.create({
     height: 80,
     marginVertical: 8,
     borderRadius: 8,
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    backgroundColor: '#fff',
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerSpacer: {
+    width: 40,
   },
 });
 

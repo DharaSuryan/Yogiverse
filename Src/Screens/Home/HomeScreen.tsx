@@ -9,7 +9,7 @@ import { getStories, getProfile } from '../../Api/Api';
 
 const Ionicons = require('react-native-vector-icons/Ionicons').default;
 
-export default function HomeScreen({ navigation }: any) {
+export default function HomeScreen({ navigation, showOptionsModal = false }: any) {
   // const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [selectedPost, setSelectedPost] = useState<PostType | null>(null);
@@ -31,6 +31,8 @@ export default function HomeScreen({ navigation }: any) {
   const [myStories, setMyStories] = useState<Story[]>([]);
   const [allStories, setAllStories] = useState<Story[]>([]);
   const onEndReachedCalledDuringMomentum = useRef(false);
+  const [optionsModalVisible, setOptionsModalVisible] = useState(showOptionsModal);
+  const [optionsPost, setOptionsPost] = useState<any>(null);
 
   useEffect(() => {
     getData()
@@ -43,6 +45,10 @@ export default function HomeScreen({ navigation }: any) {
       fetchStories();
     }
   }, [userid]);
+
+  useEffect(() => {
+    if (showOptionsModal) setOptionsModalVisible(true);
+  }, [showOptionsModal]);
 
   const getData = async () => {
 
@@ -190,6 +196,8 @@ export default function HomeScreen({ navigation }: any) {
   // Helper function to render user avatar with fallback
 
   const renderPost = ({ item }: { item: any }) => {
+    console.log("item.is_collectionitem.is_collection",item);
+    
     const post = item.data || {};
     const profile = item.profile || {};
 
@@ -223,9 +231,17 @@ export default function HomeScreen({ navigation }: any) {
           createdAt={post.created_at || ''}
           profile={profile}
           item={item}
+          is_collection={item.is_collection}
+          collection_id={item.collection_id}
+          type={item.type}
+          onOptions={() => {
+            setOptionsPost(item);
+            setOptionsModalVisible(true);
+          }}
         />
       );
     }
+    {}
 
     // Default: render Post
     return (
@@ -246,6 +262,13 @@ export default function HomeScreen({ navigation }: any) {
         createdAt={post.created_at || ''}
         profile={profile}
         item={item}
+        is_collection={item.is_collection}
+        collection_id={item.collection_id}
+        type={item.type}
+        onOptions={() => {
+          setOptionsPost(item);
+          setOptionsModalVisible(true);
+        }}
       />
     );
   };
@@ -335,7 +358,7 @@ export default function HomeScreen({ navigation }: any) {
         />
         <View style={styles.headerIcons}>
           <TouchableOpacity onPress={() => navigation.navigate('Notifications' as never)}>
-            <Ionicons name="heart-outline" size={24} color="#bea063" style={styles.icon} />
+            <Ionicons name="notifications-outline" size={24} color="#bea063" style={styles.icon} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('ChatListScreen')}>
             <Ionicons name="chatbubble-outline" size={24} color="#bea063" style={styles.icon} />
@@ -462,6 +485,33 @@ export default function HomeScreen({ navigation }: any) {
         onClose={() => setShareModalVisible(false)}
         post={selectedPost}
       />
+      {/* Options Modal */}
+      {optionsModalVisible && (
+        <View style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 100
+        }}>
+          <View style={{
+            backgroundColor: '#fff', borderRadius: 16, padding: 24, width: 300, alignItems: 'center'
+          }}>
+            <TouchableOpacity onPress={() => {
+              setOptionsModalVisible(false);
+              navigation.navigate('ContactUs');
+            }}>
+              <Text style={{ color: '#ed4956', fontWeight: 'bold', fontSize: 16, marginBottom: 16 }}>Report</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => {
+              setOptionsModalVisible(false);
+              navigation.navigate('UserProfile', { userId: optionsPost?.profile?.id?.toString(), isFromSearch: true, isFromHome: true });
+            }}>
+              <Text style={{ fontSize: 16, marginBottom: 16, color: '#222' }}>About this account</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setOptionsModalVisible(false)}>
+              <Text style={{ fontSize: 16, color: '#888', marginTop: 8 }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
   );
 }

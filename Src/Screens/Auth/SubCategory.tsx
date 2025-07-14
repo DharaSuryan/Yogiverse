@@ -72,7 +72,7 @@ const SubCategoryScreen: React.FC<NativeStackScreenProps<AuthStackParamList, 'Su
         formData.append('subcategories', JSON.stringify(selected || []));
       }
 
-      if (signupData.profileImage) {
+      if (signupData.profileImage && !signupData.profileImage.startsWith('http')) {
         formData.append('profile_image', {
           uri: signupData.profileImage,
           type: 'image/jpeg',

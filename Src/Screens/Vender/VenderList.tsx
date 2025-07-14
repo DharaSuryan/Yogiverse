@@ -274,7 +274,7 @@ const VenderList = ({navigation}:any) => {
         }}
         onPress={() => {
           const userId = item.profile?.user || item.user?.id;
-          (navigation as any).navigate('UserProfile', { userId: userId, isFromSearch: true });
+          (navigation as any).navigate('UserProfile', { userId: userId, isFromSearch: true,IsfromVendorList:true });
         }}
       >
         {/* Initials or Profile Picture */}
@@ -706,7 +706,6 @@ const styles = StyleSheet.create({
   subcategoryRow: {
     marginBottom: 10, // Add some space between rows
   },
-
 })
 
 export default VenderList;

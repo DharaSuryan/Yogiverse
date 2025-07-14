@@ -101,6 +101,7 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
   const [mainCategoryIds, setMainCategoryIds] = useState<number[]>([]);
   const [subCategoryIds, setSubCategoryIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
+  const Ionicons = require('react-native-vector-icons/Ionicons').default;
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -413,7 +414,7 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
         formData.append('subcategories', JSON.stringify(subCategoryIds || []));
       }
 
-      if (profileImage) {
+      if (profileImage && !profileImage.startsWith('http')) {
         formData.append('profile_image', {
           uri: profileImage,
           type: 'image/jpeg',
@@ -446,8 +447,7 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
     <SafeAreaView style={styles.container}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12 }}>
         <TouchableOpacity onPress={() => navigation.navigate('RoleSelection')} style={{ paddingHorizontal: 12, paddingVertical: 4 }}>
-          <Text style={{ fontSize: 24, color: '#bea063' }}>{'←'}</Text>
-          {/* Or use <Icon name="arrow-back" size={24} color="#bea063" /> if Ionicons works */}
+  <Ionicons name="arrow-back" size={24} color="#bea063" />          {/* Or use <Icon name="arrow-back" size={24} color="#bea063" /> if Ionicons works */}
         </TouchableOpacity>
         <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#bea063', marginLeft: 8 }}>
           Sign Up

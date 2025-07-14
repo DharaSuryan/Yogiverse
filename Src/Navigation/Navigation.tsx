@@ -64,6 +64,7 @@ import StoryViewerScreen from '../Screens/Story/StoryViewerScreen';
 import CollectionPostDetailScreen from '../Screens/Profile/CollectionPostDetailScreen';
 import VenderList from '../Screens/Vender/VenderList';
 import  vendorDetail  from '../Screens/Search/VenderDetail';
+import ContactUs from '../Screens/ContactUs';
 
 // Navigators
 const Stack = createNativeStackNavigator();
@@ -232,7 +233,7 @@ const Navigation = () => {
           component={CreateCollectionScreen}
         />
         <Stack.Screen name="VenderDetail" component={vendorDetail}/>
-
+        <Stack.Screen name="ContactUs" component={ContactUs}/>
       </Stack.Navigator>
     </NavigationContainer>
   );

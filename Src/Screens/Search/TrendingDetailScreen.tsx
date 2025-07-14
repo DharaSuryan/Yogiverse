@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, FlatList, Dimensions, SectionList, ActivityIndicator } from 'react-native';
 const Ionicons = require('react-native-vector-icons/Ionicons').default;
 import axios from 'axios';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SearchStackParamList } from 'Navigation/types';
 import Post from "../../Component/Post"
 import { navigate } from '../../Component/Route';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MasonryList from '@react-native-seoul/masonry-list';
+import { BackHandler } from 'react-native';
 
 // Group `related` into rows of 2
 const chunkArray = (arr: any[], size: number) => {
@@ -60,6 +61,18 @@ const handleBack = () => {
     (navigation as any).navigate('MainTab', { screen: 'SearchTab' });
   // }
 };
+
+  // Hardware back press handling
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        handleBack();
+        return true;
+      };
+      BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+    }, [])
+  );
   // Prepare props for <Post />
   const profile = post.profile || {};
   let userAvatar = '';
@@ -181,7 +194,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#bea063',
   },
   placeholder: {
     width: 40,

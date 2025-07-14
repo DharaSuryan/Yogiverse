@@ -11,11 +11,9 @@ import {
   Switch,
   Modal,
   Dimensions,
-  FlatList,
-  AppState,
-  Platform,
-  PermissionsAndroid,
-  Linking,
+  SectionList,
+  ListRenderItemInfo,
+  ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'react-native-image-picker';
@@ -23,15 +21,10 @@ import Video from 'react-native-video';
 
 import { postPosts, postStories } from '../../Api/Api';
 import LocationPicker, { LocationOption } from '../../Components/LocationPicker';
-import PostPreviewScreen from './PostPreviewScreen';
-import { reset } from 'Src/Component/Route';
 import MediaEditModal from './MediaEditModal';
 import { 
-  checkCameraPermissions, 
-  checkPhotoLibraryPermissions,
-  launchCameraWithPermission,
-  launchImageLibraryWithPermission 
-} from '../../Utils/permissions';
+  launchCameraWithPermission} from '../../Utils/permissions';
+import {  CommonActions } from '@react-navigation/native';
 
 // Helper for story API
 const STORY_API_URL = 'https://pashuahar.com/stories';
@@ -124,49 +117,93 @@ const UploadPost = ({ navigation, route }) => {
   };
 
   // Unified media picker for both gallery and camera
+  // const handleMediaPicker = (mediaType: 'photo' | 'video' | 'mixed', fromCamera = false) => {
+  //   if (fromCamera) {
+  //     setShowCameraOptions(true);
+  //     return;
+  //   }
+
+  //   const options: ImagePicker.ImageLibraryOptions = {
+  //     mediaType,
+  //     includeBase64: false,
+  //     maxHeight: 2000,
+  //     maxWidth: 2000,
+  //     selectionLimit: 10, // allow up to 10 images
+  //     quality: 0.8,
+  //   };
+
+  //   launchImageLibraryWithPermission(options, (response) => {
+  //     if (response.didCancel) {
+  //       // User cancelled
+  //     } else if (response.errorCode && response.errorCode !== 'permission') {
+  //       console.error('Gallery picker error:', response.errorMessage);
+  //       Alert.alert('Gallery Error', response.errorMessage || 'Failed to access photo library');
+  //     } else if (response.assets && response.assets.length > 0) {
+  //       const newMedia = response.assets
+  //         .filter(asset => asset.uri)
+  //         .map(asset => ({
+  //           uri: asset.uri as string,
+  //           type: asset.type || 'image/jpeg',
+  //           name: asset.fileName || (asset.type?.startsWith('video') ? 'camera_video.mp4' : 'camera_photo.jpg'),
+  //         }));
+  //       setSelectedMedia(newMedia);
+  //       if (newMedia.length > 1) {
+  //         setWizardMode(true);
+  //         setWizardIndex(0);
+  //         setEditIndex(0);
+  //         setEditImage(newMedia[0].uri);
+  //         setShowEditModal(true);
+  //       } else if (newMedia.length === 1) {
+  //         setEditIndex(0);
+  //         setEditImage(newMedia[0].uri);
+  //         setShowEditModal(true);
+  //       }
+  //     }
+  //   });
+  // };
   const handleMediaPicker = (mediaType: 'photo' | 'video' | 'mixed', fromCamera = false) => {
     if (fromCamera) {
       setShowCameraOptions(true);
       return;
     }
 
-    const options: ImagePicker.ImageLibraryOptions = {
-      mediaType,
-      includeBase64: false,
-      maxHeight: 2000,
-      maxWidth: 2000,
-      selectionLimit: 10, // allow up to 10 images
-      quality: 0.8,
-    };
-
-    launchImageLibraryWithPermission(options, (response) => {
-      if (response.didCancel) {
-        // User cancelled
-      } else if (response.errorCode && response.errorCode !== 'permission') {
-        console.error('Gallery picker error:', response.errorMessage);
-        Alert.alert('Gallery Error', response.errorMessage || 'Failed to access photo library');
-      } else if (response.assets && response.assets.length > 0) {
-        const newMedia = response.assets
-          .filter(asset => asset.uri)
-          .map(asset => ({
-            uri: asset.uri as string,
-            type: asset.type || 'image/jpeg',
-            name: asset.fileName || (asset.type?.startsWith('video') ? 'camera_video.mp4' : 'camera_photo.jpg'),
-          }));
-        setSelectedMedia(newMedia);
-        if (newMedia.length > 1) {
-          setWizardMode(true);
-          setWizardIndex(0);
-          setEditIndex(0);
-          setEditImage(newMedia[0].uri);
-          setShowEditModal(true);
-        } else if (newMedia.length === 1) {
-          setEditIndex(0);
-          setEditImage(newMedia[0].uri);
-          setShowEditModal(true);
+    const picker = ImagePicker.launchImageLibrary;
+    picker(
+      {
+        mediaType,
+        includeBase64: false,
+        maxHeight: 2000,
+        maxWidth: 2000,
+        selectionLimit: 10, // allow up to 10 images
+      },
+      (response) => {
+        if (response.didCancel) {
+          // User cancelled
+        } else if (response.errorCode) {
+          Alert.alert('Error', response.errorMessage);
+        } else if (response.assets && response.assets.length > 0) {
+          const newMedia = response.assets
+            .filter(asset => asset.uri)
+            .map(asset => ({
+              uri: asset.uri as string,
+              type: asset.type || 'image/jpeg',
+              name: asset.fileName || (asset.type?.startsWith('video') ? 'camera_video.mp4' : 'camera_photo.jpg'),
+            }));
+          setSelectedMedia(newMedia);
+          if (newMedia.length > 1) {
+            setWizardMode(true);
+            setWizardIndex(0);
+            setEditIndex(0);
+            setEditImage(newMedia[0].uri);
+            setShowEditModal(true);
+          } else if (newMedia.length === 1) {
+            setEditIndex(0);
+            setEditImage(newMedia[0].uri);
+            setShowEditModal(true);
+          }
         }
       }
-    });
+    );
   };
 
   // Handler for when editing is done
@@ -212,7 +249,9 @@ const UploadPost = ({ navigation, route }) => {
 
   // Share handler for both story and post
   const handleShare = async () => {
-    if (!selectedMedia.length || !caption.trim()) return;
+    console.log("this one is calling ...");
+    
+    if (!selectedMedia.length) return;
     setUploading(true);
     setError(null);
     try {
@@ -236,8 +275,16 @@ const UploadPost = ({ navigation, route }) => {
           });
           console.log('Story FormData:', JSON.stringify(formData));
           await postStories({ formData });
-           Alert.alert('Success', 'Your story has been uploaded!');
-           navigation.goBack();
+          Alert.alert(
+            'Success',
+            'Your story has been uploaded!',
+            [
+              {
+                text: 'OK',
+                onPress: () => navigation.goBack(),
+              },
+            ]
+          );
         } catch (err) {
           console.log("Error",err);
           throw err;
@@ -267,8 +314,26 @@ const UploadPost = ({ navigation, route }) => {
           });
           console.log("forma data ----->>>",JSON.stringify(formData))
           await postPosts({ formData });
-           Alert.alert('Success', 'Your Post has been uploaded!');
-           navigation.goBack()
+          Alert.alert(
+            'Success',
+            'Your Post has been uploaded!',
+            [
+              {
+                text: 'OK',
+                onPress: () => navigation.dispatch(
+                  CommonActions.reset({
+                    index: 0,
+                    routes: [{
+                      name: 'MainTab',
+                      params: {
+                        screen: 'HomeTab'
+                      }
+                    }]
+                  })
+                ),
+              },
+            ]
+          );
           //  navigation.navigate("UploadOptions")
           // navigation.reset({
           //   index: 0,
@@ -313,18 +378,18 @@ const UploadPost = ({ navigation, route }) => {
     }
 
     return (
-      <FlatList
-        data={selectedMedia}
+      <SectionList
+        sections={[{ title: 'Media', data: selectedMedia }]}
         horizontal
-        keyExtractor={(item, idx) => item.uri + idx}
-        renderItem={({ item, index }) => (
-          <TouchableOpacity onPress={() => { setEditIndex(index); setEditImage(item.uri); setShowEditModal(true); setForcePauseVideos(false); }}>
+        keyExtractor={(item: { uri: string }, idx: number) => item.uri + idx}
+        renderItem={({ item, index }: ListRenderItemInfo<{ uri: string; type: string; name: string }>) => (
+          <TouchableOpacity onPress={() => { setEditIndex(index ?? 0); setEditImage(item.uri); setShowEditModal(true); setForcePauseVideos(false); }}>
             {item.type && item.type.startsWith('video') ? (
               <Video
                 source={{ uri: item.uri }}
                 style={styles.previewImage}
-                paused={true} // Always paused for preview, never auto-play
-                muted={true}  // Always muted for preview, never auto-play sound
+                paused={true}
+                muted={true}
                 resizeMode="cover"
               />
             ) : (
@@ -338,6 +403,7 @@ const UploadPost = ({ navigation, route }) => {
         )}
         contentContainerStyle={{ padding: 10 }}
         showsHorizontalScrollIndicator={false}
+        renderSectionHeader={() => null}
       />
     );
   };
@@ -500,6 +566,25 @@ const UploadPost = ({ navigation, route }) => {
 
       {error && (
         <Text style={{ color: 'red', textAlign: 'center', marginTop: 10 }}>{error}</Text>
+      )}
+      {/* Loader overlay while uploading */}
+      {uploading && (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(255,255,255,0.6)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999,
+        }}>
+          <ActivityIndicator size="large" color="#bea063" />
+          <Text style={{marginTop: 16, color: '#bea063', fontWeight: 'bold', fontSize: 16}}>
+            Uploading...
+          </Text>
+        </View>
       )}
     </View>
   );
