@@ -641,3 +641,21 @@ export const changePassword  = async ({formData}:any): Promise<ApiResponse> => {
 //     throw error;
 //   }
 // };
+
+export const followUser = async (userId: string): Promise<ApiResponse> => {
+  const response = await api.post('/follower/follow/', { user: userId });
+  return {
+    data: response.data,
+    status: response.status,
+    message: 'Followed user successfully',
+  };
+};
+
+export const unfollowUser = async (userId: string): Promise<ApiResponse> => {
+  const response = await api.post('/follower/unfollow/', { user: userId });
+  return {
+    data: response.data,
+    status: response.status,
+    message: 'Unfollowed user successfully',
+  };
+};

@@ -53,6 +53,7 @@
     "react-native-image-gallery": "^2.1.5",
     "react-native-image-picker": "^8.2.1",
     "react-native-linear-gradient": "^2.8.3",
+    "react-native-modal": "^14.0.0-rc.1",
     "react-native-multiple-select": "^0.5.12",
     "react-native-permissions": "^5.4.1",
     "react-native-push-notification": "^8.1.1",

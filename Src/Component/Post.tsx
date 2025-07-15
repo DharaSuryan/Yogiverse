@@ -20,6 +20,7 @@ import type { RootStackParamList } from '../Navigation/types';
 
 const Ionicons = require('react-native-vector-icons/Ionicons').default;
 import Video from 'react-native-video';
+import OptionsBottomSheet from '../Components/OptionsBottomSheet';
 
 interface Collection {
   id: number;
@@ -65,6 +66,7 @@ interface PostProps {
   isPlaying?: boolean;
   isMuted?: boolean;
   onRemovedFromCollection?: () => void;
+  onOptions?: () => void;
 }
 
 const fallbackAvatar = require('../Assets/yoga.jpg');
@@ -102,6 +104,7 @@ const Post: React.FC<PostProps> = (props) => {
     isPlaying,
     isMuted,
     onRemovedFromCollection,
+    onOptions,
   } = props;
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [likesCount, setLikesCount] = useState(likes);
@@ -110,7 +113,6 @@ const Post: React.FC<PostProps> = (props) => {
   const [showFallbackPostImage, setShowFallbackPostImage] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [videoStates, setVideoStates] = useState<{ [index: number]: { paused: boolean; muted: boolean } }>({});
-  const [optionsVisible, setOptionsVisible] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [saveModalVisible, setSaveModalVisible] = useState(false);
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -273,10 +275,6 @@ const Post: React.FC<PostProps> = (props) => {
     Alert.alert('Share', 'Share functionality coming soon!');
   };
 
-  const handleOptions = () => {
-    setOptionsVisible(true);
-  };
-
   const handleDelete = async () => {
     setDeleteLoading(true);
     try {
@@ -291,7 +289,6 @@ const Post: React.FC<PostProps> = (props) => {
       const collectionId = item?.collection_id || profile?.collection_id || 1;
       const postId = id;
       await axios.delete(`https://pashuahar.com/collections/${collectionId}/post/${postId}/`, { headers });
-      setOptionsVisible(false);
       if (onDelete) onDelete(id);
       // await fetchCollections();
 
@@ -306,8 +303,6 @@ const Post: React.FC<PostProps> = (props) => {
   };
 
   const handleEdit = async () => {
-    setOptionsVisible(false);
-    // You can navigate to an edit screen or call the edit API here
     Alert.alert('Edit', 'Edit functionality coming soon!');
   };
 
@@ -430,15 +425,15 @@ const Post: React.FC<PostProps> = (props) => {
               />
               {/* Play/Pause and Mute/Unmute Controls */}
               {!hideHeaderAndControls && !showVideoControlsInActionsRow && (
-                <View style={{ position: 'absolute', bottom: 16, left: 16, flexDirection: 'row', gap: 16 }}>
+                <View style={{ position: 'absolute', bottom: 16, right: 16, flexDirection: 'row-reverse', gap: 16 }}>
                   <TouchableOpacity
                     onPress={() => setVideoStates(prev => ({
                       ...prev,
                       [index]: { ...videoState, paused: !videoState.paused }
                     }))}
-                    style={{ marginRight: 16, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 }}
+                    style={{ marginLeft: 16, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 }}
                   >
-                    <Ionicons name={videoState.paused ? 'play' : 'pause'} size={24} color="#fff" />
+                    <Ionicons name={videoState.paused ? 'play' : 'pause'} size={20} color="#bea063" />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => setVideoStates(prev => ({
@@ -447,13 +442,13 @@ const Post: React.FC<PostProps> = (props) => {
                     }))}
                     style={{ backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 }}
                   >
-                    <Ionicons name={videoState.muted ? 'volume-mute' : 'volume-high'} size={24} color="#fff" />
+                    <Ionicons name={videoState.muted ? 'volume-mute' : 'volume-high'} size={20} color="#bea063" />
                   </TouchableOpacity>
                 </View>
               )}
               {!isActive && (
                 <View style={{ position: 'absolute', top: '45%', left: '45%' }}>
-                  {React.createElement(Ionicons, { name: "play-circle", size: 48, color: "#fff" })}
+                  {React.createElement(Ionicons, { name: "play-circle", size: 48, color: "#bea063" })}
                 </View>
               )}
             </View>
@@ -523,8 +518,8 @@ const Post: React.FC<PostProps> = (props) => {
               {!!location && <Text style={styles.location}>{location}</Text>}
             </View>
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleOptions}>
-            {React.createElement(Ionicons, { name: "ellipsis-vertical", size: 20, color: "#000" })}
+          <TouchableOpacity onPress={onOptions}>
+            {React.createElement(Ionicons, { name: "ellipsis-vertical", size: 20, color: "#bea063" })}
           </TouchableOpacity>
         </View>
       )}
@@ -553,27 +548,35 @@ const Post: React.FC<PostProps> = (props) => {
       {/* Only show actions if hideActions is false */}
       {!hideActions && (
         <View style={styles.actions}>
-          {/* Like button: only show if hideLikeCount is false */}
+          {/* Like button and count */}
           {!hideLikeCount && (
-            <TouchableOpacity onPress={handleLike} disabled={likeLoading}>
-              {likeLoading ? (
-                <ActivityIndicator size={20} color="#bea063" />
-              ) : (
-                <>
-                  {React.createElement(Ionicons, { name: isLiked ? 'heart' : 'heart-outline', size: 28, color: isLiked ? '#bea063' : '#bea063' })}
-                </>
-              )}
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity onPress={handleLike} disabled={likeLoading}>
+                {likeLoading ? (
+                  <ActivityIndicator size={20} color="#bea063" />
+                ) : (
+                  React.createElement(Ionicons, { name: isLiked ? 'heart' : 'heart-outline', size: 26, color: isLiked ? '#bea063' : '#bea063' })
+                )}
+              </TouchableOpacity>
+              <Text style={{ color: '#bea063', fontWeight: '600', marginLeft: 4, marginRight: 12 }}>{likesCount}</Text>
+            </>
           )}
-          {/* Comment button: only show if allowComments is false */}
+
+          {/* Comment button and count */}
           {!allowComments && (
-            <TouchableOpacity style={styles.actionButton} onPress={handleComment}>
-              {React.createElement(Ionicons, { name: "chatbubble-outline", size: 24, color: "#bea063" })}
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity style={styles.actionButton} onPress={handleComment}>
+                {React.createElement(Ionicons, { name: "chatbubble-outline", size: 24, color: "#bea063" })}
+              </TouchableOpacity>
+              <Text style={{ color: '#bea063', fontWeight: '600', marginLeft: 4 }}>{commentCount}</Text>
+            </>
           )}
+
+          {/* Share button */}
           <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
             {React.createElement(Ionicons, { name: "share-social-outline", size: 24, color: "#bea063" })}
           </TouchableOpacity>
+
           {/* Save icon on the right */}
           {!isdrmoDetails ? (
             item?.is_collection ? (
@@ -675,37 +678,41 @@ const Post: React.FC<PostProps> = (props) => {
       </Modal>
 
       {/* Options Modal */}
-      {optionsVisible && (
-        <View style={{
-          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 100
-        }}>
-          <View style={{
-            backgroundColor: '#fff', borderRadius: 16, padding: 24, width: 300, alignItems: 'center'
-          }}>
-            <TouchableOpacity onPress={() => {
-              setOptionsVisible(false);
-              navigation.navigate('ContactUs');
-            }}>
-              <Text style={{ color: '#ed4956', fontWeight: 'bold', fontSize: 16, marginBottom: 16 }}>Report</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => {
-              setOptionsVisible(false);
-              navigation.navigate('UserProfile', { userId: profile?.id || item?.profile?.id, isFromSearch: true, isFromHome: true });
-            }}>
-              <Text style={{ fontSize: 16, marginBottom: 16, color: '#222' }}>About this account</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setOptionsVisible(false)}>
-              <Text style={{ fontSize: 16, color: '#888', marginTop: 8 }}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      <View style={styles.likesContainer}>
-        {!hideLikeCount && <Text style={styles.likes}>{likesCount} likes</Text>}
-      </View>
-
+      <OptionsBottomSheet
+        visible={false} // This modal is now controlled by the parent
+        onClose={() => {}}
+        navigation={navigation}
+        onReport={() => {
+          navigation.navigate('ContactUs');
+        }}
+        onSave={() => {
+          handleSave();
+        }}
+        onRemix={() => {
+          Alert.alert('Remix', 'Remix functionality coming soon!');
+        }}
+        onCutout={() => {
+          Alert.alert('Cutout', 'Cutout sticker functionality coming soon!');
+        }}
+        onFavourite={() => {
+          Alert.alert('Favourites', 'Add to Favourites coming soon!');
+        }}
+        onUnfollow={() => {
+          Alert.alert('Unfollow', 'Unfollow functionality coming soon!');
+        }}
+        onAbout={() => {
+          Alert.alert('About', 'About this account coming soon!');
+        }}
+        onQRCode={() => {
+          Alert.alert('QR Code', 'QR code functionality coming soon!');
+        }}
+        onWhy={() => {
+          Alert.alert('Why', 'Why you\'re seeing this post coming soon!');
+        }}
+        onHide={() => {
+          Alert.alert('Hide', 'Hide functionality coming soon!');
+        }}
+      />
       <View style={styles.captionContainer}>
         <Text style={styles.captionUsername}>{username}</Text>
         <Text
@@ -778,6 +785,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
+    // alignSelf:'center'
   },
   actionButton: {
     marginLeft: 16,
@@ -917,6 +925,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    backgroundColor: '#fff',
+  },
+  optionText: {
+    fontSize: 16,
+    color: '#222',
+    fontWeight: '400',
   },
 });
 

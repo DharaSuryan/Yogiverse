@@ -5,7 +5,8 @@ import Post from '../../Component/Post';
 import ShareModal from '../../Components/ShareModal';
 import { Post as PostType, Story } from '../../Types/index';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getStories, getProfile } from '../../Api/Api';
+import { getStories, getProfile, followUser, unfollowUser } from '../../Api/Api';
+import OptionsBottomSheet from '../../Components/OptionsBottomSheet';
 
 const Ionicons = require('react-native-vector-icons/Ionicons').default;
 
@@ -486,32 +487,65 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
         post={selectedPost}
       />
       {/* Options Modal */}
-      {optionsModalVisible && (
-        <View style={{
-          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 100
-        }}>
-          <View style={{
-            backgroundColor: '#fff', borderRadius: 16, padding: 24, width: 300, alignItems: 'center'
-          }}>
-            <TouchableOpacity onPress={() => {
-              setOptionsModalVisible(false);
-              navigation.navigate('ContactUs');
-            }}>
-              <Text style={{ color: '#ed4956', fontWeight: 'bold', fontSize: 16, marginBottom: 16 }}>Report</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => {
-              setOptionsModalVisible(false);
-              navigation.navigate('UserProfile', { userId: optionsPost?.profile?.id?.toString(), isFromSearch: true, isFromHome: true });
-            }}>
-              <Text style={{ fontSize: 16, marginBottom: 16, color: '#222' }}>About this account</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setOptionsModalVisible(false)}>
-              <Text style={{ fontSize: 16, color: '#888', marginTop: 8 }}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
+      <OptionsBottomSheet
+        visible={optionsModalVisible}
+        onClose={() => setOptionsModalVisible(false)}
+        navigation={navigation}
+        onReport={() => {
+          setOptionsModalVisible(false);
+          navigation.navigate('ContactUs');
+        }}
+        onSave={() => {
+          setOptionsModalVisible(false);
+          // Optionally, trigger save logic for optionsPost
+        }}
+        onRemix={() => {
+          setOptionsModalVisible(false);
+          Alert.alert('Remix', 'Remix functionality coming soon!');
+        }}
+        onCutout={() => {
+          setOptionsModalVisible(false);
+          Alert.alert('Cutout', 'Cutout sticker functionality coming soon!');
+        }}
+        onFavourite={() => {
+          setOptionsModalVisible(false);
+          Alert.alert('Favourites', 'Add to Favourites coming soon!');
+        }}
+        {...(optionsPost?.is_following
+          ? { onUnfollow: async () => {
+                setOptionsModalVisible(false);
+                try {
+                  await unfollowUser(optionsPost?.profile?.id?.toString());
+                  Alert.alert('Success', 'You have unfollowed this user.');
+                } catch (e) {
+                  Alert.alert('Error', 'Failed to unfollow user.');
+                }
+              } }
+          : { onFollow: async () => {
+                setOptionsModalVisible(false);
+                try {
+                  await followUser(optionsPost?.profile?.id?.toString());
+                  Alert.alert('Success', 'You are now following this user.');
+                } catch (e) {
+                  Alert.alert('Error', 'Failed to follow user.');
+                }
+              } })}
+        onAbout={() => {
+          // navigation.navigate('UserProfile', { userId: optionsPost?.profile?.id?.toString(), isFromSearch: true, isFromHome: true });
+        }}
+        onQRCode={() => {
+          setOptionsModalVisible(false);
+          Alert.alert('QR Code', 'QR code functionality coming soon!');
+        }}
+        onWhy={() => {
+          setOptionsModalVisible(false);
+          Alert.alert('Why', 'Why you\'re seeing this post coming soon!');
+        }}
+        onHide={() => {
+          setOptionsModalVisible(false);
+          Alert.alert('Hide', 'Hide functionality coming soon!');
+        }}
+      />
     </View>
   );
 }

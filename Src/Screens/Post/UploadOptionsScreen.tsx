@@ -90,7 +90,7 @@ const UploadOptionsScreen = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="close" size={24} color="#000" />
+          <Ionicons name="close" size={24} color="#bea063" />
         </TouchableOpacity>
         <Text style={styles.title}>Create New</Text>
         <View style={{ width: 24 }} />
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: '#bea063',
   },
   optionsContainer: {
     flex: 1,
