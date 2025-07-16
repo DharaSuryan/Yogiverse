@@ -368,7 +368,12 @@ const StoryViewerScreen: React.FC<StoryViewerScreenProps> = ({ route, navigation
       {/* Story Content */}
       <View style={styles.storyContainer}>
         <Image source={{ uri: currentStory.imageUrl }} style={styles.storyImage} />
-        
+        {/* Caption overlay */}
+        {currentStory.caption ? (
+          <View style={styles.captionContainer}>
+            <Text style={styles.captionText}>{currentStory.caption}</Text>
+          </View>
+        ) : null}
         {/* User Info */}
         <View style={styles.userInfo}>
           <TouchableOpacity onPress={() => {
@@ -707,6 +712,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 16,
     fontWeight: 'bold',
+  },
+  captionContainer: {
+    position: 'absolute',
+    bottom: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+  },
+  captionText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'left',
   },
 });
 

@@ -484,7 +484,7 @@ const Post: React.FC<PostProps> = (props) => {
           <TouchableOpacity
             style={styles.userInfo}
             onPress={() => {
-              const userId = profile?.id || item?.profile?.id;
+              const userId = profile.user || profile?.id || item?.profile?.id;
               if (userId) {
                 navigation.navigate('UserProfile', { userId: userId.toString(), isFromSearch: true,isFromHome:true });
               }
@@ -741,7 +741,7 @@ const Post: React.FC<PostProps> = (props) => {
       )}
       {!!createdAt && (
         <Text style={{paddingHorizontal: 10, color: '#aaa', fontSize: 12}}>
-          {new Date(createdAt).toLocaleString()}
+          {/* {new Date(createdAt).toLocaleString()} */}
         </Text>
       )}
     </View>

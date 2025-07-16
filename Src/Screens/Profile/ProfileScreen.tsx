@@ -674,6 +674,7 @@ const ProfileScreen = ({navigation} : any) => {
     try {
       let response: any;
       if (isFromSearch && userId) {
+        setLoading(true); // Show loader only for user_profile fetch
         response = await axios.get(
           `https://pashuahar.com/user_profile/${userId}`,
         );
@@ -804,6 +805,7 @@ const ProfileScreen = ({navigation} : any) => {
       });
       setVendorProfile(null);
       setPosts([]);
+      setLoading(false); // Hide loader on error as well
     } finally {
       setLoading(false);
     }

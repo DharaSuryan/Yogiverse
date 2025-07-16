@@ -700,7 +700,7 @@ const UserProfileScreen = ({navigation}:any) => {
             })
           );
         } else if (params.isFromVendor) {
-          navigation.navigate('VenderDetail');
+          (navigation as any).navigate('MainTab', { screen: 'SearchTab' });
         } else if (params.isFromVendorList) {
           navigation.navigate('VenderList');
         } else if (params.isFromNotification) {
@@ -1716,7 +1716,7 @@ console.log("datat......" , data);
                    })
                  );
                } else if (params.isFromVendor) {
-                 navigation.navigate('VenderDetail');
+                (navigation as any).navigate('MainTab', { screen: 'SearchTab' });
                } else if (params.isFromVendorList) {
                  navigation.navigate('VenderList');
                } else if (params.isFromNotification) {

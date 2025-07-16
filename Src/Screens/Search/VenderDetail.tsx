@@ -279,7 +279,7 @@ const VendorDetailScreen = ({navigation}:any) => {
       {filteredVendors.length === 0 && !loading && (
         <View style={styles.emptyContainer}>
           <Ionicons name="people-outline" size={48} color="#ccc" />
-          <Text style={styles.emptyText}>No vendors found for selected categories</Text>
+          <Text style={styles.emptyText}>No yogic found for selected categories</Text>
           <Text style={styles.emptySubtext}>Try selecting different categories</Text>
         </View>
       )}

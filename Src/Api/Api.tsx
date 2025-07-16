@@ -205,16 +205,29 @@ export const logoutUser = async () => {
   }
 }
 export const getProfile = async (): Promise<ApiResponse> => {
-  // console.log("get ");
-  
-  const response = await api.get(`/profile/`); // ✅ adjust if endpoint differs
-  return {
-    data: response.data,
-    status: response.status,
-    message: 'Profile fetched successfully',
-  };
-};
+  try {
+    const authToken = await AsyncStorage.getItem('accessToken');
 
+    const response = await api.get('/profile/', {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+
+    return {
+      data: response.data,
+      status: response.status,
+      message: 'Profile fetched successfully',
+    };
+  } catch (error: any) {
+    return {
+      data: null,
+      status: error?.response?.status || 500,
+      message: error?.response?.data?.message || 'Failed to fetch profile',
+    };
+  }
+};
 // Fetch posts for the logged-in user
 export const getUserPosts = async (): Promise<ApiResponse> => {
   const response = await api.get('/posts/');

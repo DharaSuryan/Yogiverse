@@ -7,6 +7,7 @@ import { Post as PostType, Story } from '../../Types/index';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStories, getProfile, followUser, unfollowUser } from '../../Api/Api';
 import OptionsBottomSheet from '../../Components/OptionsBottomSheet';
+import { useFocusEffect } from '@react-navigation/native';
 
 const Ionicons = require('react-native-vector-icons/Ionicons').default;
 
@@ -50,6 +51,16 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
   useEffect(() => {
     if (showOptionsModal) setOptionsModalVisible(true);
   }, [showOptionsModal]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (navigation?.route?.params?.refreshStories) {
+        fetchStories();
+        // Reset the param so it doesn't trigger again
+        navigation.setParams({ refreshStories: false });
+      }
+    }, [navigation])
+  );
 
   const getData = async () => {
 
@@ -197,7 +208,7 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
   // Helper function to render user avatar with fallback
 
   const renderPost = ({ item }: { item: any }) => {
-    console.log("item.is_collectionitem.is_collection",item);
+    console.log("item.is_collectionitem.is_collection",item?.data?.profile?.user);
     
     const post = item.data || {};
     const profile = item.profile || {};

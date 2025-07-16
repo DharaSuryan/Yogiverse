@@ -1,5 +1,5 @@
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import React, { useEffect, useState } from 'react';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,11 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { SearchStackParamList } from '../../Navigation/types';
-import { useNavigation } from '@react-navigation/native';
+import {SearchStackParamList} from '../../Navigation/types';
 import axios from 'axios';
-import { push } from '../../Component/Route';
 
 const imageSource = require('../../Assets/yoga.jpg');
-const { width } = Dimensions.get('window');
+const {width} = Dimensions.get('window');
 const CARD_MARGIN = 16; // total horizontal margin per card (adjust as needed)
 const CARD_WIDTH = (width - CARD_MARGIN * 3) / 2; // 2 columns, 3 margins (left, between, right)
 
@@ -28,14 +26,14 @@ type SearchScreenNavigationProp = NativeStackNavigationProp<
   'Search'
 >;
 
-
-
-const VenderList = ({navigation}:any) => {
+const VenderList = ({navigation}: any) => {
   // const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
 
   const [categories, setCategories] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-  const [selectedSubcategories, setSelectedSubcategories] = useState<number[]>([]);
+  const [selectedSubcategories, setSelectedSubcategories] = useState<number[]>(
+    [],
+  );
   const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [vendorLoading, setVendorLoading] = useState(false);
@@ -50,10 +48,10 @@ const VenderList = ({navigation}:any) => {
     setError(null);
     try {
       const mainCategoryRes = await axios.get(
-        `https://pashuahar.com/main_with_sub_categories?search=${query}`
+        `https://pashuahar.com/main_with_sub_categories?search=${query}`,
       );
       // console.log("here comes resoponse ...",mainCategoryRes.data?.data);
-      
+
       setCategories(mainCategoryRes.data?.data || []);
     } catch (err) {
       setError('Failed to load categories');
@@ -64,31 +62,31 @@ const VenderList = ({navigation}:any) => {
 
   // This function is replaced by fetchVendorsForSubcategories
 
-   const handleSelectCategory = (categoryId: number | undefined) => {
-      if (categoryId === undefined) return;
-      setSelectedCategory(categoryId);
-      setSelectedSubcategories([]); // Reset subcategory selection when main category changes
-      setShowVendors(false); // Hide vendors when category changes
-      setVendors([]); // Clear vendors
-    };
+  const handleSelectCategory = (categoryId: number | undefined) => {
+    if (categoryId === undefined) return;
+    setSelectedCategory(categoryId);
+    setSelectedSubcategories([]); // Reset subcategory selection when main category changes
+    setShowVendors(false); // Hide vendors when category changes
+    setVendors([]); // Clear vendors
+  };
 
-    const handleSelectSubcategory = (subcategoryId: number) => {
-      setSelectedSubcategories(prev => {
-        const newSelection = prev.includes(subcategoryId) 
-          ? prev.filter(id => id !== subcategoryId)
-          : [...prev, subcategoryId];
-        
-        // Automatically fetch vendors when subcategory selection changes
-        if (newSelection.length > 0) {
-          fetchVendorsForSubcategories(newSelection);
-        } else {
-          setShowVendors(false);
-          setVendors([]);
-        }
-        
-        return newSelection;
-      });
-    };
+  const handleSelectSubcategory = (subcategoryId: number) => {
+    setSelectedSubcategories(prev => {
+      const newSelection = prev.includes(subcategoryId)
+        ? prev.filter(id => id !== subcategoryId)
+        : [...prev, subcategoryId];
+
+      // Automatically fetch vendors when subcategory selection changes
+      if (newSelection.length > 0) {
+        fetchVendorsForSubcategories(newSelection);
+      } else {
+        setShowVendors(false);
+        setVendors([]);
+      }
+
+      return newSelection;
+    });
+  };
 
   const fetchVendorsForSubcategories = async (subcategoryIds: number[]) => {
     if (!selectedCategory || subcategoryIds.length === 0) {
@@ -98,18 +96,18 @@ const VenderList = ({navigation}:any) => {
     try {
       setVendorLoading(true);
       setShowVendors(true);
-      
+
       // Build URL with proper parameters
       let url = `https://pashuahar.com/vendor_list/?main_category=${selectedCategory}`;
       if (subcategoryIds.length > 0) {
         url += `&subcategory=${subcategoryIds[0]}`;
       }
-      
+
       console.log('Calling vendor API:', url);
-      
+
       const response = await fetch(url);
       const data = await response.json();
-      
+
       if (data.status === true && data.vendors) {
         console.log('Vendors from API:', data.vendors);
         setVendors(data.vendors);
@@ -124,28 +122,25 @@ const VenderList = ({navigation}:any) => {
       setVendorLoading(false);
     }
   };
-  
-    const handleItemPress = () => {
-      if (selectedCategory === null) {
-        Alert.alert('Selection Required', 'Please select a vendor.');
-        return;
-      }
-      
-      // Update the data object with main categories (same format)
-      const updatedData = {
-      
-        main_categories: [selectedCategory]
-      };
-      
-      console.log('Updated data with main categories:', updatedData);
-      
-      // Navigate to SubCategory with updated data object
-      navigation.navigate('VendorSubCategory', { category: updatedData });
+
+  const handleItemPress = () => {
+    if (selectedCategory === null) {
+      Alert.alert('Selection Required', 'Please select a vendor.');
+      return;
+    }
+
+    // Update the data object with main categories (same format)
+    const updatedData = {
+      main_categories: [selectedCategory],
     };
 
+    console.log('Updated data with main categories:', updatedData);
 
+    // Navigate to SubCategory with updated data object
+    navigation.navigate('VendorSubCategory', {category: updatedData});
+  };
 
-  const renderCategory = ({ item }: any) => {
+  const renderCategory = ({item}: any) => {
     const categoryId = item.id !== undefined ? item.id : item.categories;
     const isSelected = selectedCategory === categoryId;
     return (
@@ -159,46 +154,49 @@ const VenderList = ({navigation}:any) => {
             shadowOpacity: 0.3,
             shadowRadius: 6,
             elevation: 5,
-          }
+          },
         ]}
         onPress={() => handleSelectCategory(categoryId)}
-        activeOpacity={0.8}
-      >
+        activeOpacity={0.8}>
         <View style={styles.categoryImageWrapperNew}>
           <Image
-            source={item.main_category_image ? { uri: item.main_category_image } : imageSource}
+            source={
+              item.main_category_image
+                ? {uri: item.main_category_image}
+                : imageSource
+            }
             style={styles.categoryImageNew}
           />
         </View>
         <Text
           numberOfLines={2}
           ellipsizeMode="tail"
-          style={styles.categoryTitleNew}
-        >
+          style={styles.categoryTitleNew}>
           {item.category_name}
         </Text>
         {isSelected && (
-          <View style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            backgroundColor: '#bea063',
-            borderRadius: 10,
-            padding: 2,
-          }}>
-            <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>
+          <View
+            style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              backgroundColor: '#bea063',
+              borderRadius: 10,
+              padding: 2,
+            }}>
+            <Text style={{color: '#fff', fontSize: 12}}>✓</Text>
           </View>
         )}
       </TouchableOpacity>
     );
   };
-  
+
   // Vendors are now shown automatically when subcategories are selected
 
-  const renderSubcategory = ({ item }: any) => {
+  const renderSubcategory = ({item}: any) => {
     console.log('Subcategory item:', item);
     const isSelected = selectedSubcategories.includes(item.id);
-    
+
     return (
       <TouchableOpacity
         style={[
@@ -210,42 +208,52 @@ const VenderList = ({navigation}:any) => {
             shadowOpacity: 0.3,
             shadowRadius: 6,
             elevation: 5,
-          }
+          },
         ]}
         onPress={() => handleSelectSubcategory(item.id)}
-        activeOpacity={0.8}
-      >
+        activeOpacity={0.8}>
         <View style={styles.categoryImageWrapperNew}>
           <Image
-            source={item.image || item.sub_category_image || item.category_image ? 
-              { uri: item.image || item.sub_category_image || item.category_image } : imageSource}
+            source={
+              item.image || item.sub_category_image || item.category_image
+                ? {
+                    uri:
+                      item.image ||
+                      item.sub_category_image ||
+                      item.category_image,
+                  }
+                : imageSource
+            }
             style={styles.categoryImageNew}
           />
         </View>
         <Text
           numberOfLines={2}
           ellipsizeMode="tail"
-          style={styles.categoryTitleNew}
-        >
-          {item.name || item.sub_category_name || item.category_name || 'Subcategory'}
+          style={styles.categoryTitleNew}>
+          {item.name ||
+            item.sub_category_name ||
+            item.category_name ||
+            'Subcategory'}
         </Text>
         {isSelected && (
-          <View style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            backgroundColor: '#bea063',
-            borderRadius: 10,
-            padding: 2,
-          }}>
-            <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>
+          <View
+            style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              backgroundColor: '#bea063',
+              borderRadius: 10,
+              padding: 2,
+            }}>
+            <Text style={{color: '#fff', fontSize: 12}}>✓</Text>
           </View>
         )}
       </TouchableOpacity>
     );
   };
 
-  const renderVendor = ({ item }: any) => {
+  const renderVendor = ({item}: any) => {
     const username = item.user?.username || item.profile?.username || 'Unknown';
     const profilePicture = item.profile?.profile_picture;
     const firstName = item.user?.first_name || item.profile?.first_name || '';
@@ -254,71 +262,83 @@ const VenderList = ({navigation}:any) => {
     const email = item.user?.email || '';
     const followers = item.followers_count || 0;
     const following = item.following_count || 0;
-    const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-
+    const initials = `${firstName.charAt(0)}${lastName.charAt(
+      0,
+    )}`.toUpperCase();
+    const posts = item.post_reels_count || 0;
     return (
       <TouchableOpacity
         style={{
-          backgroundColor: '#fffbe6',
-          borderColor: '#bea063',
-          borderWidth: 1,
+          backgroundColor: '#fff',
+          // borderColor: '#bea063',
+          borderWidth: 0,
           borderRadius: 18,
           padding: 12,
           marginBottom: CARD_MARGIN,
           alignItems: 'center',
           width: CARD_WIDTH,
-          shadowColor: '#bea063',
-          shadowOpacity: 0.08,
+          // shadowColor: '#bea063',
+          // shadowOpacity: 0.08,
           shadowRadius: 8,
           elevation: 2,
         }}
         onPress={() => {
           const userId = item.profile?.user || item.user?.id;
-          (navigation as any).navigate('UserProfile', { userId: userId, isFromSearch: true,IsfromVendorList:true });
-        }}
-      >
-        {/* Initials or Profile Picture */}
-        <View style={{
-          width: 64,
-          height: 64,
-          borderRadius: 32,
-          backgroundColor: '#fff',
-          borderWidth: 2,
-          borderColor: '#bea063',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: 10,
+          (navigation as any).navigate('UserProfile', {
+            userId: userId,
+            isFromSearch: true,
+            IsfromVendorList: true,
+          });
         }}>
+        {/* Initials or Profile Picture */}
+        <View
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: 32,
+            backgroundColor: '#fff',
+            borderWidth: 2,
+            borderColor: '#bea063',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 10,
+          }}>
           {profilePicture ? (
             <Image
-              source={{ uri: profilePicture }}
-              style={{ width: 60, height: 60, borderRadius: 30 }}
+              source={{uri: profilePicture}}
+              style={{width: 60, height: 60, borderRadius: 30}}
               defaultSource={require('../../Assets/Role.png')}
             />
           ) : (
-            <Text style={{ color: '#bea063', fontSize: 22, fontWeight: 'bold' }}>{initials}</Text>
+            <Text style={{color: '#bea063', fontSize: 16, fontWeight: '300'}}>
+              {initials}
+            </Text>
           )}
         </View>
         {/* Name */}
-        <Text style={{ color: '#bea063', fontWeight: 'bold', fontSize: 18, marginBottom: 2 }}>
+        <Text style={{color: 'black', fontSize: 14, marginBottom: 2,fontWeight:500}}>
           {firstName} {lastName}
         </Text>
         {/* Username */}
-        <Text style={{ color: '#bea063', fontSize: 15, marginBottom: 2 }}>
-          @{username}
+        <Text style={{color: 'black', fontSize: 12, marginBottom: 2}}>
+          {username}
         </Text>
         {/* Email */}
-        <Text style={{ color: '#bea063', fontSize: 13, marginBottom: 2 }}>
-          {email}
-        </Text>
+
         {/* Phone */}
-        <Text style={{ color: '#bea063', fontSize: 13, marginBottom: 2 }}>
-          {phoneNofYogi}
-        </Text>
+
         {/* Followers/Following */}
-        <Text style={{ color: '#bea063', fontSize: 13, marginBottom: 10 }}>
-          Followers: {followers}  Following: {following}
-        </Text>
+        <View style={styles.vendorStats}>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{item.post_reels_count || 0}</Text>
+            <Text style={styles.statLabel}>Posts</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{item.followers_count || 0}</Text>
+            <Text style={styles.statLabel}>Followers</Text>
+          </View>
+        </View>
         {/* View Profile Button */}
         <TouchableOpacity
           style={{
@@ -331,72 +351,85 @@ const VenderList = ({navigation}:any) => {
           }}
           onPress={() => {
             const userId = item.profile?.user || item.user?.id;
-            (navigation as any).navigate('UserProfile', { userId: userId, isFromSearch: true });
-          }}
-        >
-          <Text style={{ color: '#bea063', fontWeight: 'bold' }}>View Profile</Text>
+            (navigation as any).navigate('UserProfile', {
+              userId: userId,
+              isFromSearch: true,
+            });
+          }}>
+          <Text style={{color: '#bea063', fontWeight: 'bold'}}>
+            View Profile
+          </Text>
         </TouchableOpacity>
       </TouchableOpacity>
     );
   };
 
-
-
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      
       {loading ? (
-        <ActivityIndicator size="large" color="#000" style={{ marginTop: 20 }} />
+        <ActivityIndicator size="large" color="#000" style={{marginTop: 20}} />
       ) : error ? (
-        <Text style={{ color: 'red', textAlign: 'center' }}>{error}</Text>
+        <Text style={{color: 'red', textAlign: 'center'}}>{error}</Text>
       ) : (
         <>
-         <View style={styles.header}>
-//         <Text style={styles.headerTitle}>Everyone is Yogi</Text>
-//         {/* <TouchableOpacity style={styles.filterButton}>
+          <View style={styles.header}>
+            // <Text style={styles.headerTitle}>Everyone is Yogi</Text>
+            //{' '}
+            {/* <TouchableOpacity style={styles.filterButton}>
 //             <Icon name="filter" size={24} color="#333" />
 //           </TouchableOpacity> */}
-//       </View>
+            //{' '}
+          </View>
 
           <FlatList
             data={categories}
-            keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+            keyExtractor={item =>
+              item.id?.toString() || Math.random().toString()
+            }
             renderItem={renderCategory}
             numColumns={3}
             scrollEnabled={false}
-            contentContainerStyle={{ paddingBottom: 20 }}
+            contentContainerStyle={{paddingBottom: 20}}
           />
-          
+
           {/* Subcategories Slider */}
           {selectedCategory && (
             <View style={styles.subcategorySection}>
               <Text style={styles.subcategoryTitle}>
-                {categories.find(cat => 
-                  selectedCategory === (cat.id !== undefined ? cat.id : cat.categories)
+                {categories.find(
+                  cat =>
+                    selectedCategory ===
+                    (cat.id !== undefined ? cat.id : cat.categories),
                 )?.category_name || 'Select Subcategories:'}
               </Text>
               {(() => {
-                const selectedCat = categories.find(cat => 
-                  selectedCategory === (cat.id !== undefined ? cat.id : cat.categories)
+                const selectedCat = categories.find(
+                  cat =>
+                    selectedCategory ===
+                    (cat.id !== undefined ? cat.id : cat.categories),
                 );
                 const subcategories = selectedCat?.sub_categories || [];
                 console.log('Selected category subcategories:', subcategories);
-                
+
                 // Split subcategories into chunks of 10 for multiple horizontal rows
                 const chunkSize = 10;
                 const subcategoryChunks = [];
                 for (let i = 0; i < subcategories.length; i += chunkSize) {
                   subcategoryChunks.push(subcategories.slice(i, i + chunkSize));
                 }
-                
+
                 return (
                   <View>
                     {subcategoryChunks.map((chunk, chunkIndex) => (
-                      <View key={`chunk-${chunkIndex}`} style={styles.subcategoryRow}>
+                      <View
+                        key={`chunk-${chunkIndex}`}
+                        style={styles.subcategoryRow}>
                         <FlatList
                           key={`horizontal-row-${chunkIndex}`}
                           data={chunk}
-                          keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+                          keyExtractor={item =>
+                            item.id?.toString() || Math.random().toString()
+                          }
                           renderItem={renderSubcategory}
                           horizontal
                           showsHorizontalScrollIndicator={false}
@@ -409,7 +442,7 @@ const VenderList = ({navigation}:any) => {
               })()}
             </View>
           )}
-          
+
           {/* Vendors will be shown automatically when subcategories are selected */}
 
           {/* Vendors Section */}
@@ -419,19 +452,23 @@ const VenderList = ({navigation}:any) => {
                 Vendors for Selected Subcategory
               </Text> */}
               {(() => {
-                const selectedCat = categories.find(cat => 
-                  selectedCategory === (cat.id !== undefined ? cat.id : cat.categories)
+                const selectedCat = categories.find(
+                  cat =>
+                    selectedCategory ===
+                    (cat.id !== undefined ? cat.id : cat.categories),
                 );
-                const selectedSubcat = selectedCat?.sub_categories?.find((sub: any) => 
-                  selectedSubcategories.includes(sub.id)
+                const selectedSubcat = selectedCat?.sub_categories?.find(
+                  (sub: any) => selectedSubcategories.includes(sub.id),
                 );
                 return selectedSubcat ? (
                   <Text style={styles.selectedSubcategoryText}>
-                    {selectedSubcat.name || selectedSubcat.sub_category_name || 'Subcategory'}
+                    {selectedSubcat.name ||
+                      selectedSubcat.sub_category_name ||
+                      'Subcategory'}
                   </Text>
                 ) : null;
               })()}
-              
+
               {vendorLoading ? (
                 <View style={styles.vendorLoadingContainer}>
                   <ActivityIndicator size="large" color="#bea063" />
@@ -440,17 +477,28 @@ const VenderList = ({navigation}:any) => {
               ) : vendors.length > 0 ? (
                 <FlatList
                   data={vendors}
-                  keyExtractor={(item) => item.user?.id?.toString() || item.id?.toString()}
+                  keyExtractor={item =>
+                    item.user?.id?.toString() || item.id?.toString()
+                  }
                   numColumns={2}
                   renderItem={renderVendor}
-                  contentContainerStyle={{ paddingHorizontal: CARD_MARGIN, paddingBottom: 20 }}
-                  columnWrapperStyle={{ justifyContent: 'space-between' ,alignSelf:'center',gap:10}}
+                  contentContainerStyle={{
+                    paddingHorizontal: CARD_MARGIN,
+                    paddingBottom: 20,
+                  }}
+                  columnWrapperStyle={{
+                    justifyContent: 'space-between',
+                    alignSelf: 'center',
+                    gap: 10,
+                  }}
                   showsVerticalScrollIndicator={false}
                   scrollEnabled={false}
                 />
               ) : (
                 <View style={styles.emptyVendorContainer}>
-                  <Text style={styles.emptyVendorText}>No Yogic found for selected categories</Text>
+                  <Text style={styles.emptyVendorText}>
+                    No Yogic found for selected categories
+                  </Text>
                 </View>
               )}
             </View>
@@ -461,10 +509,8 @@ const VenderList = ({navigation}:any) => {
   );
 };
 
-
 const styles = StyleSheet.create({
-
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: {flex: 1, backgroundColor: '#fff'},
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -475,7 +521,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: {width: 0, height: 2},
         shadowOpacity: 0.1,
         shadowRadius: 4,
       },
@@ -484,14 +530,14 @@ const styles = StyleSheet.create({
       },
     }),
   },
-   headerTitle: {
+  headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#bea063',
   },
-  
-  cardImage: { width: '95%', height: 70, borderRadius: 40 },
-  
+
+  cardImage: {width: '95%', height: 70, borderRadius: 40},
+
   imageWrapper: {
     width: 120,
     height: 120,
@@ -513,7 +559,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     paddingHorizontal: 4,
   },
- 
+
   categoryCardNew: {
     flex: 1,
     backgroundColor: '#fff',
@@ -525,7 +571,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     shadowColor: '#000',
     shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowRadius: 6,
     elevation: 2,
     minWidth: 0,
@@ -544,7 +590,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     shadowColor: '#000',
     shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowRadius: 6,
     elevation: 2,
     width: 120,
@@ -561,7 +607,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     shadowColor: '#000',
     shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowRadius: 6,
     elevation: 2,
     minWidth: 0,
@@ -621,11 +667,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   selectedSubcategoryText: {
-    fontSize: 16,
-    color: '#bea063',
-    fontWeight: '600',
+   
+     fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    
     marginBottom: 12,
-    textAlign: 'center',
+    // textAlign: 'center',
+    
   },
   vendorLoadingContainer: {
     flexDirection: 'row',
@@ -651,7 +700,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     shadowColor: '#000',
     shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowRadius: 6,
     elevation: 2,
     minWidth: 0,
@@ -706,6 +755,34 @@ const styles = StyleSheet.create({
   subcategoryRow: {
     marginBottom: 10, // Add some space between rows
   },
-})
+  vendorStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 10,
+    width: '100%',
+    paddingHorizontal: 10,
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statNumber: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#bea063',
+  },
+  statLabel: {
+    fontSize: 10,
+    color: '#666',
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#eee',
+    marginHorizontal: 8,
+  },
+
+});
 
 export default VenderList;

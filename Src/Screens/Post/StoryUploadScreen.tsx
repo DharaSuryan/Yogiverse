@@ -16,7 +16,7 @@ import {
 import * as ImagePicker from 'react-native-image-picker';
 import { postStories } from '../../Api/Api';
 import LocationPicker, { LocationOption } from '../../Components/LocationPicker';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, CommonActions } from '@react-navigation/native';
 import MediaEditModal from './MediaEditModal';
 
 const screenWidth = Dimensions.get('window').width;
@@ -81,7 +81,25 @@ const StoryUploadScreen = () => {
       }
       await postStories({ formData });
       Alert.alert('Success', 'Your story has been uploaded!');
-      navigation.goBack();
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{
+            name: 'MainTab',
+            params: {
+              screen: 'HomeTab',
+              refreshStories: true
+            }
+          }]
+        })
+      );
+      // Signal HomeScreen to refresh stories
+      // navigation.navigate({
+      //   name: 'HomeScreen',
+      //   params: { refreshStories: true },
+      //   merge: true,
+      // });
+      // navigation.goBack();
     } catch (e) {
       if (e && typeof e === 'object') {
         console.log('erororo (full error):', JSON.stringify(e, Object.getOwnPropertyNames(e), 2));

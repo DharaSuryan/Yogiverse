@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, Modal, TextInput } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, Modal, TextInput, Image } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
@@ -25,6 +25,7 @@ type Group = {
   };
   is_single_chat: boolean;
   last_message?: { message?: string };
+  unread_messages: number;
 };
 
 type ChatListScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ChatListScreen'>;
@@ -39,9 +40,20 @@ const ChatListScreen = () => {
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState('');
   const navigation = useNavigation<ChatListScreenNavigationProp>();
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchChats();
+    // Get current user id for rendering chat list avatars
+    (async () => {
+      try {
+        const userStr = await AsyncStorage.getItem('user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          setCurrentUserId(user.id);
+        }
+      } catch {}
+    })();
   }, []);
 
   const fetchChats = async () => {
@@ -51,7 +63,7 @@ const ChatListScreen = () => {
       const res = await axios.get('https://pashuahar.com/chat_app/chats/', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log("res......",res.data.groups);
+      console.log("res......",res.data.groups[0]?.group_members);
       
       setGroups(res.data.groups || []);
     } catch (err) {
@@ -62,7 +74,26 @@ const ChatListScreen = () => {
   };
 
   const handleChatPress = (group: Group) => {
-    navigation.navigate('ChatScreen', { chatId: group.chat_id, chat: group });
+    navigation.navigate('ChatScreen', {
+      chatId: group.chat_id,
+      chat: group,
+      is_single_chat: group.is_single_chat,
+      chat_name: group.group_name, // or group.chat_name if you want
+      group_members: group.group_members
+    });
+  };
+
+  const handleGroupDetails = async (group: Group) => {
+    // Get current user id from AsyncStorage (or context if available)
+    let current_user_id = null;
+    try {
+      const userStr = await AsyncStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        current_user_id = user.id;
+      }
+    } catch {}
+    navigation.navigate('GroupDetailsScreen', { group: { ...group, current_user_id } });
   };
 
   const openNewChatModal = async () => {
@@ -127,12 +158,42 @@ const ChatListScreen = () => {
       <FlatList
         data={groups}
         keyExtractor={item => item.chat_id?.toString()}
-        renderItem={({ item }: { item: Group }) => (
-          <TouchableOpacity onPress={() => handleChatPress(item)} style={styles.chatItem}>
-            <Text style={styles.chatTitle}>{item.group_name || 'Chat'}</Text>
-            <Text style={styles.lastMessage}>{item.last_message?.message || 'No messages yet'}</Text>
-          </TouchableOpacity>
-        )}
+        renderItem={({ item }: { item: Group }) => {
+          let avatar = null;
+          let displayName = item.group_name || 'Chat';
+          if (item.is_single_chat && currentUserId && item.group_members?.members) {
+            const otherMember = item.group_members.members.find((m: any) => m.id !== currentUserId);
+            if (otherMember) {
+              avatar = otherMember.profile_picture;
+              displayName = `${otherMember.first_name} ${otherMember.last_name}`;
+            }
+          }
+          return (
+            <TouchableOpacity onPress={() => handleChatPress(item)} onLongPress={() => handleGroupDetails(item)} style={styles.chatItem}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  {avatar ? (
+                    <Image source={{ uri: avatar }} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
+                  ) : (
+                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#ccc', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                      <Text style={{ color: '#fff', fontSize: 18 }}>{displayName[0]}</Text>
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.chatTitle, item.unread_messages > 0 && { fontWeight: 'bold' }]}>{displayName}</Text>
+                    <Text style={styles.memberCount}>{item.group_members?.total_members || 0} member{item.group_members?.total_members === 1 ? '' : 's'}</Text>
+                    <Text style={styles.lastMessage}>{item.last_message?.message || 'No messages yet'}</Text>
+                  </View>
+                </View>
+                {item.unread_messages > 0 && (
+                  <View style={styles.unreadBadge}>
+                    <Text style={styles.unreadBadgeText}>{item.unread_messages}</Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+          );
+        }}
         ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40 }}>No chats found.</Text>}
       />
       {/* New Chat Modal */}
@@ -283,6 +344,26 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontSize: 16,
     backgroundColor: '#fafafa',
+  },
+  unreadBadge: {
+    backgroundColor: '#3897f0',
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+    paddingHorizontal: 6,
+  },
+  unreadBadgeText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  memberCount: {
+    color: '#888',
+    fontSize: 12,
+    marginTop: 2,
   },
 });
 
