@@ -50,7 +50,7 @@ const api = axios.create({
   },
 });
 
-// Add request interceptor to add token to all requests
+// Add request interceptor to add token to all requests 
 api.interceptors.request.use(
   async (config) => {
     const token = await AsyncStorage.getItem('accessToken');

@@ -40,7 +40,7 @@ import ReelCameraScreen from '../Screens/Post/ReelCameraScreen';
 import ReelPreviewScreen from '../Screens/Post/ReelPreviewScreen';
 import ReelEditorScreen from '../Screens/Post/ReelEditorScreennew';
 
-import VendorNavigator from './VendorNavigator';
+// import VendorNavigator from './VendorNavigator';
 
 import ProfileScreen from '../Screens/Profile/ProfileScreen';
 import EditProfileScreen from '../Screens/Profile/EditProfile';
