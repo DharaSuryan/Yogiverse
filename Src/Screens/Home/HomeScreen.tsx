@@ -357,141 +357,146 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-      <Image
-          source={require('../../Assets/Logo.png')}
-          style={{
-            height: 36,
-            width: 120,
-            marginRight: 10,
-          }}
-          resizeMode="contain"
-        />
-        <View style={styles.headerIcons}>
-          <TouchableOpacity onPress={() => navigation.navigate('Notifications' as never)}>
-            <Ionicons name="notifications-outline" size={24} color="#bea063" style={styles.icon} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('ChatListScreen')}>
-            <Ionicons name="chatbubble-outline" size={24} color="#bea063" style={styles.icon} />
-          </TouchableOpacity>
+      { (storiesLoading || loading) ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+          <ActivityIndicator size="large" color="#bea063" />
         </View>
-      </View>
-
-      {/* Stories Section as FlatList ListHeaderComponent */}
-      <FlatList
-        data={posts}
-        renderItem={renderPost}
-        keyExtractor={item => item.id?.toString()}
-        refreshing={refreshing}
-        onRefresh={onRefresh}
-        onEndReached={() => {
-          if (
-            !onEndReachedCalledDuringMomentum.current &&
-            posts.length >= pageSize &&
-            hasNextPage &&
-            !loadingMore &&
-            !loading &&
-            !refreshing
-          ) {
-            fetchPosts(page + 1);
-            onEndReachedCalledDuringMomentum.current = true;
-          }
-        }}
-        onEndReachedThreshold={0.5}
-        onMomentumScrollBegin={() => {
-          onEndReachedCalledDuringMomentum.current = false;
-        }}
-        showsVerticalScrollIndicator={false}
-        ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#bea063" style={{ marginVertical: 16 }} /> : null}
-        ListHeaderComponent={
-          storiesLoading ? (
-            <ActivityIndicator size="small" style={{ marginVertical: 20 }} />
-          ) : storiesError ? (
-            <Text style={{ color: 'red', textAlign: 'center', marginVertical: 20 }}>{storiesError}</Text>
-          ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.storyList}
-            >
-              {/* My Story Avatar with Add Icon */}
-              <View style={{ alignItems: 'center', marginRight: 12 }}>
-                <TouchableOpacity
-                  style={{ position: 'relative' }}
-                  onPress={() => {
-                    if (myStories.length > 0) {
-                      navigation.navigate('StoryViewerScreen', {
-                        stories: myStories,
-                        initialIndex: 0,
-                        isPersonal: true
-                      });
-                    } else {
-                      Alert.alert('No Story', 'You have not added a story yet.');
-                    }
-                  }}
-                  activeOpacity={0.7}
+      ) : (
+        <>
+          {/* Header */}
+          <View style={styles.header}>
+            <Image
+              source={require('../../Assets/Logo.png')}
+              style={{
+                height: 36,
+                width: 120,
+                marginRight: 10,
+              }}
+              resizeMode="contain"
+            />
+            <View style={styles.headerIcons}>
+              <TouchableOpacity onPress={() => navigation.navigate('Notifications' as never)}>
+                <Ionicons name="notifications-outline" size={24} color="#bea063" style={styles.icon} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('ChatListScreen')}>
+                <Ionicons name="chatbubble-outline" size={24} color="#bea063" style={styles.icon} />
+              </TouchableOpacity>
+            </View>
+          </View>
+          {/* Stories Section as FlatList ListHeaderComponent */}
+          <FlatList
+            data={posts}
+            renderItem={renderPost}
+            keyExtractor={item => item.id?.toString()}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            onEndReached={() => {
+              if (
+                !onEndReachedCalledDuringMomentum.current &&
+                posts.length >= pageSize &&
+                hasNextPage &&
+                !loadingMore &&
+                !loading &&
+                !refreshing
+              ) {
+                fetchPosts(page + 1);
+                onEndReachedCalledDuringMomentum.current = true;
+              }
+            }}
+            onEndReachedThreshold={0.5}
+            onMomentumScrollBegin={() => {
+              onEndReachedCalledDuringMomentum.current = false;
+            }}
+            showsVerticalScrollIndicator={false}
+            ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#bea063" style={{ marginVertical: 16 }} /> : null}
+            ListHeaderComponent={
+              storiesError ? (
+                <Text style={{ color: 'red', textAlign: 'center', marginVertical: 20 }}>{storiesError}</Text>
+              ) : (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.storyList}
                 >
-                  {(!currentUserAvatar || currentUserAvatar === 'null' || currentUserAvatar.includes('placeholder.com')) ? (
-                    <View style={{
-                      width: 62,
-                      height: 62,
-                      borderRadius: 31,
-                      borderWidth: 2,
-                      borderColor: '#bea063',
-                      backgroundColor: '#f5f5f5',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}>
-                      <Ionicons name="person-circle" size={48} color="#bea063" />
-                    </View>
-                  ) : (
-                    <Image
-                      source={{ uri: currentUserAvatar }}
-                      style={{
-                        width: 62,
-                        height: 62,
-                        borderRadius: 31,
-                        borderWidth: 2,
-                        borderColor: '#bea063',
+                  {/* My Story Avatar with Add Icon */}
+                  <View style={{ alignItems: 'center', marginRight: 12 }}>
+                    <TouchableOpacity
+                      style={{ position: 'relative' }}
+                      onPress={() => {
+                        if (myStories.length > 0) {
+                          navigation.navigate('StoryViewerScreen', {
+                            stories: myStories,
+                            initialIndex: 0,
+                            isPersonal: true
+                          });
+                        } else {
+                          Alert.alert('No Story', 'You have not added a story yet.');
+                        }
                       }}
-                    />
-                  )}
-                  {/* Add Icon Overlay */}
-                  <TouchableOpacity
-                    style={{
-                      position: 'absolute',
-                      bottom: -2,
-                      right: -2,
-                      backgroundColor: '#fff',
-                      borderRadius: 12,
-                      borderWidth: 2,
-                      borderColor: '#bea063',
-                      width: 24,
-                      height: 24,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}
-                    onPress={() => navigation.navigate('StoryUpload')}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="add" size={16} color="#bea063" />
-                  </TouchableOpacity>
-                </TouchableOpacity>
-                <Text style={styles.storyUsername} numberOfLines={1}>Your Story</Text>
-              </View>
-              {/* Other users' stories */}
-              {(allStories.length > 0 ? Object.values(allStories.reduce((acc: any, story: any) => {
-                const userId = story.userId;
-                if (!acc[userId]) acc[userId] = [];
-                acc[userId].push(story);
-                return acc;
-              }, {})) : []).map((userStories) => renderStoryCircle(userStories as any[]))}
-            </ScrollView>
-          )
-        }
-        ListEmptyComponent={loading ? <ActivityIndicator size="large" style={{ flex: 1, marginTop: 40 }} /> : error ? <Text style={{ color: 'red', textAlign: 'center', marginTop: 40 }}>{error}</Text> : null}
-      />
+                      activeOpacity={0.7}
+                    >
+                      {(!currentUserAvatar || currentUserAvatar === 'null' || currentUserAvatar.includes('placeholder.com')) ? (
+                        <View style={{
+                          width: 62,
+                          height: 62,
+                          borderRadius: 31,
+                          borderWidth: 2,
+                          borderColor: '#bea063',
+                          backgroundColor: '#f5f5f5',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}>
+                          <Ionicons name="person-circle" size={48} color="#bea063" />
+                        </View>
+                      ) : (
+                        <Image
+                          source={{ uri: currentUserAvatar }}
+                          style={{
+                            width: 62,
+                            height: 62,
+                            borderRadius: 31,
+                            borderWidth: 2,
+                            borderColor: '#bea063',
+                          }}
+                        />
+                      )}
+                      {/* Add Icon Overlay */}
+                      <TouchableOpacity
+                        style={{
+                          position: 'absolute',
+                          bottom: -2,
+                          right: -2,
+                          backgroundColor: '#fff',
+                          borderRadius: 12,
+                          borderWidth: 2,
+                          borderColor: '#bea063',
+                          width: 24,
+                          height: 24,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                        onPress={() => navigation.navigate('StoryUpload')}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="add" size={16} color="#bea063" />
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                    <Text style={styles.storyUsername} numberOfLines={1}>Your Story</Text>
+                  </View>
+                  {/* Other users' stories */}
+                  {(allStories.length > 0 ? Object.values(allStories.reduce((acc: any, story: any) => {
+                    const userId = story.userId;
+                    if (!acc[userId]) acc[userId] = [];
+                    acc[userId].push(story);
+                    return acc;
+                  }, {})) : []).map((userStories) => renderStoryCircle(userStories as any[]))}
+                </ScrollView>
+              )
+            }
+            ListEmptyComponent={error ? <Text style={{ color: 'red', textAlign: 'center', marginTop: 40 }}>{error}</Text> : null}
+          />
+        </>
+      )}
       <ShareModal
         visible={shareModalVisible}
         onClose={() => setShareModalVisible(false)}

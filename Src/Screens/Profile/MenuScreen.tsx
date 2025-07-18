@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Modal, Image, Alert, ActivityIndicator } from 'react-native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+const Ionicons = require('react-native-vector-icons/Ionicons').default;
 import { useDispatch } from 'react-redux';
 import { logoutUser } from '../../Api/Api';
+import { onTemporaryDeactivateAccountAPICall } from '../../Api/Api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Linking } from 'react-native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
+import { RootStackParamList } from '../../Navigation/types';
 const MENU_SECTIONS = [
   {
     title: 'Account Center',
@@ -36,7 +40,8 @@ const MENU_SECTIONS = [
     title: 'More',
     data: [
       { icon: 'lock-open-outline', label: 'Change Password', action: 'ChangePassword' },
-      // { icon: 'person-add-outline', label: 'Add Account', action: 'AddAccount' },
+      { icon: 'person-add-outline', label: 'DeActivete Account', action: 'DeActivateAccount' },
+      { icon: 'person-add-outline', label: 'Delete Account', action: 'DeleteAccount' },
       { icon: 'help-circle-outline', label: 'Help & Support', action: 'Help' },
       { icon: 'log-out-outline', label: 'Log Out', action: 'Logout' },
 
@@ -75,62 +80,121 @@ const ACCOUNT_CENTER_DATA = {
 // type MenuScreenProps = {
 //   navigation: NativeStackNavigationProp<RootStackParamList>;
 // };
-export default function MenuScreen({ navigation ,route }) {
+export default function MenuScreen({ navigation, route }: { navigation: any; route: any }) {
   const [accountCenterModal, setAccountCenterModal] = useState(false);
   const [twoFA, setTwoFA] = useState(ACCOUNT_CENTER_DATA.security.twoFactorEnabled);
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
-  const userData = route.params.data
-  console.log("userData  ------>",userData);
+  const userData = route?.params?.data;
   const profile = userData?.profile || {};
   
   // If you want other items to navigate, you can handle here
   
-  const handleLogout = async () => {
+  // Unified confirmation modal handler for logout and deactivate
+  const handleConfirmAction = async ({
+    title,
+    message,
+    confirmText,
+    onConfirm,
+  }: {
+    title: string;
+    message: string;
+    confirmText: string;
+    onConfirm: () => Promise<void>;
+  }) => {
     Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
+      title,
+      message,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Logout',
+          text: confirmText,
           style: 'destructive',
           onPress: async () => {
             setLoading(true);
             try {
-              // 1. Call logout API
-              const res = await logoutUser();
-              console.log("logout ", res);
+              await onConfirm();
+              setLoading(false);
+            } catch (error) {
+              setLoading(false);
+              Alert.alert('Error', `Failed to ${confirmText.toLowerCase()}. Please try again.`);
+            }
+          },
+        },
+      ]
+    );
+  };
 
-              if (res.status === 200) {
-                // 2. Clear AsyncStorage
-                await AsyncStorage.removeItem('accessToken');
-                await AsyncStorage.removeItem('refreshToken');
-                // Optionally clear all: await AsyncStorage.clear();
+  const handleLogout = async () => {
+    handleConfirmAction({
+      title: 'Logout',
+      message: 'Are you sure you want to logout?',
+      confirmText: 'Logout',
+      onConfirm: async () => {
+        // 1. Call logout API
+        const res = await logoutUser();
+        console.log('logout ', res);
+        if (res.status === 200) {
+          // 2. Clear AsyncStorage
+          await AsyncStorage.removeItem('accessToken');
+          await AsyncStorage.removeItem('refreshToken');
+          // 3. Reset Redux store (dispatch logout action)
+          dispatch({ type: 'AUTH_LOGOUT' });
+          // 4. Reset to Auth stack (Login screen)
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Auth' }],
+          });
+        } else {
+          throw new Error('Logout failed');
+        }
+      },
+    });
+  };
 
-                // 3. Reset Redux store (dispatch logout action)
-                dispatch({ type: 'AUTH_LOGOUT' }); // Adjust this according to your Redux action type
+  const handleDeactivateAccount = async () => {
+  handleConfirmAction({
+    title: 'Deactivate Account',
+    message: 'Are you sure you want to deactivate your account? This action cannot be undone.',
+    confirmText: 'Deactivate',
+    onConfirm: async () => {
+      try {
+        setLoading(true);
+        const accessToken = await AsyncStorage.getItem('accessToken');
+        const res = await onTemporaryDeactivateAccountAPICall(accessToken);
+        console.log("deactivarte", res);
+        
+        if (res.status === 200) {
 
-                // 4. Reset to Auth stack (Login screen)
+          Alert.alert('Success', 'Your account has been deactivated.', [
+            {
+              text: 'OK',
+              onPress: async () => {
+                await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
+                dispatch({ type: 'AUTH_LOGOUT' });
                 navigation.reset({
                   index: 0,
                   routes: [{ name: 'Auth' }],
                 });
-              } else {
-                throw new Error('Logout failed');
-              }
-
-              setLoading(false);
-            } catch (error) {
-              setLoading(false);
-              Alert.alert('Error', 'Failed to logout. Please try again.');
-            }
-          }
+              },
+            },
+          ]);
+        } else {
+          Alert.alert('Error', res.error || 'Failed to deactivate your account. Please try again.');
         }
-      ]
-    );
-  };
-  const handleMenuAction = (action) => {
+      } catch (error) {
+        Alert.alert(
+          'Error',
+          error?.message || 'Unexpected error occurred while deactivating your account.'
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+  });
+};
+
+  const handleMenuAction = (action: string) => {
   if (action === 'Logout') {
     handleLogout();
     return;
@@ -143,6 +207,10 @@ export default function MenuScreen({ navigation ,route }) {
     Linking.openURL('https://ethicalintelligence.in/');
     return;
   }
+  if (action === 'DeActivateAccount') {
+    handleDeactivateAccount();
+    return;
+  }
   if (action) {
     navigation.navigate(action);
   }
@@ -150,18 +218,18 @@ export default function MenuScreen({ navigation ,route }) {
 
   // ... rest of your component code ...
 
-  const MenuOption = ({ icon, label, action, onPress }) => (
+  const MenuOption = ({ icon, label, action, onPress }: { icon: string; label: string; action: string; onPress?: () => void }) => (
     <TouchableOpacity
       style={styles.optionRow}
       onPress={onPress ? onPress : () => handleMenuAction(action)}
     >
       <View style={{ width: 28, alignItems: 'center' }}>
-        <Ionicons name={icon} size={22} color="#222" />
+        {React.createElement(Ionicons, { name: icon, size: 22, color: '#222' })}
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.optionText}>{label}</Text>
       </View>
-      <Ionicons name="chevron-forward-outline" size={18} color="#bbb" style={{ marginLeft: 'auto' }} />
+      {React.createElement(Ionicons, { name: 'chevron-forward-outline', size: 18, color: '#bbb', style: { marginLeft: 'auto' } })}
     </TouchableOpacity>
   );
 
@@ -169,7 +237,7 @@ export default function MenuScreen({ navigation ,route }) {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backIconWrapper}>
-          <Ionicons name="arrow-back" size={26} color="#bea063" />
+          {React.createElement(Ionicons, { name: 'arrow-back', size: 26, color: '#bea063' })}
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
         <View style={{ width: 32 }} /> {/* for symmetrical spacing */}
@@ -194,7 +262,7 @@ export default function MenuScreen({ navigation ,route }) {
                   icon={item.icon}
                   label={item.label}
                   onPress={item.action === 'Logout' ? handleLogout : () => handleMenuAction(item.action)}
-                  action={item.action === 'Logout' ? undefined : item.action} />
+                  action={item.action === 'Logout' ? '' : item.action || ''} />
               )
             )}
           </View>
@@ -213,12 +281,12 @@ export default function MenuScreen({ navigation ,route }) {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text style={styles.modalTitle}>Account Center</Text>
               <TouchableOpacity onPress={() => setAccountCenterModal(false)}>
-                <Ionicons name="close" size={24} color="#555" />
+                {React.createElement(Ionicons, { name: 'close', size: 24, color: '#555' })}
               </TouchableOpacity>
             </View>
             {/* Profile */}
             <View style={styles.profileRow}>
-              <Image source={{ uri: profile.profile_picture }} style={styles.avatar} />
+              <Image source={{ uri: (typeof profile.profile_picture === 'string' && profile.profile_picture ? profile.profile_picture : 'https://randomuser.me/api/portraits/men/11.jpg') as string }} style={styles.avatar} />
               <View>
                 <Text style={styles.username}>{profile.username}</Text>
                 <Text style={styles.info}> {profile.first_name || 'N/A'}</Text>

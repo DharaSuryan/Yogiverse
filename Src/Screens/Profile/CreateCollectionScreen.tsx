@@ -136,7 +136,7 @@ export default function CreateCollectionScreen({navigation}:any) {
           </View>
 
           <View style={styles.infoContainer}>
-            <Icon name="information-circle-outline" size={20} color="#666" />
+            <Icon name="information-circle-outline" size={20} color="#bea063" />
             <Text style={styles.infoText}>
               Create a collection to organize and save your favorite posts
             </Text>
@@ -169,11 +169,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: '#bea063',
   },
   cancelButton: {
     fontSize: 16,
-    color: '#666',
+    color: '#bea063',
   },
   createButton: {
     fontSize: 16,
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#000',
+    color: '#bea063',
     marginBottom: 10,
   },
   input: {
@@ -202,12 +202,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 15,
     fontSize: 16,
-    color: '#000',
+    color: '#bea063',
     backgroundColor: '#f9f9f9',
   },
   characterCount: {
     fontSize: 12,
-    color: '#999',
+    color: '#bea063',
     textAlign: 'right',
     marginTop: 5,
   },
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: '#666',
+    color: '#bea063',
     marginLeft: 10,
     flex: 1,
     lineHeight: 20,

@@ -106,7 +106,7 @@ const MediaEditModal: React.FC<MediaEditModalProps> = ({ uri, onApply, onCancel 
 
   return (
     <View style={styles.modalContainer}>
-      <View style={{ alignItems: 'center' }}>
+      <View style={{ alignItems: 'center' ,justifyContent:'center',marginTop:30}}>
         <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.95 }} style={styles.animatedImage}>
           <RNAnimated.View
             style={[{ transform: [{ scale }] }]}
@@ -132,8 +132,8 @@ const MediaEditModal: React.FC<MediaEditModalProps> = ({ uri, onApply, onCancel 
           data={FILTERS}
           horizontal
           keyExtractor={f => f.key}
-          style={styles.filterBar}
-          contentContainerStyle={{ paddingHorizontal: 10 }}
+          style={[styles.filterBar,{ height: 70 } ]}
+          contentContainerStyle={{ paddingHorizontal: 10, alignItems: 'center' }}
           renderItem={({ item: filter }) => {
             const isSelected = selectedFilter === filter.key;
             const ThumbWrapper = filter.matrix
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  animatedImage: {
+  animatedImage: {  
     width: screenWidth * 0.9,
     height: screenWidth * 0.9,
     backgroundColor: '#fff',
@@ -191,6 +191,8 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   zoomRow: {
+    borderWidth:0,
+    borderColor:'white',
     flexDirection: 'row',
     marginTop: 10,
   },
@@ -207,6 +209,7 @@ const styles = StyleSheet.create({
   filterBar: {
     marginTop: 24,
     marginBottom: 8,
+    borderWidth:0,
   },
   filterChip: {
     alignItems: 'center',
@@ -223,7 +226,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   applyButton: {
-    marginTop: 24,
+    // marginTop: 24,
     backgroundColor: '#bea063',
     paddingHorizontal: 40,
     paddingVertical: 14,

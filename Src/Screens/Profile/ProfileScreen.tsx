@@ -1001,7 +1001,7 @@ const ProfileScreen = ({navigation} : any) => {
         {item.mediaCount && item.mediaCount > 1 && (
           <View style={styles.multipleMediaIndicator}>
             <Ionicons name="copy-outline" size={16} color="#fff" />
-            <Text style={styles.multipleMediaText}>{item.mediaCount}</Text>
+            {/* <Text style={styles.multipleMediaText}>{item.mediaCount}</Text> */}
           </View>
         )}
 
@@ -1173,7 +1173,7 @@ const ProfileScreen = ({navigation} : any) => {
         <Ionicons
           name="grid-outline"
           size={24}
-          color={activeTab === 'posts' ? '#000' : '#888'}
+          color={activeTab === 'posts' ? '#fff' : '#888'}
         />
       </TouchableOpacity>
       <TouchableOpacity
@@ -1182,7 +1182,7 @@ const ProfileScreen = ({navigation} : any) => {
         <Ionicons
           name="play-outline"
           size={24}
-          color={activeTab === 'reels' ? '#000' : '#888'}
+          color={activeTab === 'reels' ? '#fff' : '#888'}
         />
       </TouchableOpacity>
       {isFromSearch ? null : (
@@ -1192,7 +1192,7 @@ const ProfileScreen = ({navigation} : any) => {
           <Ionicons
             name="bookmark-outline"
             size={24}
-            color={activeTab === 'saved' ? '#000' : '#888'}
+            color={activeTab === 'saved' ? '#fff' : '#888'}
           />
         </TouchableOpacity>
       )}
@@ -1271,51 +1271,35 @@ const ProfileScreen = ({navigation} : any) => {
           )}
         </View>
         {/* Action row: like, comment, share, play/pause, mute/unmute, bookmark */}
-        <View style={{flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, justifyContent: 'center'}}>
-          {/* Like button: only show if hide_like_count is false */}
-          {item.hide_like_count === false && (
-            <TouchableOpacity onPress={() => handleLike(item)} disabled={postState.likeLoading} style={{marginRight: 10}}>
-              {postState.likeLoading ? (
-                <ActivityIndicator size={18} color="#bea063" />
-              ) : (
-                <Ionicons name={postState.isLiked ? 'heart' : 'heart-outline'} size={22} color={postState.isLiked ? '#bea063' : '#bea063'} />
-              )}
-            </TouchableOpacity>
-          )}
-          {/* Comment button: only show if allow_comments is false */}
-          {item.allow_comments === false && (
-            <TouchableOpacity onPress={() => handleComment(item)} style={{marginRight: 10}}>
-              <Ionicons name="chatbubble-outline" size={20} color="#bea063" />
-            </TouchableOpacity>
-          )}
-          {/* Share button */}
-          <TouchableOpacity style={{marginRight: 10}}>
-            <Ionicons name="paper-plane-outline" size={20} color="#bea063" />
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 10 }}>
+          {/* Like button and count */}
+          <TouchableOpacity onPress={() => handleLike(item)} disabled={postState.likeLoading} style={{marginRight: 5}}>
+            {postState.likeLoading ? (
+              <ActivityIndicator size={20} color="#bea063" />
+            ) : (
+              <Ionicons name={postState.isLiked ? 'heart' : 'heart-outline'} size={26} color="#bea063" />
+            )}
           </TouchableOpacity>
-          {/* Play/Pause button */}
-          {isVideo && (
-            <TouchableOpacity onPress={() => togglePlayPause(videoId)} style={{marginRight: 10}}>
-              <Ionicons name={videoState.isPlaying ? 'pause' : 'play'} size={22} color="#bea063" />
-            </TouchableOpacity>
-          )}
-          {/* Mute/Unmute button */}
-          {isVideo && (
-            <TouchableOpacity onPress={() => toggleMute(videoId)} style={{marginRight: 10}}>
-              <Ionicons name={videoState.isMuted ? 'volume-mute' : 'volume-high'} size={22} color="#bea063" />
-            </TouchableOpacity>
-          )}
-          {/* Bookmark button */}
-          <View style={{flex: 1}} />
-          <TouchableOpacity>
-            <Ionicons name="bookmark-outline" size={20} color="#bea063" />
+          {item.hide_like_count === false && postState.likesCount > 0 && (
+          <Text style={{color: '#bea063', fontWeight: '600', fontSize: 13, marginRight: 5, marginBottom: 1}}>
+            {postState.likesCount} 
+            {/* {postState.likesCount === 1 ? 'like' : 'likes'} */}
+          </Text>
+        )}
+          {/* Comment button and count */}
+          <TouchableOpacity onPress={() => handleComment(item)} style={{marginLeft: 8}}>
+            <Ionicons name="chatbubble-outline" size={22} color="#bea063" />
+          </TouchableOpacity>
+          <Text style={{ color: '#bea063', fontWeight: '600', marginLeft: 5 }}>
+            {item.comments}
+          </Text>
+          {/* Share button */}
+          <TouchableOpacity onPress={() => handleShare(item)} style={{marginLeft: 10}}>
+            <Ionicons name="share-social-outline" size={24} color="#bea063" />
           </TouchableOpacity>
         </View>
         {/* Likes row */}
-        {item.hide_like_count === false && postState.likesCount > 0 && (
-          <Text style={{color: '#bea063', fontWeight: '600', fontSize: 13, paddingHorizontal: 10, marginBottom: 1}}>
-            {postState.likesCount} {postState.likesCount === 1 ? 'like' : 'likes'}
-          </Text>
-        )}
+        
         {/* Caption row */}
         {item.caption && (
           <Text style={{color: '#fff', fontSize: 13, paddingHorizontal: 10, marginBottom: 1}}>
@@ -1796,6 +1780,11 @@ console.log("mainCategories",mainCategories);
     );
   };
 
+  // Add this function to ProfileScreen if not present
+  const handleShare = (post: any) => {
+    Alert.alert('Share', 'Share functionality coming soon!');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -1826,7 +1815,7 @@ console.log("mainCategories",mainCategories);
         animationType="slide"
         onRequestClose={() => setFullscreenVisible(false)}
         transparent={false}>
-        <SafeAreaView style={{flex: 1, backgroundColor: '#000'}}>
+        <SafeAreaView style={{flex: 1, backgroundColor: '#fff'}}>
           {/* <TouchableOpacity
             style={{position: 'absolute', top: 40, right: 20, zIndex: 1}}
             onPress={() => setFullscreenVisible(false)}>

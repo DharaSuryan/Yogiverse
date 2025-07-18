@@ -72,6 +72,29 @@ interface PostProps {
 const fallbackAvatar = require('../Assets/yoga.jpg');
 const fallbackPostImage = require('../Assets/yoga.jpg');
 
+function formatTimeAgo(dateString: string) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffM = Math.floor(diffMs / (1000 * 60));
+  const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffD = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffMo = Math.floor(diffD / 30);
+  if (diffMo >= 1) {
+    // Show as '27 Apr'
+    return date.toLocaleString('en-US', { day: '2-digit', month: 'short' });
+  } else if (diffD >= 1) {
+    return diffD === 1 ? '1 day ago' : `${diffD} days ago`;
+  } else if (diffH >= 1) {
+    return diffH === 1 ? '1 hour ago' : `${diffH} hours ago`;
+  } else if (diffM >= 1) {
+    return diffM === 1 ? '1 min ago' : `${diffM} mins ago`;
+  } else {
+    return 'just now';
+  }
+}
+
 const Post: React.FC<PostProps> = (props) => {
   const {
     id,
@@ -431,7 +454,7 @@ const Post: React.FC<PostProps> = (props) => {
                       ...prev,
                       [index]: { ...videoState, paused: !videoState.paused }
                     }))}
-                    style={{ marginLeft: 16, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 }}
+                    style={{ marginLeft: 16, backgroundColor: '#fff', borderRadius: 20, padding: 8 }}
                   >
                     <Ionicons name={videoState.paused ? 'play' : 'pause'} size={20} color="#bea063" />
                   </TouchableOpacity>
@@ -440,7 +463,7 @@ const Post: React.FC<PostProps> = (props) => {
                       ...prev,
                       [index]: { ...videoState, muted: !videoState.muted }
                     }))}
-                    style={{ backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 }}
+                    style={{ backgroundColor: '#fff', borderRadius: 20, padding: 8 }}
                   >
                     <Ionicons name={videoState.muted ? 'volume-mute' : 'volume-high'} size={20} color="#bea063" />
                   </TouchableOpacity>
@@ -615,35 +638,34 @@ const Post: React.FC<PostProps> = (props) => {
         onRequestClose={() => setSaveModalVisible(false)}
       >
         <View style={styles.saveModalOverlay}>
-          <View style={styles.saveModalContent}>
-            <View style={styles.saveModalHeader}>
-              <Text style={styles.saveModalTitle}>Save to Collection</Text>
-              <TouchableOpacity
-                onPress={handleCreateCollection}
-                style={{
-                  position: 'absolute',
-                  right: 48,
-                  top: 16,
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: '#bea063',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.2,
-                  shadowRadius: 2,
-                  elevation: 3,
-                }}
-              >
-                {React.createElement(Ionicons, { name: "add", size: 22, color: "#fff" })}
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setSaveModalVisible(false)}>
-                {React.createElement(Ionicons, { name: "close", size: 24, color: "#000" })}
+          <View style={styles.instagramSaveModalContent}>
+            {/* Drag handle */}
+            <View style={{ alignItems: 'center', marginTop: 8, marginBottom: 12 }}>
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#eee' }} />
+            </View>
+            {/* Saved Section */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 18 }}>
+              <Image
+                source={media[0]?.media_file ? { uri: media[0].media_file } : fallbackPostImage}
+                style={{ width: 54, height: 54, borderRadius: 12, marginRight: 14, backgroundColor: '#f5f5f5' }}
+                resizeMode="cover"
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 17, color: '#bea063' }}>Saved</Text>
+                <Text style={{ color: '#bea063', fontSize: 13, marginTop: 2 }}>Private</Text>
+              </View>
+              {React.createElement(Ionicons, { name: 'bookmark', size: 28, color: '#bea063' })}
+            </View>
+            {/* Divider */}
+            <View style={{ height: 1, backgroundColor: '#eee', marginHorizontal: 20, marginBottom: 8 }} />
+            {/* Collections Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 8 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#bea063' }}>Collections</Text>
+              <TouchableOpacity onPress={handleCreateCollection}>
+                <Text style={{ color: '#bea063', fontWeight: 'bold', fontSize: 15 }}>New collection</Text>
               </TouchableOpacity>
             </View>
-            
+            {/* Collections List */}
             {collectionsLoading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#bea063" />
@@ -651,10 +673,8 @@ const Post: React.FC<PostProps> = (props) => {
             ) : collections.length === 0 ? (
               <View style={styles.emptyCollectionsContainer}>
                 {React.createElement(Ionicons, { name: "bookmark-outline", size: 60, color: "#ccc" })}
-                <Text style={styles.emptyCollectionsTitle}>No Collections Yet</Text>
-                <Text style={styles.emptyCollectionsSubtitle}>
-                  Create a collection to save your favorite posts
-                </Text>
+                <Text style={[styles.emptyCollectionsTitle, { color: '#bea063' }]}>No Collections Yet</Text>
+                <Text style={[styles.emptyCollectionsSubtitle, { color: '#bea063' }]}>Create a collection to save your favorite posts</Text>
                 <TouchableOpacity 
                   style={styles.createCollectionButton} 
                   onPress={handleCreateCollection}
@@ -663,14 +683,46 @@ const Post: React.FC<PostProps> = (props) => {
                 </TouchableOpacity>
               </View>
             ) : (
-              <SectionList
-                sections={getSectionData()}
-                renderItem={renderCollectionItem}
-                renderSectionHeader={renderSectionHeader}
-                keyExtractor={(item) => item.id.toString()}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.collectionsList}
-                stickySectionHeadersEnabled={false}
+              <FlatList
+                data={collections}
+                keyExtractor={item => item.id.toString()}
+                renderItem={({ item }) => (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' }}>
+                    {item.cover_image ? (
+                      <Image
+                        source={{ uri: item.cover_image }}
+                        style={{ width: 48, height: 48, borderRadius: 12, marginRight: 14, backgroundColor: '#f5f5f5' }}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 24,
+                        marginRight: 14,
+                        backgroundColor: '#fff',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderWidth: 1,
+                        borderColor: '#bea063',
+                      }}>
+                        {React.createElement(Ionicons, { name: 'person', size: 28, color: '#bea063' })}
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontWeight: 'bold', fontSize: 15, color: '#bea063' }}>{item.name}</Text>
+                      <Text style={{ color: '#bea063', fontSize: 13, marginTop: 2 }}>Private</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => handleCollectionPress(item)} disabled={saveLoading}>
+                      {saveLoading && savingToCollectionId === item.id ? (
+                        <ActivityIndicator size={18} color="#bea063" />
+                      ) : (
+                        React.createElement(Ionicons, { name: 'add-circle-outline', size: 26, color: '#bea063' })
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+                style={{ maxHeight: 320 }}
               />
             )}
           </View>
@@ -713,8 +765,8 @@ const Post: React.FC<PostProps> = (props) => {
           Alert.alert('Hide', 'Hide functionality coming soon!');
         }}
       />
-      <View style={styles.captionContainer}>
-        <Text style={styles.captionUsername}>{username}</Text>
+     {caption &&  <View style={styles.captionContainer}>
+        {/* <Text style={styles.captionUsername}>{username}</Text> */}
         <Text
           style={styles.caption}
           numberOfLines={showFullCaption ? undefined : 2}
@@ -731,17 +783,24 @@ const Post: React.FC<PostProps> = (props) => {
             <Text style={{ color: '#bea063', fontWeight: '600', marginTop: 2 }}>Show less</Text>
           </TouchableOpacity>
         )}
-      </View>
+      </View>}
       {allowComments && (
         <TouchableOpacity onPress={handleComment} style={{paddingHorizontal: 10, marginBottom: 5}}>
-          <Text style={{color: '#888'}}>
+          <Text style={{color: '#bea063'}}>
             {commentCount > 0 ? `View all ${commentCount} comments` : 'Add a comment'}
           </Text>
         </TouchableOpacity>
       )}
       {!!createdAt && (
-        <Text style={{paddingHorizontal: 10, color: '#aaa', fontSize: 12}}>
-          {/* {new Date(createdAt).toLocaleString()} */}
+        <Text style={{
+          paddingHorizontal: 16,
+          color: '#bea063',
+          fontSize: 15,
+          marginTop: !caption ? 4 : 0,
+          marginBottom: 0,
+          lineHeight: 16,
+        }}>
+          {formatTimeAgo(createdAt)}
         </Text>
       )}
     </View>
@@ -772,10 +831,11 @@ const styles = StyleSheet.create({
   username: {
     fontWeight: '600',
     fontSize: 14,
+    color: '#bea063',
   },
   location: {
     fontSize: 12,
-    color: '#888',
+    color: '#bea063',
   },
   postImage: {
     width: Dimensions.get('window').width,
@@ -784,7 +844,9 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 2, // reduce bottom padding
     // alignSelf:'center'
   },
   actionButton: {
@@ -806,9 +868,11 @@ const styles = StyleSheet.create({
   captionUsername: {
     fontWeight: '600',
     marginRight: 5,
+    color: '#bea063',
   },
   caption: {
     flex: 1,
+    color: '#bea063',
   },
   // Save Modal Styles
   saveModalOverlay: {
@@ -937,6 +1001,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#222',
     fontWeight: '400',
+  },
+  instagramSaveModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 0,
+    paddingBottom: 0,
+    maxHeight: '90%',
+    width: '100%',
+    alignSelf: 'flex-end',
+    overflow: 'hidden',
   },
 });
 

@@ -105,8 +105,8 @@ const MediaEditModal: React.FC<MediaEditModalProps> = ({ uri, onApply, onCancel 
   };
 
   return (
-    <View style={styles.modalContainer}>
-      <View style={{ alignItems: 'center' }}>
+    <View style={[styles.modalContainer, { justifyContent: 'center', alignItems: 'center', flex: 1 }]}>
+      <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}>
         <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.95 }} style={styles.animatedImage}>
           <RNAnimated.View
             style={[{ transform: [{ scale }] }]}
@@ -132,8 +132,8 @@ const MediaEditModal: React.FC<MediaEditModalProps> = ({ uri, onApply, onCancel 
           data={FILTERS}
           horizontal
           keyExtractor={f => f.key}
-          style={styles.filterBar}
-          contentContainerStyle={{ paddingHorizontal: 10 }}
+          style={[styles.filterBar, { marginTop: 8, marginBottom: 0, alignSelf: 'center' }]}
+          contentContainerStyle={{ paddingHorizontal: 6, alignItems: 'center', minHeight: 0, justifyContent: 'center' }}
           renderItem={({ item: filter }) => {
             const isSelected = selectedFilter === filter.key;
             const ThumbWrapper = filter.matrix
@@ -142,7 +142,11 @@ const MediaEditModal: React.FC<MediaEditModalProps> = ({ uri, onApply, onCancel 
             return (
               <TouchableOpacity
                 onPress={() => setSelectedFilter(filter.key)}
-                style={[styles.filterChip, isSelected && styles.selectedChip]}
+                style={[
+                  styles.filterChip,
+                  { marginVertical: 0, paddingVertical: 4, height: 64 },
+                  isSelected && styles.selectedChip
+                ]}
               >
                 <ThumbWrapper>
                   <Image
@@ -178,6 +182,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.95)',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 0,
   },
   animatedImage: {
     width: screenWidth * 0.9,

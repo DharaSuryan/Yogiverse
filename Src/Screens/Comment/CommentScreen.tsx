@@ -56,14 +56,15 @@ const CommentScreen = () => {
   const [newComment, setNewComment] = useState('');
   const [posting, setPosting] = useState(false);
   const sectionListRef = useRef<SectionList>(null);
+  const Ionicons = require('react-native-vector-icons/Ionicons').default;
 
   useEffect(() => {
     fetchComments();
   }, [object_id, content_type]);
 
   const fetchComments = async () => {
-    console.log("content_type .....",content_type,object_id);
-    
+    console.log("content_type .....", content_type, object_id);
+
     try {
       setLoading(true);
       const authToken = await AsyncStorage.getItem('accessToken');
@@ -74,8 +75,8 @@ const CommentScreen = () => {
           'Authorization': `Bearer ${authToken}`
         }
       });
-      console.log("res .....",res?.data?.data);
-      
+      console.log("res .....", res?.data?.data);
+
       // Map the response data to our comment structure
       const formattedComments = res.data?.data?.map((item: any) => ({
         id: item.id,
@@ -114,8 +115,8 @@ const CommentScreen = () => {
           'Authorization': `Bearer ${authToken}`
         }
       });
-      console.log("yes called .....",response);
-      
+      console.log("yes called .....", response);
+
 
       if (response.data.success) {
         const newCommentData = response.data.data;
@@ -137,15 +138,15 @@ const CommentScreen = () => {
       }
     } catch (err) {
       setError('Failed to post comment');
-      console.error('Error posting comment:',  err);
+      console.error('Error posting comment:', err);
     } finally {
       setPosting(false);
     }
   };
 
   const toggleLike = async (commentId: number, item: any) => {
-    console.log("item .....",item);
-    
+    console.log("item .....", item);
+
     try {
       const authToken = await AsyncStorage.getItem('accessToken');
       const updatedComments = comments.map(comment => {
@@ -159,20 +160,20 @@ const CommentScreen = () => {
         return comment;
       });
       setComments(updatedComments);
-      console.log("here comes ....",content_type,object_id);
-      
-     let like =  await axios.post(`https://pashuahar.com/like-toggle/`, {
+      console.log("here comes ....", content_type, object_id);
+
+      let like = await axios.post(`https://pashuahar.com/like-toggle/`, {
         content_type, object_id
       }, {
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
       });
-      console.log("likes .....",like?.data);
-      
+      console.log("likes .....", like?.data);
 
-    } 
-    
+
+    }
+
     catch (err) {
       // Revert if API call fails
       fetchComments();
@@ -182,10 +183,12 @@ const CommentScreen = () => {
 
   const renderComment = ({ item }: { item: Comment }) => (
     <View style={styles.commentContainer}>
-      <Image
-        source={{ uri: 'https://i.imgur.com/dM8JY3A.jpg' }} // Default image or use user's profile picture if available
-        style={styles.commentUserImage}
-      />
+      {/* Show default avatar with #bea063 color and initials if no profile picture */}
+      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#bea063', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+        <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>
+          {item.full_name ? item.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase() : (item.user_name ? item.user_name[0].toUpperCase() : '?')}
+        </Text>
+      </View>
       <View style={styles.commentContent}>
         <Text style={styles.commentUsername}>{item.user_name || 'user'}</Text>
         <Text style={styles.commentText}>{item.text}</Text>
@@ -210,7 +213,7 @@ const CommentScreen = () => {
     const date = new Date(timestamp);
     const now = new Date();
     const diffInHours = Math.abs(now.getTime() - date.getTime()) / (1000 * 60 * 60);
-    
+
     if (diffInHours < 1) {
       const diffInMinutes = Math.round(diffInHours * 60);
       return `${diffInMinutes}m ago`;
@@ -232,8 +235,8 @@ const CommentScreen = () => {
         <View style={styles.header}>
           <TouchableOpacity onPress={() => {
             navigation.goBack()
-                 
-                  // navigation.navigate('UserProfile' as any, { userId: undefined });
+
+            // navigation.navigate('UserProfile' as any, { userId: undefined });
           }} style={styles.backButton}>
             <Icon name="arrow-back" size={24} color="#000" />
           </TouchableOpacity>
@@ -275,26 +278,33 @@ const CommentScreen = () => {
 
         {/* Comment Input */}
         <View style={styles.inputContainer}>
-          <Image
-            source={{ uri: profile_picture || 'https://i.imgur.com/dM8JY3A.jpg' }}
-            style={styles.userAvatar}
-          />
+          {/* Default user icon avatar with #bea063 background */}
+          <View style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: '#f5f5f5',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            {React.createElement(Ionicons, { name: "person-circle", size: 44, color: "#bea063" })}
+          </View>
           <TextInput
             style={styles.input}
             placeholder="Add a comment..."
-            placeholderTextColor="#999"
+            placeholderTextColor="#bea063"
             value={newComment}
             onChangeText={setNewComment}
             editable={!posting}
           />
-          <TouchableOpacity 
-            onPress={handlePostComment} 
+          <TouchableOpacity
+            onPress={handlePostComment}
             disabled={posting || !newComment.trim()}
             style={styles.postButton}
           >
             <Text style={[
               styles.postButtonText,
-              { color: newComment.trim() ? '#3897f0' : '#c5e3fc' }
+              { color: newComment.trim() ? '#bea063' : '#bea063' }
             ]}>
               {posting ? 'Posting...' : 'Post'}
             </Text>
@@ -328,6 +338,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
+    color: "#bea063"
   },
   headerRight: {
     width: 24,

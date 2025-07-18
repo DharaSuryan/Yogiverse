@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { ColorMatrix } from 'react-native-color-matrix-image-filters';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -32,8 +33,20 @@ const PostPreviewScreen = ({ route, navigation }) => {
     if (onPost) onPost();
   };
 
+  const handleBack = () => {
+    navigation.goBack();
+  };
+
   return (
     <View style={styles.container}>
+      {/* Header with back arrow */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={28} color="#bea063" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Preview</Text>
+        <View style={{width: 28}} />
+      </View>
       <ScrollView horizontal pagingEnabled style={styles.mediaScroll}>
         {media.map((item, idx) => {
           console.log("ites m....",item)
@@ -78,8 +91,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     alignItems: 'center',
-    justifyContent: 'center',
+    // justifyContent: 'center',
     padding: 16,
+  },
+  header: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    marginBottom: 8,
+  },
+  backButton: {
+    padding: 4,
+    marginLeft: 2,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#bea063',
+    textAlign: 'center',
+    flex: 1,
   },
   mediaScroll: {
     maxHeight: screenWidth * 0.95,

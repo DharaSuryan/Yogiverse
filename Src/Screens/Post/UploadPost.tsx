@@ -462,8 +462,8 @@ const UploadPost = ({ navigation, route }) => {
             // editable={!uploading}
           />
         </View>
-        <View style={{paddingHorizontal: 15, marginBottom: 10}}>
-          <Text style={{fontSize: 16, marginBottom: 5, color: '#bea063'}}>Add Location</Text>
+        <View style={{paddingHorizontal: 15, marginBottom: 5}}>
+          <Text style={{fontSize: 16, marginTop: 5, color: '#bea063'}}>Add Location</Text>
           <TouchableOpacity style={[styles.locationButton, { backgroundColor: '#fff', borderColor: '#bea063', borderWidth: 1, borderRadius: 8, padding: 10, marginTop: 10, marginBottom: 10 }]}
             onPress={() => setShowLocationPicker(true)}>
             <Text style={{ color: '#bea063' }}>{selectedLocation ? selectedLocation.display_name : 'Select Location'}</Text>

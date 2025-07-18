@@ -270,11 +270,11 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
       <View style={{flex:1}}>
         {loading ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text>Loading notifications...</Text>
+            <Text style={{ color: '#bea063' }}>Loading notifications...</Text>
           </View>
         ) : error ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ color: 'red' }}>{error}</Text>
+            <Text style={{ color: '#bea063' }}>{error}</Text>
           </View>
         ) : (
           <SectionList
@@ -336,15 +336,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   notificationText: {
-    color: '#222',
+    color: '#bea063',
     fontSize: 15,
   },
   username: {
     fontWeight: 'bold',
-    color: '#222',
+    color: '#bea063',
   },
   timestamp: {
-    color: '#888',
+    color: '#bea063',
     fontSize: 12,
     marginTop: 2,
   },

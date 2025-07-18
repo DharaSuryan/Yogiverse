@@ -672,3 +672,19 @@ export const unfollowUser = async (userId: string): Promise<ApiResponse> => {
     message: 'Unfollowed user successfully',
   };
 };
+ 
+
+export const onTemporaryDeactivateAccountAPICall = async (accessToken) => {
+
+    const response = await api.post('/deactivate/',{
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+     
+      })
+      return {
+    data: response.data,
+    status: response.status,
+    message: response.statusText,
+  };
+};

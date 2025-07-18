@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, Modal, TextInput, Image } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from 'Src/Navigation/types';
 import Icon from 'react-native-vector-icons/Feather';
@@ -13,6 +13,7 @@ type Follower = {
   last_name: string;
   email: string;
   phone_no: string;
+  profile_picture?: string; // allow profile_picture for avatar
 };
 
 type Group = {
@@ -41,6 +42,8 @@ const ChatListScreen = () => {
   const [search, setSearch] = useState('');
   const navigation = useNavigation<ChatListScreenNavigationProp>();
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const route = useRoute();
+  const { userid } = (route.params || {}) as { userid?: number };
 
   useEffect(() => {
     fetchChats();
@@ -79,8 +82,11 @@ const ChatListScreen = () => {
       chat: group,
       is_single_chat: group.is_single_chat,
       chat_name: group.group_name, // or group.chat_name if you want
-      group_members: group.group_members
-    });
+      group_members: group.group_members,
+    
+      // group_members: group.group_members,
+      userid, // pass it along!
+    } as any); // typecast to any to avoid TS error if needed
   };
 
   const handleGroupDetails = async (group: Group) => {

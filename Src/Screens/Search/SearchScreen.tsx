@@ -295,7 +295,7 @@ console.log("categories",categories);
         />
       </View>
       {loading ? (
-        <ActivityIndicator size="large" color="#000" style={{ marginTop: 20 }} />
+        <ActivityIndicator size="large" color="#bea063" style={{ marginTop: 20 }} />
       ) : error ? (
         <Text style={{ color: 'red', textAlign: 'center' }}>{error}</Text>
       ) : (

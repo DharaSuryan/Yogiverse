@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Platform,
   Keyboard, StatusBar, TouchableWithoutFeedback, Alert, ActivityIndicator
@@ -6,7 +6,7 @@ import {
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../../Store/actions/authActions';
 import { NativeStackNavigationProp, CommonActions } from '@react-navigation/native';
-import { RootStackParamList, MainTabParamList, HomeStackParamList, AuthStackParamList } from '../../Navigation/types';
+import { RootStackParamList } from '../../Navigation/types';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { loginUser, registerDeviceWithFCMToken } from '../../Api/Api';
@@ -14,8 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useBackHandler } from '../../Utils/BackHandler';
-import { saveAccount } from '../../Utils/accountManager';
-import { navigate, reset } from '../../Component/Route';
+import { reset } from '../../Component/Route';
 import DeviceInfo from "react-native-device-info";
 
 
@@ -132,6 +131,9 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
         Alert.alert('Login Failed', 'Invalid username or password');
         console.error('Login error:', error);
       }
+    }
+    finally{
+       setLoading(false);
     }
   };
 
