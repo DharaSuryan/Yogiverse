@@ -238,7 +238,7 @@ const CommentScreen = () => {
 
             // navigation.navigate('UserProfile' as any, { userId: undefined });
           }} style={styles.backButton}>
-            <Icon name="arrow-back" size={24} color="#000" />
+            <Icon name="arrow-back" size={24} color="#bea063" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Comments</Text>
           <View style={styles.headerRight} />

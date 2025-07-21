@@ -13,6 +13,7 @@ import {
   Modal,
   Alert,
   TextInput,
+  SectionList,
 } from 'react-native';
 const Ionicons = require('react-native-vector-icons/Ionicons').default;
 import Video from 'react-native-video';
@@ -26,6 +27,7 @@ import {
 } from '@react-navigation/native';
 import {getProfile, getUserPosts, getUserReels} from '../../Api/Api';
 import LocationPicker, {LocationOption} from '../../Components/LocationPicker';
+import CommentModal from '../../Components/CommentModal';
 // import {getAccounts, switchAccount} from '../../Utils/accountManager';
 //  import { Image as Compressor } from 'react-native-compressor';
 
@@ -291,16 +293,9 @@ const ProfileScreen = ({navigation} : any) => {
   };
 
   const handleComment = (post: any) => {
-    // Close fullscreen modal before navigating to comment screen
-    setFullscreenVisible(false);
-
-    // Small delay to ensure modal is closed before navigation
-    setTimeout(() => {
-      navigation.navigate('CommentScreen', {
-        content_type: post.type === 'reel' ? 'reel' : 'post',
-        object_id: post.id,
-      });
-    }, 100);
+    // Don't close fullscreen modal, just show comment modal on top
+    setSelectedCommentPost(post);
+    setIsCommentModalVisible(true);
   };
 
   const handleOptions = (post: any) => {
@@ -1173,7 +1168,7 @@ const ProfileScreen = ({navigation} : any) => {
         <Ionicons
           name="grid-outline"
           size={24}
-          color={activeTab === 'posts' ? '#fff' : '#888'}
+          color={activeTab === 'posts' ? '#bea063' : '#888'}
         />
       </TouchableOpacity>
       <TouchableOpacity
@@ -1182,7 +1177,7 @@ const ProfileScreen = ({navigation} : any) => {
         <Ionicons
           name="play-outline"
           size={24}
-          color={activeTab === 'reels' ? '#fff' : '#888'}
+          color={activeTab === 'reels' ? '#bea063' : '#888'}
         />
       </TouchableOpacity>
       {isFromSearch ? null : (
@@ -1192,7 +1187,7 @@ const ProfileScreen = ({navigation} : any) => {
           <Ionicons
             name="bookmark-outline"
             size={24}
-            color={activeTab === 'saved' ? '#fff' : '#888'}
+            color={activeTab === 'saved' ? '#bea063' : '#888'}
           />
         </TouchableOpacity>
       )}
@@ -1287,12 +1282,16 @@ const ProfileScreen = ({navigation} : any) => {
           </Text>
         )}
           {/* Comment button and count */}
-          <TouchableOpacity onPress={() => handleComment(item)} style={{marginLeft: 8}}>
-            <Ionicons name="chatbubble-outline" size={22} color="#bea063" />
-          </TouchableOpacity>
-          <Text style={{ color: '#bea063', fontWeight: '600', marginLeft: 5 }}>
-            {item.comments}
-          </Text>
+          {item.allow_comments !== false && (
+            <>
+              <TouchableOpacity onPress={() => handleComment(item)} style={{marginLeft: 8}}>
+                <Ionicons name="chatbubble-outline" size={22} color="#bea063" />
+              </TouchableOpacity>
+              <Text style={{ color: '#bea063', fontWeight: '600', marginLeft: 5 }}>
+                {item.comments}
+              </Text>
+            </>
+          )}
           {/* Share button */}
           <TouchableOpacity onPress={() => handleShare(item)} style={{marginLeft: 10}}>
             <Ionicons name="share-social-outline" size={24} color="#bea063" />
@@ -1784,6 +1783,9 @@ console.log("mainCategories",mainCategories);
   const handleShare = (post: any) => {
     Alert.alert('Share', 'Share functionality coming soon!');
   };
+
+  const [isCommentModalVisible, setIsCommentModalVisible] = useState(false);
+  const [selectedCommentPost, setSelectedCommentPost] = useState<any>(null);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -2878,6 +2880,23 @@ console.log("mainCategories",mainCategories);
           <ActivityIndicator size="large" color="#bea063" />
         </View>
       )}
+console.log("selectedCommentPost",selectedCommentPost);
+
+      {selectedCommentPost && (
+        <CommentModal
+          visible={isCommentModalVisible}
+          onClose={() => {
+            setIsCommentModalVisible(false);
+            setSelectedCommentPost(null);
+          }}
+          content_type={selectedCommentPost.type === 'reel' ? 'reel' : 'post'}
+          object_id={parseInt(selectedCommentPost.id)}
+          media_url={selectedCommentPost.media?.[0]?.media_file}
+          username={selectedCommentPost.username}
+          profile_picture={selectedCommentPost.userAvatar}
+          caption={selectedCommentPost.caption}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -2977,9 +2996,9 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
     borderTopWidth: 1,
-    borderTopColor: '#ddd',
+    borderTopColor: '#bea063',
     borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+    borderBottomColor: '#bea063',
   },
   tabButton: {
     flex: 1,
@@ -2988,7 +3007,7 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     borderBottomWidth: 2,
-    borderBottomColor: '#000',
+    borderBottomColor: '#bea063',
   },
   postsGrid: {
     padding: 1,

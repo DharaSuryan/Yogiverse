@@ -21,6 +21,7 @@ import type { RootStackParamList } from '../Navigation/types';
 const Ionicons = require('react-native-vector-icons/Ionicons').default;
 import Video from 'react-native-video';
 import OptionsBottomSheet from '../Components/OptionsBottomSheet';
+import CommentModal from '../Components/CommentModal';
 
 interface Collection {
   id: number;
@@ -146,6 +147,7 @@ const Post: React.FC<PostProps> = (props) => {
   const [showFullCaption, setShowFullCaption] = useState(false);
   // Add state for save (collection) loading
   const [saveCollectionLoading, setSaveCollectionLoading] = useState(false);
+  const [isCommentModalVisible, setIsCommentModalVisible] = useState(false);
 
   const getMediaUri = (item: any) => {
     if (item.media_file) return item.media_file.startsWith('http') ? item.media_file : `http://192.168.1.160:9001${item.media_file}`;
@@ -581,7 +583,7 @@ const Post: React.FC<PostProps> = (props) => {
                   React.createElement(Ionicons, { name: isLiked ? 'heart' : 'heart-outline', size: 26, color: isLiked ? '#bea063' : '#bea063' })
                 )}
               </TouchableOpacity>
-              <Text style={{ color: '#bea063', fontWeight: '600', marginLeft: 4, marginRight: 12 }}>{likesCount}</Text>
+              <Text style={{ color: '#bea063', fontWeight: '600', marginLeft: 4, marginRight: 0 }}>{likesCount}</Text>
             </>
           )}
 
@@ -804,6 +806,16 @@ const Post: React.FC<PostProps> = (props) => {
           {formatTimeAgo(createdAt)}
         </Text>
       )}
+      <CommentModal
+        visible={isCommentModalVisible}
+        onClose={() => setIsCommentModalVisible(false)}
+        content_type={contentType === 'reel' ? 'reel' : 'post'}
+        object_id={parseInt(id)}
+        media_url={media[0]?.media_file}
+        username={username}
+        profile_picture={userAvatar}
+        caption={caption}
+      />
     </View>
   );
 };

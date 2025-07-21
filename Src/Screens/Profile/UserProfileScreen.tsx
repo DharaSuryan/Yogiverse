@@ -25,6 +25,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import {useNavigation, useFocusEffect, useRoute, CommonActions} from '@react-navigation/native';
 import {getProfile, getUserPosts, getUserReels} from '../../Api/Api';
+import CommentModal from '../../Components/CommentModal';
 //  import { Image as Compressor } from 'react-native-compressor';
 
 const {width} = Dimensions.get('window');
@@ -302,16 +303,10 @@ const UserProfileScreen = ({navigation}:any) => {
   };
 
   const handleComment = (post: any) => {
-    // Close fullscreen modal before navigating to comment screen
+    // Close fullscreen modal before showing comment modal
     setFullscreenVisible(false);
-
-    // Small delay to ensure modal is closed before navigation
-    setTimeout(() => {
-      navigation.navigate('CommentScreen', {
-        content_type: post.type === 'reel' ? 'reel' : 'post',
-        object_id: post.id,
-      });
-    }, 100);
+    setSelectedCommentPost(post);
+    setIsCommentModalVisible(true);
   };
 
   const handleOptions = (post: any) => {
@@ -1581,6 +1576,9 @@ console.log("datat......" , data);
   // Add this state near the top, after other useState hooks
   const [optionsModalVisible, setOptionsModalVisible] = useState(false);
 
+  const [isCommentModalVisible, setIsCommentModalVisible] = useState(false);
+  const [selectedCommentPost, setSelectedCommentPost] = useState<any>(null);
+
   useEffect(() => {
     if (route?.params?.showOptionsModal) {
       setOptionsModalVisible(true);
@@ -2103,6 +2101,22 @@ console.log("datat......" , data);
             </TouchableOpacity>
           </View>
         </View>
+      )}
+
+      {selectedCommentPost && (
+        <CommentModal
+          visible={isCommentModalVisible}
+          onClose={() => {
+            setIsCommentModalVisible(false);
+            setSelectedCommentPost(null);
+          }}
+          content_type={selectedCommentPost.type === 'reel' ? 'reel' : 'post'}
+          object_id={parseInt(selectedCommentPost.id)}
+          media_url={selectedCommentPost.media?.[0]?.media_file}
+          username={selectedCommentPost.username}
+          profile_picture={selectedCommentPost.userAvatar}
+          caption={selectedCommentPost.caption}
+        />
       )}
     </SafeAreaView>
   );

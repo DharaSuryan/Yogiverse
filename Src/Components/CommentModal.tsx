@@ -37,7 +37,7 @@ interface Comment {
 interface CommentModalProps {
   visible: boolean;
   onClose: () => void;
-  content_type: 'Post_App | post' | 'Post_App | reel';
+  content_type: 'post' | 'reel';
   object_id: number;
   media_url?: string;
   username?: string;
@@ -131,6 +131,7 @@ const CommentModal: React.FC<CommentModalProps> = ({
           'Authorization': `Bearer ${authToken}`
         }
       });
+    
       if (response.data.success) {
         const newCommentData = response.data.data;
         setComments(prev => [...prev, {
@@ -145,7 +146,7 @@ const CommentModal: React.FC<CommentModalProps> = ({
           updated_at: newCommentData.updated_at,
           is_liked: false,
           likes_count: 0,
-          profile_picture: profile_picture || 'https://i.imgur.com/dM8JY3A.jpg'
+           profile_picture: profile_picture || 'https://i.imgur.com/dM8JY3A.jpg'
         }]);
         setNewComment('');
       }
@@ -164,19 +165,17 @@ const CommentModal: React.FC<CommentModalProps> = ({
 
   const renderComment = ({ item }: { item: Comment }) => (
     <View style={styles.commentContainer}>
-      {item.profile_picture && item.profile_picture !== '' && item.profile_picture !== null && item.profile_picture !== undefined && !item.profile_picture.includes('i.imgur.com/dM8JY3A.jpg') ? (
-        <Image
-          source={{ uri: item.profile_picture }}
-          style={styles.commentUserImage}
-        />
-      ) : (
-        React.createElement(Ionicons, { name: 'person-circle', size: 44, color: '#bea063', style: styles.commentUserImage })
-      )}
+      {/* Show default avatar with #bea063 color and initials if no profile picture */}
+      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#bea063', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+        <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>
+          {item.full_name ? item.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase() : (item.user_name ? item.user_name[0].toUpperCase() : '?')}
+        </Text>
+      </View>
       <View style={styles.commentContent}>
-        <Text style={[styles.commentUsername, { color: '#bea063' }]}>{item.user_name || 'user'}</Text>
+        <Text style={styles.commentUsername}>{item.user_name || 'user'}</Text>
         <Text style={styles.commentText}>{item.text}</Text>
         <View style={styles.commentFooter}>
-          <Text style={[styles.commentTime, { color: '#bea063' }]}>{formatTime(item.created_at)}</Text>
+          <Text style={styles.commentTime}>{formatTime(item.created_at)}</Text>
           {/* <Text style={styles.commentLikes}>{item.likes_count || 0} likes</Text> */}
           {/* <Text style={styles.commentReply}>Reply</Text> */}
         </View>
@@ -248,10 +247,10 @@ const CommentModal: React.FC<CommentModalProps> = ({
           </ScrollView>
           {/* Comment Input */}
           <View style={styles.inputContainer}>
-            <Image
+            {/* <Image
               source={{ uri: profile_picture || 'https://i.imgur.com/dM8JY3A.jpg' }}
               style={styles.userAvatar}
-            />
+            /> */}
             <TextInput
               style={[styles.input, { borderColor: '#bea063', color: '#bea063' }]}
               placeholder="Add a comment..."
@@ -264,7 +263,7 @@ const CommentModal: React.FC<CommentModalProps> = ({
             <TouchableOpacity 
               onPress={handlePostComment} 
               disabled={posting || !newComment.trim()}
-              style={[styles.postButton, { backgroundColor: '#bea063' }]}
+              style={[styles.postButton,  ]}
             >
               <Text style={[
                 styles.postButtonText,
@@ -285,6 +284,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.3)',
     justifyContent: 'flex-end',
+    zIndex: 9999, // Add high z-index to ensure it shows on top
   },
   modalContainer: {
     backgroundColor: '#fff',
@@ -294,6 +294,7 @@ const styles = StyleSheet.create({
     maxHeight: height * 0.95,
     paddingBottom: 0,
     overflow: 'hidden',
+    zIndex: 10000, // Add high z-index to ensure it shows on top
   },
   dragIndicator: {
     width: 40,
@@ -358,10 +359,12 @@ const styles = StyleSheet.create({
   commentUsername: {
     fontWeight: 'bold',
     marginBottom: 2,
+    color: '#bea063',
   },
   commentText: {
     marginBottom: 5,
     lineHeight: 20,
+    color: '#000',
   },
   commentFooter: {
     flexDirection: 'row',
