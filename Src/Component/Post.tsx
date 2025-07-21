@@ -632,6 +632,7 @@ const Post: React.FC<PostProps> = (props) => {
 
       {/* Save to Collection Modal */}
       <Modal
+      onTouchCancel={() =>setSaveModalVisible(false)}
         visible={saveModalVisible}
         transparent
         animationType="slide"

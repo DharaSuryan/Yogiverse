@@ -281,7 +281,21 @@ const UploadPost = ({ navigation, route }) => {
             [
               {
                 text: 'OK',
-                onPress: () => navigation.goBack(),
+                onPress: () => {
+
+                  navigation.dispatch(
+                          CommonActions.reset({
+                            index: 0,
+                            routes: [{
+                              name: 'MainTab',
+                              params: {
+                                screen: 'HomeTab',
+                                refreshStories: true
+                              }
+                            }]
+                          })
+                        );
+                },
               },
             ]
           );
@@ -469,12 +483,12 @@ const UploadPost = ({ navigation, route }) => {
             <Text style={{ color: '#bea063' }}>{selectedLocation ? selectedLocation.display_name : 'Select Location'}</Text>
           </TouchableOpacity>
         </View>
-        {isFromStory && (
+        {/* {isFromStory && (
           <View style={{flexDirection:'row',alignItems:'center',paddingLeft:15,marginTop:10}}>
             <Text style={{fontSize:16,marginRight:10}}>Highlight this story?</Text>
             <Switch value={isHighlighted} onValueChange={setIsHighlighted} disabled={uploading} />
           </View>
-        )}
+        )} */}
        {isFromStory ? null : <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginVertical: 24 }}>
           <View style={{ alignItems: 'center' }}>
             <Text style={{ color: '#bea063', marginBottom: 8 }}>Draft</Text>

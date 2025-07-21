@@ -1,5 +1,5 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
-import { Story } from '../Types';
+import { Story } from '../Types/index';
 
 export type RootStackParamList = {
   SplashScreen: undefined;
@@ -40,7 +40,15 @@ export type RootStackParamList = {
   UploadOptionsScreen: undefined;
   PostDetailScreen: { postId: string };
   ChatListScreen: undefined;
-  ChatScreen: { chatId: string; chat: any };
+  ChatScreen: {
+    chatId: string;
+    chat: any;
+    is_single_chat: boolean;
+    chat_name: string;
+    group_icon?: string;
+    group_members: any;
+    userid: string | number;
+  };
   UploadPost: any;
   LocationConfirmScreen: {
     location: {

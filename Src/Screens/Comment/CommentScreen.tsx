@@ -194,8 +194,8 @@ const CommentScreen = () => {
         <Text style={styles.commentText}>{item.text}</Text>
         <View style={styles.commentFooter}>
           <Text style={styles.commentTime}>{formatTime(item.created_at)}</Text>
-          <Text style={styles.commentLikes}>{item.likes_count || 0} likes</Text>
-          <Text style={styles.commentReply}>Reply</Text>
+          {/* <Text style={styles.commentLikes}>{item.likes_count || 0} likes</Text> */}
+          {/* <Text style={styles.commentReply}>Reply</Text> */}
         </View>
       </View>
       {/* <TouchableOpacity onPress={() => toggleLike(item.id , item)} style={styles.likeButton}>

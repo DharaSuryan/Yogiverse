@@ -107,8 +107,7 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
         // });
       } else {
         Alert.alert('Login Failed', 'Invalid username or password');
-        console.log("response .... message ",response.message);
-        
+        console.log("response .... message ",response.message);      
       }
     } catch (error) {
       if (
@@ -164,8 +163,9 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
 
               <View style={styles.passwordContainer}>
                 <TextInput
-                  style={[styles.input, styles.passwordInput]}
+                  style={[styles.input, styles.passwordInput,{ color: '#000' }]}
                   placeholder="Password"
+                  // clearTextOnFocus={"black"}
                   placeholderTextColor="#999" // Update placeholder color to gray
                   onChangeText={handleChange('password')}
                   onBlur={handleBlur('password')}

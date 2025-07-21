@@ -1815,6 +1815,16 @@ console.log("mainCategories",mainCategories);
         animationType="slide"
         onRequestClose={() => setFullscreenVisible(false)}
         transparent={false}>
+        {/* Full-screen white background to prevent white flashes */}
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: '#fff',
+          zIndex: 0,
+        }} />
         <SafeAreaView style={{flex: 1, backgroundColor: '#fff'}}>
           {/* <TouchableOpacity
             style={{position: 'absolute', top: 40, right: 20, zIndex: 1}}
@@ -1867,8 +1877,11 @@ console.log("mainCategories",mainCategories);
               showsVerticalScrollIndicator={false}
               viewabilityConfig={viewabilityConfig}
               onViewableItemsChanged={onViewableItemsChanged}
-              initialNumToRender={3}
-              windowSize={5}
+              removeClippedSubviews={false}
+              initialNumToRender={10}
+              maxToRenderPerBatch={10}
+              windowSize={21}
+              contentContainerStyle={{ backgroundColor: '#fff' }}
             />
           )}
         </SafeAreaView>

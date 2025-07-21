@@ -30,6 +30,7 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(null);
   const [userid,setUserId] = useState();
+  const [newUsers,newUser] = useState();
   const [myStories, setMyStories] = useState<Story[]>([]);
   const [allStories, setAllStories] = useState<Story[]>([]);
   const onEndReachedCalledDuringMomentum = useRef(false);
@@ -68,8 +69,9 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
     // Fetch profile picture
     await getProfile().then(profileRes => {
       const profilePic = profileRes?.data?.data?.profile?.profile_picture
-      console.log("profile pix...." , profileRes?.data?.data?.profile?.id);
+      console.log("profile pix...." , profileRes?.data?.data);
       setUserId(profileRes?.data?.data?.profile?.id)
+      newUser(profileRes?.data?.data?.profile?.user)
       
       setCurrentUserAvatar(profilePic || 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User');
     });
@@ -378,7 +380,7 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
               <TouchableOpacity onPress={() => navigation.navigate('Notifications' as never)}>
                 <Ionicons name="notifications-outline" size={24} color="#bea063" style={styles.icon} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => navigation.navigate('ChatListScreen')}>
+              <TouchableOpacity onPress={() => navigation.navigate('ChatListScreen',{userid : newUsers})}>
                 <Ionicons name="chatbubble-outline" size={24} color="#bea063" style={styles.icon} />
               </TouchableOpacity>
             </View>

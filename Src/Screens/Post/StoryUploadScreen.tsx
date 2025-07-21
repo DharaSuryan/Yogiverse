@@ -154,7 +154,7 @@ const StoryUploadScreen = () => {
               onChangeText={setCaption}
               multiline
             />
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+            {/* <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
               <Text style={{ fontSize: 16, marginRight: 10, color: '#bea063' }}>Highlight this story?</Text>
               <Switch
                 value={isHighlighted}
@@ -162,7 +162,7 @@ const StoryUploadScreen = () => {
                 trackColor={{ false: '#ccc', true: '#bea063' }}
                 thumbColor={isHighlighted ? '#bea063' : '#fff'}
               />
-            </View>
+            </View> */}
             <TouchableOpacity
               style={[styles.locationButton, { borderColor: '#bea063' }]}
               onPress={() => setActiveModal('location')}

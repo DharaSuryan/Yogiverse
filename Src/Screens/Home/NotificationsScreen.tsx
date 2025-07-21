@@ -135,6 +135,12 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
         },
         { headers }
       );
+      // Mark notification as read
+      await axios.post(
+        `https://pashuahar.com/follower/notifications/${item?.id}/read/`,
+        {},
+        { headers }
+      );
       fetchNotifications();
       Alert.alert('Success', 'Follow request approved!');
       // Optionally update notification state here
@@ -158,6 +164,12 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
           request_id: item?.data?.request_id,
           action: 'reject'
         },
+        { headers }
+      );
+      // Mark notification as read
+      await axios.post(
+        `https://pashuahar.com/follower/notifications/${item?.id}/read/`,
+        {},
         { headers }
       );
       fetchNotifications();
@@ -239,16 +251,16 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({ navigation })
           {isFollowRequest && item.is_read === false && (
             <View style={{ flexDirection: 'row', marginTop: 8 }}>
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
+                style={[styles.actionButton, styles.acceptButton]}
                 onPress={() => handleApprove(item)}
               >
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Accept</Text>
+                <Text style={styles.acceptButtonText}>Accept</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: '#F44336', marginLeft: 8 }]}
+                style={[styles.actionButton, styles.rejectButton]}
                 onPress={() => handleReject(item)}
               >
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Reject</Text>
+                <Text style={styles.rejectButtonText}>Reject</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -354,6 +366,24 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+  },
+  acceptButton: {
+    backgroundColor: '#bea063',
+    borderColor: '#bea063',
+    marginRight: 8,
+  },
+  acceptButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  rejectButton: {
+    backgroundColor: '#fff',
+    borderColor: '#bea063',
+  },
+  rejectButtonText: {
+    color: '#bea063',
+    fontWeight: 'bold',
   },
 });
 

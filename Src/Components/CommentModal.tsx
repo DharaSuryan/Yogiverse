@@ -17,6 +17,7 @@ import {
 import axios, { AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 const Ionicons = require('react-native-vector-icons/Ionicons').default;
+const defaultAvatar = require('../Assets/userProfile.png');
 
 interface Comment {
   id: number;
@@ -163,17 +164,21 @@ const CommentModal: React.FC<CommentModalProps> = ({
 
   const renderComment = ({ item }: { item: Comment }) => (
     <View style={styles.commentContainer}>
-      <Image
-        source={{ uri: item.profile_picture || 'https://i.imgur.com/dM8JY3A.jpg' }}
-        style={styles.commentUserImage}
-      />
+      {item.profile_picture && item.profile_picture !== '' && item.profile_picture !== null && item.profile_picture !== undefined && !item.profile_picture.includes('i.imgur.com/dM8JY3A.jpg') ? (
+        <Image
+          source={{ uri: item.profile_picture }}
+          style={styles.commentUserImage}
+        />
+      ) : (
+        React.createElement(Ionicons, { name: 'person-circle', size: 44, color: '#bea063', style: styles.commentUserImage })
+      )}
       <View style={styles.commentContent}>
-        <Text style={styles.commentUsername}>{item.user_name || 'user'}</Text>
+        <Text style={[styles.commentUsername, { color: '#bea063' }]}>{item.user_name || 'user'}</Text>
         <Text style={styles.commentText}>{item.text}</Text>
         <View style={styles.commentFooter}>
-          <Text style={styles.commentTime}>{formatTime(item.created_at)}</Text>
-          <Text style={styles.commentLikes}>{item.likes_count || 0} likes</Text>
-          <Text style={styles.commentReply}>Reply</Text>
+          <Text style={[styles.commentTime, { color: '#bea063' }]}>{formatTime(item.created_at)}</Text>
+          {/* <Text style={styles.commentLikes}>{item.likes_count || 0} likes</Text> */}
+          {/* <Text style={styles.commentReply}>Reply</Text> */}
         </View>
       </View>
     </View>
@@ -206,9 +211,9 @@ const CommentModal: React.FC<CommentModalProps> = ({
           <View style={styles.dragIndicator} />
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Comments</Text>
+            <Text style={[styles.headerTitle, { color: '#bea063' }]}>Comments</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              {React.createElement(Ionicons, { name: 'close', size: 24, color: '#000' })}
+              {React.createElement(Ionicons, { name: 'close', size: 24, color: '#bea063' })}
             </TouchableOpacity>
           </View>
           {/* Content */}
@@ -218,7 +223,7 @@ const CommentModal: React.FC<CommentModalProps> = ({
               <View style={styles.postPreview}>
                 <Image source={{ uri: media_url }} style={styles.postImage} />
                 <View style={styles.postCaption}>
-                  <Text style={styles.captionUsername}>{username}</Text>
+                  <Text style={[styles.captionUsername, { color: '#bea063' }]}>{username}</Text>
                   <Text style={styles.captionText}>{caption}</Text>
                 </View>
               </View>
@@ -236,7 +241,7 @@ const CommentModal: React.FC<CommentModalProps> = ({
                 renderItem={renderComment}
                 renderSectionHeader={() => null}
                 ListEmptyComponent={
-                  <Text style={styles.emptyComments}>No comments yet</Text>
+                  <Text style={[styles.emptyComments, { color: '#bea063' }]}>No comments yet</Text>
                 }
               />
             )}
@@ -248,21 +253,22 @@ const CommentModal: React.FC<CommentModalProps> = ({
               style={styles.userAvatar}
             />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { borderColor: '#bea063', color: '#bea063' }]}
               placeholder="Add a comment..."
               placeholderTextColor="#999"
               value={newComment}
               onChangeText={setNewComment}
               editable={!posting}
+              multiline
             />
             <TouchableOpacity 
               onPress={handlePostComment} 
               disabled={posting || !newComment.trim()}
-              style={styles.postButton}
+              style={[styles.postButton, { backgroundColor: '#bea063' }]}
             >
               <Text style={[
                 styles.postButtonText,
-                { color: newComment.trim() ? '#3897f0' : '#c5e3fc' }
+                { color: newComment.trim() ? '#fff' : '#c5e3fc' }
               ]}>
                 {posting ? 'Posting...' : 'Post'}
               </Text>
