@@ -21,6 +21,27 @@ interface Message {
 
 type ChatScreenRouteProp = RouteProp<RootStackParamList, 'ChatScreen'>;
 
+  // Helper function to format time as relative time (e.g., "15 minutes ago")
+  const formatRelativeTime = (timestamp: string) => {
+    const now = new Date();
+    const messageTime = new Date(timestamp);
+    const diff = now.getTime() - messageTime.getTime();
+    
+    const minutes = Math.floor(diff / 1000 / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    const months = Math.floor(days / 30);
+
+    if (minutes < 1) return "Just now";
+    if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    if (days < 30) return `${days} day${days > 1 ? 's' : ''} ago`;
+    if (months < 12) return `${months} month${months > 1 ? 's' : ''} ago`;
+    
+    // For older messages, show date
+    return messageTime.toLocaleDateString();
+  };
+
 const ChatScreen = () => {
   const route = useRoute<ChatScreenRouteProp>();
   const navigation = useNavigation();
@@ -52,7 +73,29 @@ const ChatScreen = () => {
   const [selectedGroupIcon, setSelectedGroupIcon] = useState<string | null>(null);
   const [groupNameInput, setGroupNameInput] = useState(chat_name || '');
   const [updatingGroup, setUpdatingGroup] = useState(false);
+  const [otherMember, setOtherMember] = useState<any | null>(null);
   
+  // Fetch other member data for single chat
+  // useEffect(() => {
+  //   console.log("here comes ....",chat_name, is_single_chat , chatId , token);
+    
+  //   if (is_single_chat && chatId && token) {
+  //     axios.get(`https://pashuahar.com/chat_app/chats/${chatId}/members/`, {
+  //       headers: { Authorization: `Bearer ${token}` },
+  //     })
+  //     .then(res => {
+  //       if (Array.isArray(res.data)) {
+  //         const members = res.data;
+  //         const otherMember = members.find((m: any) => m.id !== userid);
+  //         setOtherMember(otherMember);
+  //       }
+  //     })
+  //     .catch(err => {
+  //       console.error('Error fetching chat members:', err);
+  //     });
+  //   }
+  // }, [is_single_chat, chatId, token, userid]);
+
   // Helper: is current user admin?
   const isCurrentUserAdmin = React.useMemo(() => {
     const me = group_members.members.find((m: any) => m.id === userid);
@@ -420,15 +463,25 @@ const ChatScreen = () => {
 
   // Pick image/file
   const handlePickFile = async () => {
-    ImagePicker.launchImageLibrary({ mediaType: 'mixed', includeBase64: true }, response => {
+    ImagePicker.launchImageLibrary({ 
+      mediaType: 'mixed',
+      includeBase64: true,
+      selectionLimit: 10, // Allow up to 10 files to be selected at once
+      multiple: true, // Enable multiple selection
+    }, response => {
       if (response.didCancel || !response.assets || response.assets.length === 0) return;
-      const asset = response.assets[0];
-      if (asset.base64 && asset.fileName && asset.type) {
-        setSelectedFiles(prev => [
-          ...prev,
-          { name: asset.fileName as string, type: asset.type as string, data: `data:${asset.type};base64,${asset.base64}` },
-        ]);
-      }
+      
+      // Process all selected assets
+      const newFiles = response.assets
+        .filter(asset => asset.base64 && asset.fileName && asset.type)
+        .map(asset => ({
+          name: asset.fileName as string,
+          type: asset.type as string,
+          data: `data:${asset.type};base64,${asset.base64}`,
+        }));
+
+      // Update selected files
+      setSelectedFiles(prev => [...prev, ...newFiles]);
     });
   };
 
@@ -481,7 +534,7 @@ const ChatScreen = () => {
                 <Text style={{ color: '#fff', fontSize: 12 }}>{member.first_name?.[0]}</Text>
               </View>
             )}
-            <Text style={styles.senderName}>{member.first_name} {member.type ? `(${member.type})` : ''}</Text>
+            <Text style={styles.senderName}>{member.first_name} {(member.type && !is_single_chat) ? `(${member.type})` : ''}</Text>
           </View>
         )}
         {isMe && (
@@ -546,7 +599,7 @@ const ChatScreen = () => {
             )}
           </View>
         )}
-        <Text style={styles.timeText}>{new Date(item.sent_at).toLocaleTimeString()}</Text>
+        <Text style={styles.timeText}>{formatRelativeTime(item.sent_at)}</Text>
       </View>
     );
   };
@@ -560,7 +613,19 @@ const ChatScreen = () => {
         <TouchableOpacity
           style={{ flexDirection: 'row', alignItems: 'center' }}
           activeOpacity={0.7}
-          onPress={() => setMembersModalVisible(true)}
+          onPress={() => {
+            if (is_single_chat) {
+              const otherMember = group_members.members.find((m: any) => m.id !== userid);
+              if (otherMember) {
+                navigation.navigate('UserProfile', { 
+                  userId: otherMember.id.toString(), 
+                  isFromSearch: true 
+                });
+              }
+            } else {
+              setMembersModalVisible(true);
+            }
+          }}
         >
           {is_single_chat ? (
             (() => {
@@ -585,6 +650,7 @@ const ChatScreen = () => {
             })()
           ) : (
             <>
+            
               {group_icon ? (
                 <Image source={{ uri: group_icon }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 8 }} />
               ) : (
@@ -593,6 +659,7 @@ const ChatScreen = () => {
                 </View>
               )}
               <View>
+                
                 <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#bea063' }}>{chat_name}</Text>
               </View>
             </>
@@ -749,17 +816,21 @@ const ChatScreen = () => {
               <TouchableOpacity onPress={() => setMembersModalVisible(false)} style={styles.backButtonModern}>
                 {React.createElement(Ionicons, { name: "chevron-back", size: 28, color: "#bea063" })}
               </TouchableOpacity>
-              <View>
-                <Text style={styles.groupNameModern}>{chat_name}</Text>
-                <Text style={styles.memberCountModern}>{group_members.members.length} members</Text>
-              </View>
+              {!is_single_chat && (
+                <View>
+                  <Text style={styles.groupNameModern}>{chat_name}</Text>
+                  <Text style={styles.memberCountModern}>{group_members.members.length} members</Text>
+                </View>
+              )}
             </View>
             {/* Section Title */}
-            <View style={styles.sectionTitleRowModern}>
-              <Text style={styles.sectionTitleModern}>GROUP MEMBERS</Text>
-            </View>
+            {!is_single_chat && (
+              <View style={styles.sectionTitleRowModern}>
+                <Text style={styles.sectionTitleModern}>GROUP MEMBERS</Text>
+              </View>
+            )}
             {/* Add Members Row - Only show for group chats with admin user */}
-            {shouldShowAdminControls && (
+            {!is_single_chat && shouldShowAdminControls && (
               <TouchableOpacity
                 style={styles.addMembersRowModern}
                 onPress={handleAddMembers}
@@ -775,35 +846,52 @@ const ChatScreen = () => {
               sections={[
                 {
                   title: 'Group Members',
-                  data: group_members.members
+                  data: is_single_chat
+                    ? group_members.members.filter((m: any) => m.id !== userid)
+                    : group_members.members
                 }
               ]}
               keyExtractor={item => item.id.toString()}
               style={{ backgroundColor: '#fff' }}
               contentContainerStyle={{ paddingBottom: 24 }}
-              renderItem={({ item }) => {
-                const isMe = item.id === userid;
-                return (
-                  <View style={styles.memberRowModern}>
-                    {item.profile_picture ? (
-                      <Image source={{ uri: item.profile_picture }} style={styles.avatarModern} />
-                    ) : (
-                      <View style={styles.avatarPlaceholderModern}>
-                        <Text style={styles.avatarInitialModern}>{item.first_name?.[0]}</Text>
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.memberRowModern}
+                  onPress={() => {
+                    if (!is_single_chat) {
+                      navigation.navigate('UserProfile', { 
+                        userId: item.id.toString(), 
+                        isFromSearch: true 
+                      });
+                    }
+                  }}
+                  disabled={is_single_chat}
+                >
+                  {item.profile_picture ? (
+                    <Image source={{ uri: item.profile_picture }} style={styles.avatarModern} />
+                  ) : (
+                    <View style={styles.avatarPlaceholderModern}>
+                      <Text style={styles.avatarInitialModern}>{item.first_name?.[0]}</Text>
+                    </View>
+                  )}
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={styles.memberNameModern}>
+                      {`${item.first_name} ${item.last_name}`}
+                    </Text>
+                    {item.type === 'admin' && (
+                      <View style={styles.adminBadge}>
+                        <Text style={styles.adminBadgeText}>Admin</Text>
                       </View>
                     )}
-                    <Text style={[styles.memberNameModern, isMe && styles.memberNameMeModern]}>
-                      {isMe ? 'You' : `${item.first_name} ${item.last_name}`}
-                    </Text>
-                    {/* Remove button for admin, not for self */}
-                    {!isMe && shouldShowAdminControls && (
-                      <TouchableOpacity onPress={() => handleRemoveMember(item)} style={styles.removeMemberButtonModern}>
-                        <Text style={styles.removeMemberTextModern}>✖</Text>
-                      </TouchableOpacity>
-                    )}
                   </View>
-                );
-              }}
+                  {/* Remove button for admin, not for self, only in group chat */}
+                  {!is_single_chat && item.id !== userid && shouldShowAdminControls && (
+                    <TouchableOpacity onPress={() => handleRemoveMember(item)} style={styles.removeMemberButtonModern}>
+                      <Text style={styles.removeMemberTextModern}>✖</Text>
+                    </TouchableOpacity>
+                  )}
+                </TouchableOpacity>
+              )}
               renderSectionHeader={() => null}
               ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 24 }}>No members found.</Text>}
             />
@@ -1079,6 +1167,18 @@ const ChatScreen = () => {
 };
 
 const styles = StyleSheet.create({
+  adminBadge: {
+    marginLeft: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: '#bea063',
+    borderRadius: 4,
+  },
+  adminBadgeText: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '500',
+  },
   container: { flex: 1, backgroundColor: '#fff' },
   header: {
     flexDirection: 'row',

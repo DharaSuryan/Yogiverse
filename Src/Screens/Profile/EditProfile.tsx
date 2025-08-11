@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,51 +8,61 @@ import {
   SafeAreaView,
   ScrollView,
   Alert,
-  Image,
-  ActivityIndicator,
-  Modal,
-  FlatList,
-  Dimensions,
+  Image, Modal,
+  FlatList
 } from 'react-native';
-import {launchImageLibrary} from 'react-native-image-picker';
-import api, {
-  fetchCountries,
-  fetchStates,
-  fetchCities,
-} from '../../Api/Api';
-import {MultiSelect} from 'react-native-element-dropdown';
+import { launchImageLibrary } from 'react-native-image-picker';
+import api, { editProfile, fetchCountries } from '../../Api/Api';
 import DocumentPicker from 'react-native-document-picker';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 const Ionicons = require('react-native-vector-icons/Ionicons').default;
 
-// ... (Your interfaces stay the same)
+// --- Helper for FormData (arrays, files, empty checks) ---
+const buildFormData = (values, files = {}) => {
+  const formData = new FormData();
+  Object.entries(values).forEach(([key, value]) => {
+    // Arrays as repeated fields
+    if (Array.isArray(value) && value.length > 0) {
+      value.forEach(val => formData.append(key, val));
+    } else if ((key === 'country' || key === 'state' || key === 'city')) {
+      if (value) formData.append(key, value);
+    } else if (typeof value === 'string' && value.trim() !== '') {
+      formData.append(key, value);
+    } else if (typeof value === 'number' || typeof value === 'boolean') {
+      formData.append(key, value);
+    }
+  });
+  // Files (images/docs)
+  Object.entries(files).forEach(([key, file]) => {
+    if (file?.uri) {
+      formData.append(key, {
+        uri: file.uri,
+        type: file.type || 'application/octet-stream',
+        name: file.fileName || `${key}.jpg`,
+      });
+    }
+  });
+  return formData;
+};
 
-// ... (constants and Dimension code unchanged)
-
-const EditProfile = ({navigation, route}: any) => {
-  const {role: initialRole, data}: {role: string; data: ProfileData} = route.params || {role: 'user'};
+const EditProfile = ({ navigation, route }: any) => {
+  const { role: initialRole, data }: { role: string; data: any } = route.params || { role: 'user' };
 
   // State for non-Formik fields
   const [role, setRole] = useState(initialRole);
   const [profileImage, setProfileImage] = useState<string | null>(null);
 
   // Location and category picker states
-  const [allCountries, setAllCountries] = useState<Country[]>([]);
-  const [filteredStates, setFilteredStates] = useState<State[]>([]);
-  const [filteredCities, setFilteredCities] = useState<City[]>([]);
+  const [allCountries, setAllCountries] = useState<any[]>([]);
+  const [filteredStates, setFilteredStates] = useState<any[]>([]);
+  const [filteredCities, setFilteredCities] = useState<any[]>([]);
   const [countrySearch, setCountrySearch] = useState('');
   const [stateSearch, setStateSearch] = useState('');
   const [citySearch, setCitySearch] = useState('');
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [showStatePicker, setShowStatePicker] = useState(false);
   const [showCityPicker, setShowCityPicker] = useState(false);
-  const [isLoadingCountries, setIsLoadingCountries] = useState(false);
-  const [isLoadingStates, setIsLoadingStates] = useState(false);
-  const [isLoadingCities, setIsLoadingCities] = useState(false);
-  const [hasMoreCountries, setHasMoreCountries] = useState(true);
-  const [hasMoreStates, setHasMoreStates] = useState(true);
-  const [hasMoreCities, setHasMoreCities] = useState(true);
 
   // File/image/document states (not managed by Formik directly)
   const [logoFile, setLogoFile] = useState<any>(null);
@@ -64,16 +74,13 @@ const EditProfile = ({navigation, route}: any) => {
   const [msmeFile, setMsmeFile] = useState<any>(null);
 
   // Categories/subcategories
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [availableSubCategories, setAvailableSubCategories] = useState<any[]>([]);
-
+  const [categories, setCategories] = useState<any[]>([]);
   const [userId, setUserId] = useState(data.profile.user);
 
+  // --- Fetch countries & categories ---
   useEffect(() => {
-    // Get all countries
     const fetchAllCountries = async () => {
-      setIsLoadingCountries(true);
-      let page = 1, all: Country[] = [];
+      let page = 1, all: any[] = [];
       while (true) {
         const res = await fetchCountries(page, 10);
         if (!res?.data?.data) break;
@@ -82,7 +89,6 @@ const EditProfile = ({navigation, route}: any) => {
         page++;
       }
       setAllCountries(all);
-      setIsLoadingCountries(false);
     };
     fetchAllCountries();
   }, []);
@@ -111,7 +117,7 @@ const EditProfile = ({navigation, route}: any) => {
 
   // File and image pickers
   const pickImage = (setter: (file: any) => void) => {
-    launchImageLibrary({mediaType: 'photo', quality: 0.8}, response => {
+    launchImageLibrary({ mediaType: 'photo', quality: 0.8 }, response => {
       if (response.assets && response.assets.length > 0) {
         setter(response.assets[0]);
       }
@@ -120,7 +126,7 @@ const EditProfile = ({navigation, route}: any) => {
 
   const pickDocument = async (setter: (file: any) => void) => {
     try {
-      const res = await DocumentPicker.pickSingle({type: [DocumentPicker.types.allFiles]});
+      const res = await DocumentPicker.pickSingle({ type: [DocumentPicker.types.allFiles] });
       setter(res);
     } catch (err) {
       if (!DocumentPicker.isCancel(err)) {
@@ -129,7 +135,7 @@ const EditProfile = ({navigation, route}: any) => {
     }
   };
 
-  // Location Pickers (triggered from within Formik)
+  // --- Pickers for location ---
   const renderCountryPicker = (setFieldValue: any) => (
     <Modal visible={showCountryPicker} transparent animationType="slide" onRequestClose={() => setShowCountryPicker(false)}>
       <View style={styles.modalContainer}>
@@ -199,7 +205,6 @@ const EditProfile = ({navigation, route}: any) => {
                   setFieldValue('state', item.id);
                   setFieldValue('city', '');
                   setShowStatePicker(false);
-                  // Fetch cities for this state
                   (async () => {
                     const cities = await fetchCityList(item.id);
                     setFilteredCities(cities);
@@ -251,7 +256,7 @@ const EditProfile = ({navigation, route}: any) => {
     </Modal>
   );
 
-  // Initial form values (extract from `data`)
+  // --- Initial form values from props/data ---
   const initialValues = {
     first_name: data.profile.first_name || '',
     last_name: data.profile.last_name || '',
@@ -261,8 +266,8 @@ const EditProfile = ({navigation, route}: any) => {
     phone_no: data.profile.phone_no || '',
     business_name: data?.vendor_profile?.business_name || '',
     description: data?.vendor_profile?.description || '',
-    main_categories: data?.vendor_profile?.main_categories?.map(cat => cat.id) || [],
-    selected_subcategories: data?.vendor_profile?.subcategories?.map(sub => sub.id) || [],
+    main_categories: data?.vendor_profile?.main_categories?.map((cat: any) => cat.id) || [],
+    selected_subcategories: data?.vendor_profile?.subcategories?.map((sub: any) => sub.id) || [],
     aadhar_number: data?.vendor_profile?.aadhar_number || '',
     achievement_awards: data?.vendor_profile?.achievement_awards || '',
     business_presence: data?.vendor_profile?.business_presence || '',
@@ -271,14 +276,13 @@ const EditProfile = ({navigation, route}: any) => {
     gst_number: data?.vendor_profile?.gst_number || '',
     pan_number: data?.vendor_profile?.pan_number || '',
     perma_link: data?.vendor_profile?.perma_link || '',
-    status: data?.vendor_profile?.status || 'published',
     country: data.profile.country?.id || '',
     state: data.profile.state?.id || '',
     city: data.profile.city?.id || '',
-    // file fields: leave empty, will handle with local state
+    role:role,
   };
 
-  // Validation schema (remove unnecessary fields for now)
+  // --- Validation schema ---
   const validationSchema = Yup.object({
     first_name: Yup.string().required('First Name is required'),
     last_name: Yup.string().required('Last Name is required'),
@@ -289,57 +293,49 @@ const EditProfile = ({navigation, route}: any) => {
       is: () => role === 'vendor',
       then: Yup.string().required('Business Name is required')
     }),
-    // ... more validation as needed ...
   });
 
-  // Submit handler
-  const handleSubmit = async (values: any, { setSubmitting }: any) => {
-    setSubmitting(true);
-    try {
-      const formData = new FormData();
-      for (let key in values) {
-        formData.append(key, values[key]);
-      }
-      // Attach files if selected
-      if (logoFile?.uri) {
-        formData.append('logo', {
-          uri: logoFile.uri,
-          type: logoFile.type || 'image/jpeg',
-          name: logoFile.fileName || 'logo.jpg',
-        });
-      }
-      // Profile image
-      if (profileImage && !profileImage.startsWith('http')) {
-        formData.append('profile_picture', {
-          uri: profileImage,
-          type: 'image/jpeg',
-          name: 'profile.jpg',
-        });
-      }
-      // ... repeat for other document fields if needed
+  // --- Submit handler (uses buildFormData) ---
+ const handleSubmit = async (values: any, { setSubmitting }: any) => {
+  setSubmitting(true);
+  try {
+    // Collect files
+    const files = {
+      logo: logoFile,
+      banner: bannerFile,
+      pan: panFile,
+      aadhar: aadharFile,
+      gst: gstFile,
+      company_registration: companyRegFile,
+      msme: msmeFile,
+      profile_picture: profileImage && !profileImage.startsWith('http')
+        ? { uri: profileImage, type: 'image/jpeg', name: 'profile.jpg' }
+        : null,
+    };
 
-      const response = await api.patch(`/profile/${userId}/`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+    const formData = buildFormData(values, files);
+    console.log("formdata  ;;;;;", formData);
 
-      if (response.data) {
-        Alert.alert('Success', 'Profile updated successfully');
-        navigation.navigate('Profile')
-      } else {
-        Alert.alert('Error', 'Failed to update profile');
-      }
-    } catch (error: any) {
-      console.error('Error:', error);
-      Alert.alert('Error', error.message || 'Something went wrong.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    // Do not use formData.entries() in React Native!
+    // If you want to see what's inside, you can log the keys:
+    // console.log('FormData:', formData);
 
-  // Main render
+    const response = editProfile(userId,formData)
+    console.log("response",response);
+
+   
+  } catch (error: any) {
+    console.error('Error:', error);
+    Alert.alert('Error', error.message || 'Something went wrong.');
+  } finally {
+    setSubmitting(false);
+  }
+};
+
+
+  // --- Main render ---
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with Back Arrow */}
       <View style={styles.headerContainer}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#bea063" />
@@ -352,7 +348,7 @@ const EditProfile = ({navigation, route}: any) => {
           {/* Profile Image */}
           <View style={styles.profileImageContainer}>
             {profileImage ? (
-              <Image source={{uri: profileImage}} style={styles.profileImage} />
+              <Image source={{ uri: profileImage }} style={styles.profileImage} />
             ) : (
               <View style={styles.profileImagePlaceholder} />
             )}
@@ -422,7 +418,7 @@ const EditProfile = ({navigation, route}: any) => {
                 <View style={styles.formGroup}>
                   <Text style={styles.label}>Phone No</Text>
                   <TextInput
-                  editable={false}
+                    editable={false}
                     style={styles.input}
                     value={values.phone_no}
                     onChangeText={handleChange('phone_no')}
@@ -482,9 +478,6 @@ const EditProfile = ({navigation, route}: any) => {
                 {renderCountryPicker(setFieldValue)}
                 {renderStatePicker(setFieldValue, values.country)}
                 {renderCityPicker(setFieldValue)}
-
-                {/* Vendor fields go here, use Formik as above */}
-
                 <TouchableOpacity
                   style={styles.button}
                   onPress={handleSubmit}
@@ -501,9 +494,11 @@ const EditProfile = ({navigation, route}: any) => {
     </SafeAreaView>
   );
 };
+
+// --- Styles ---
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#fff'},
-  content: {padding: 20, paddingBottom: 40},
+  container: { flex: 1, backgroundColor: '#fff' },
+  content: { padding: 20, paddingBottom: 40 },
   header: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -525,19 +520,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 10,
   },
-  picker: {
-    backgroundColor: '#fafafa',
-    borderColor: '#ccc',
-    borderWidth: 1,
-    marginBottom: 10,
-  },
-  loadMoreButton: {
-    padding: 8,
-    alignItems: 'center',
-    marginTop: -6,
-    marginBottom: 16,
-  },
-  loadMore: {color: '#bea063', fontSize: 14},
   button: {
     backgroundColor: '#bea063',
     padding: 15,
@@ -546,17 +528,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 40,
   },
-  buttonText: {color: '#fff', fontSize: 16, fontWeight: '600'},
-  passwordField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderColor: '#dbdbdb',
-    borderRadius: 5,
-    backgroundColor: '#fafafa',
-    paddingHorizontal: 10,
-    marginBottom: 10,
-  },
-  passwordInput: {flex: 1, padding: 12, fontSize: 16},
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   modalContainer: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -570,9 +542,9 @@ const styles = StyleSheet.create({
     width: '80%',
     maxHeight: '80%',
   },
-  modalHeader: {flexDirection: 'row', alignItems: 'center', marginBottom: 10},
-  modalTitle: {flex: 1, fontSize: 18, fontWeight: 'bold'},
-  closeButton: {fontSize: 16, fontWeight: 'bold'},
+  modalHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  modalTitle: { flex: 1, fontSize: 18, fontWeight: 'bold' },
+  closeButton: { fontSize: 16, fontWeight: 'bold' },
   searchInput: {
     backgroundColor: '#fafafa',
     borderColor: '#ccc',
@@ -580,10 +552,11 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 10,
   },
-  locationItem: {padding: 10, borderBottomWidth: 1, borderBottomColor: '#ccc'},
-  locationItemText: {fontSize: 16},
-  loadingContainer: {padding: 10, alignItems: 'center'},
-  locationContainer: {marginBottom: 20},
+  locationItem: { padding: 10, borderBottomWidth: 1, borderBottomColor: '#ccc' },
+  locationItemText: { fontSize: 16 },
+  emptyContainer: { padding: 20, alignItems: 'center' },
+  emptyText: { color: '#666', fontSize: 16 },
+  locationContainer: { marginBottom: 20 },
   locationField: {
     backgroundColor: '#fafafa',
     borderColor: '#ccc',
@@ -592,116 +565,20 @@ const styles = StyleSheet.create({
     padding: 15,
     marginBottom: 10,
   },
-  locationLabel: {fontSize: 12, color: '#666', marginBottom: 5},
-  locationValue: {fontSize: 16, color: '#000'},
-  locationValueDisabled: {color: '#999'},
-  profileImageContainer: {alignItems: 'center', marginBottom: 20},
-  profileImage: {width: 100, height: 100, borderRadius: 50},
+  locationLabel: { fontSize: 12, color: '#666', marginBottom: 5 },
+  locationValue: { fontSize: 16, color: '#000' },
+  locationValueDisabled: { color: '#999' },
+  profileImageContainer: { alignItems: 'center', marginBottom: 20 },
+  profileImage: { width: 100, height: 100, borderRadius: 50 },
   profileImagePlaceholder: {
     width: 100,
     height: 100,
     borderRadius: 50,
     backgroundColor: '#ccc',
   },
-  selectPhotoText: {marginTop: 10, color: '#bea063', fontSize: 14},
-  locationFieldDisabled: {opacity: 0.5},
+  selectPhotoText: { marginTop: 10, color: '#bea063', fontSize: 14 },
+  locationFieldDisabled: { opacity: 0.5 },
   formContainer: {},
-  submitButton: {
-    backgroundColor: '#bea063',
-    padding: 15,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 40,
-  },
-  submitButtonText: {color: '#fff', fontSize: 16, fontWeight: '600'},
-  emptyContainer: {padding: 20, alignItems: 'center'},
-  emptyText: {color: '#666', fontSize: 16},
-  dropcontainer: {
-    backgroundColor: 'white',
-    padding: 16,
-  },
-  dropdown: {
-    height: 50,
-    borderColor: 'gray',
-    borderWidth: 0.5,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-  },
-  icon: {
-    marginRight: 5,
-  },
-  label: {
-    // position: 'absolute',
-    backgroundColor: 'white',
-    // left: 22,
-    // top: 8,
-    zIndex: 999,
-    paddingHorizontal: 8,
-    fontSize: 14,
-  },
-  placeholderStyle: {
-    fontSize: 16,
-  },
-  selectedTextStyle: {
-    fontSize: 16,
-  },
-  iconStyle: {
-    width: 20,
-    height: 20,
-  },
-  inputSearchStyle: {
-    height: 40,
-    fontSize: 16,
-  },
-  formMainContainer: {
-    backgroundColor: '#fff',
-    padding: 24,
-    borderRadius: 12,
-    margin: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    alignItems: 'stretch',
-  },
-  sectionHeader: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#bea063',
-    marginBottom: 24,
-    alignSelf: 'flex-start',
-  },
-  formGroup: {
-    marginBottom: 20,
-  },
-  textArea: {
-    minHeight: 60,
-    textAlignVertical: 'top',
-  },
-  fileButton: {
-    backgroundColor: '#bea063',
-    borderRadius: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  fileButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  fileName: {
-    marginTop: 6,
-    color: '#888',
-    fontSize: 14,
-  },
-  filePreview: {
-    width: 80,
-    height: 80,
-    marginVertical: 8,
-    borderRadius: 8,
-  },
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -712,13 +589,10 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e0e0e0',
     backgroundColor: '#fff',
   },
-  backButton: {
-    padding: 8,
-  },
-  headerSpacer: {
-    width: 40,
-  },
+  backButton: { padding: 8 },
+  headerSpacer: { width: 40 },
+  formGroup: { marginBottom: 20 },
+  errorText: { color: 'red', marginTop: -8, marginBottom: 10 },
 });
-// ... your styles stay unchanged ...
 
 export default EditProfile;

@@ -138,7 +138,7 @@ export const editProfile  = async (userId: number, formData: FormData): Promise<
     });
     return response.data;
   } catch (error: unknown) {
-    console.error("Registration API Error:", (error as any)?.response?.data || (error as Error)?.message);
+    console.error("Edit API Error:", (error as any)?.response?.data || (error as Error)?.message);
     throw error;
   }
 }
@@ -511,20 +511,21 @@ export const onAddDevicesAPICall = (params: any,token:any) => {
   return _REQUEST2SERVER_Authorization_Post_FCM(`fcm-token/`, params,token);
 };
 
+// Fix for FCM token registration (use correct header and endpoint)
 const registerFCMToken = async (token: string) => {
   try {
-    const authToken = await AsyncStorage.getItem('authToken'); // Get your auth token
-    if (!authToken) {
-      console.log('No auth token available');
+    const accessToken = await AsyncStorage.getItem('accessToken'); // Use correct key
+    if (!accessToken) {
+      console.log('No access token available');
       return;
     }
 
-    const response = await axios.post('https://pashuahar.com/fcm-token/', 
+    const response = await axios.post('https://pashuahar.com/fcm-token/',
       { token },
       {
         headers: {
           'Accept': 'application/json',
-          'Authorization': `token ${authToken}`
+          'Authorization': `Bearer ${accessToken}`
         }
       }
     );
@@ -532,15 +533,7 @@ const registerFCMToken = async (token: string) => {
   } catch (error) {
     console.error('Error registering FCM token:', error);
   }
-};
-// export const getUserPosts = async (): Promise<ApiResponse> => {
-//   const response = await api.get('/posts/');
-//   return {
-//     data: response.data,
-//     status: response.status,
-//     message: 'Posts fetched successfully',
-//   };
-// };
+}
 
 export const registerDeviceWithFCMToken = async ({ device_name, device_type, token, access_token }: { device_name: string, device_type: string, token: string, access_token: string }) => {
   try {

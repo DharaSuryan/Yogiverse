@@ -1,17 +1,32 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import React, {useEffect, useState, useRef} from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  Platform,
+} from 'react-native';
 import axios from 'axios';
 import Post from '../../Component/Post';
 import ShareModal from '../../Components/ShareModal';
-import { Post as PostType, Story } from '../../Types/index';
+import {Post as PostType, Story} from '../../Types/index';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getStories, getProfile, followUser, unfollowUser } from '../../Api/Api';
+import {getStories, getProfile, followUser, unfollowUser} from '../../Api/Api';
 import OptionsBottomSheet from '../../Components/OptionsBottomSheet';
-import { useFocusEffect } from '@react-navigation/native';
+import {useFocusEffect} from '@react-navigation/native';
+import {check, request, PERMISSIONS, RESULTS} from 'react-native-permissions';
 
 const Ionicons = require('react-native-vector-icons/Ionicons').default;
 
-export default function HomeScreen({ navigation, showOptionsModal = false }: any) {
+export default function HomeScreen({
+  navigation,
+  showOptionsModal = false,
+}: any) {
   // const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [selectedPost, setSelectedPost] = useState<PostType | null>(null);
@@ -28,17 +43,20 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
   const [storiesError, setStoriesError] = useState<string | null>(null);
   const [viewedStories, setViewedStories] = useState<Set<string>>(new Set());
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(null);
-  const [userid,setUserId] = useState();
-  const [newUsers,newUser] = useState();
+  const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(
+    null,
+  );
+  const [userid, setUserId] = useState();
+  const [newUsers, newUser] = useState();
   const [myStories, setMyStories] = useState<Story[]>([]);
   const [allStories, setAllStories] = useState<Story[]>([]);
   const onEndReachedCalledDuringMomentum = useRef(false);
-  const [optionsModalVisible, setOptionsModalVisible] = useState(showOptionsModal);
+  const [optionsModalVisible, setOptionsModalVisible] =
+    useState(showOptionsModal);
   const [optionsPost, setOptionsPost] = useState<any>(null);
 
   useEffect(() => {
-    getData()
+    getData();
   }, []);
 
   // Fetch posts and stories only after userid is set
@@ -58,24 +76,25 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
       if (navigation?.route?.params?.refreshStories) {
         fetchStories();
         // Reset the param so it doesn't trigger again
-        navigation.setParams({ refreshStories: false });
+        navigation.setParams({refreshStories: false});
       }
-    }, [navigation])
+    }, [navigation]),
   );
 
   const getData = async () => {
-
     await AsyncStorage.getItem('userId').then(setCurrentUserId);
     // Fetch profile picture
     await getProfile().then(profileRes => {
-      const profilePic = profileRes?.data?.data?.profile?.profile_picture
-      console.log("profile pix...." , profileRes?.data?.data);
-      setUserId(profileRes?.data?.data?.profile?.id)
-      newUser(profileRes?.data?.data?.profile?.user)
-      
-      setCurrentUserAvatar(profilePic || 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User');
+      const profilePic = profileRes?.data?.data?.profile?.profile_picture;
+      console.log('profile pix....', profileRes?.data?.data);
+      setUserId(profileRes?.data?.data?.profile?.id);
+      newUser(profileRes?.data?.data?.profile?.user);
+
+      setCurrentUserAvatar(
+        profilePic || 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User',
+      );
     });
-  }
+  };
 
   const fetchPosts = async (pageToFetch = 1, isRefresh = false) => {
     if (loading || loadingMore || refreshing) return;
@@ -97,13 +116,16 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
     try {
       const authToken = await AsyncStorage.getItem('accessToken');
       const headers = {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${authToken}`
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
       };
-      const res = await axios.get(`https://pashuahar.com/home-feed/?page=${pageToFetch}&page_size=${pageSize}`, { headers });
+      const res = await axios.get(
+        `https://pashuahar.com/home-feed/?page=${pageToFetch}&page_size=${pageSize}`,
+        {headers},
+      );
       const newPosts = res.data?.data?.results || [];
-      console.log("new posts .....", newPosts);
-      
+      // console.log('new posts .....', newPosts);
+
       if (isRefresh || pageToFetch === 1) {
         setPosts(newPosts);
         setPage(1);
@@ -127,56 +149,78 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
     try {
       const res = await getStories();
       const apiStories = res.data?.data || [];
-      console.log("useriduseriduserid",userid);
-      
-      console.log("api res .....", apiStories);
-      
+      console.log('useriduseriduserid', userid);
+
+      console.log('api res .....', apiStories);
+
       // Split stories into personal and others
-      const myStoriesArr = apiStories.filter((apiStory: any) => String(apiStory.profile?.id) === String(userid)).map((apiStory: any) => ({
-        id: apiStory.id.toString(),
-        userId: apiStory.user?.toString?.() || apiStory.profile?.id?.toString?.() || '',
-        username: apiStory.profile?.username || 'Unknown User',
-        userProfilePicture: apiStory.profile?.profile_picture || 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User',
-        mediaUrl: apiStory.media_file,
-        imageUrl: apiStory.media_file,
-        type: (apiStory.media_file?.toLowerCase().endsWith('.mp4') ? 'video' : 'image') as 'image' | 'video',
-        timestamp: apiStory.created_at,
-        duration: 5000,
-        viewers: [],
-        isViewed: !apiStory.is_seen ? false : true,
-        createdAt: apiStory.created_at,
-        expiresAt: apiStory.expires_at,
-        caption: apiStory.caption || '',
-        location: '',
-        user: {
+      const myStoriesArr = apiStories
+        .filter(
+          (apiStory: any) => String(apiStory.profile?.id) === String(userid),
+        )
+        .map((apiStory: any) => ({
+          id: apiStory.id.toString(),
+          userId:
+            apiStory.user?.toString?.() ||
+            apiStory.profile?.id?.toString?.() ||
+            '',
           username: apiStory.profile?.username || 'Unknown User',
-          email: apiStory.profile?.email || '',
-          isVerified: false
-        }
-      }));
+          userProfilePicture:
+            apiStory.profile?.profile_picture ||
+            'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User',
+          mediaUrl: apiStory.media_file,
+          imageUrl: apiStory.media_file,
+          type: (apiStory.media_file?.toLowerCase().endsWith('.mp4')
+            ? 'video'
+            : 'image') as 'image' | 'video',
+          timestamp: apiStory.created_at,
+          duration: 5000,
+          viewers: [],
+          isViewed: !apiStory.is_seen ? false : true,
+          createdAt: apiStory.created_at,
+          expiresAt: apiStory.expires_at,
+          caption: apiStory.caption || '',
+          location: '',
+          user: {
+            username: apiStory.profile?.username || 'Unknown User',
+            email: apiStory.profile?.email || '',
+            isVerified: false,
+          },
+        }));
       setMyStories(myStoriesArr);
-      const othersArr = apiStories.filter((apiStory: any) => String(apiStory.profile?.id) !== String(userid)).map((apiStory: any) => ({
-        id: apiStory.id.toString(),
-        userId: apiStory.user?.toString?.() || apiStory.profile?.id?.toString?.() || '',
-        username: apiStory.profile?.username || 'Unknown User',
-        userProfilePicture: apiStory.profile?.profile_picture || 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User',
-        mediaUrl: apiStory.media_file,
-        imageUrl: apiStory.media_file,
-        type: (apiStory.media_file?.toLowerCase().endsWith('.mp4') ? 'video' : 'image') as 'image' | 'video',
-        timestamp: apiStory.created_at,
-        duration: 5000,
-        viewers: [],
-        isViewed: !apiStory.is_seen ? false : true,
-        createdAt: apiStory.created_at,
-        expiresAt: apiStory.expires_at,
-        caption: apiStory.caption || '',
-        location: '',
-        user: {
+      const othersArr = apiStories
+        .filter(
+          (apiStory: any) => String(apiStory.profile?.id) !== String(userid),
+        )
+        .map((apiStory: any) => ({
+          id: apiStory.id.toString(),
+          userId:
+            apiStory.user?.toString?.() ||
+            apiStory.profile?.id?.toString?.() ||
+            '',
           username: apiStory.profile?.username || 'Unknown User',
-          email: apiStory.profile?.email || '',
-          isVerified: false
-        }
-      }));
+          userProfilePicture:
+            apiStory.profile?.profile_picture ||
+            'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User',
+          mediaUrl: apiStory.media_file,
+          imageUrl: apiStory.media_file,
+          type: (apiStory.media_file?.toLowerCase().endsWith('.mp4')
+            ? 'video'
+            : 'image') as 'image' | 'video',
+          timestamp: apiStory.created_at,
+          duration: 5000,
+          viewers: [],
+          isViewed: !apiStory.is_seen ? false : true,
+          createdAt: apiStory.created_at,
+          expiresAt: apiStory.expires_at,
+          caption: apiStory.caption || '',
+          location: '',
+          user: {
+            username: apiStory.profile?.username || 'Unknown User',
+            email: apiStory.profile?.email || '',
+            isVerified: false,
+          },
+        }));
       setAllStories(othersArr);
     } catch (err) {
       setMyStories([]);
@@ -185,6 +229,10 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
     } finally {
       setStoriesLoading(false);
     }
+  };
+
+  const refreshPosts = () => {
+    fetchPosts(1, true);
   };
 
   const onRefresh = () => {
@@ -204,27 +252,33 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
     }
   };
 
-
   // Helper function to get user initials
 
   // Helper function to render user avatar with fallback
 
-  const renderPost = ({ item }: { item: any }) => {
-    console.log("item.is_collectionitem.is_collection",item?.data?.profile?.user);
-    
+  const renderPost = ({item}: {item: any}) => {
+    console.log(
+      'item.is_collectionitem.is_collection',
+      item?.data?.profile?.user,
+    );
+
     const post = item.data || {};
     const profile = item.profile || {};
 
     // Determine avatar
     let userAvatar = profile.profile_picture;
-    const showDefaultIcon = !userAvatar || userAvatar === 'null' || userAvatar === '' || userAvatar.includes('placeholder.com');
+    const showDefaultIcon =
+      !userAvatar ||
+      userAvatar === 'null' ||
+      userAvatar === '' ||
+      userAvatar.includes('placeholder.com');
 
     // Prepare avatar element
 
     if (item.type === 'reel') {
       // Prepare media array for Post component
       const media = post.video_file
-        ? [{ media_file: post.video_file, is_video: true }]
+        ? [{media_file: post.video_file, is_video: true}]
         : [];
 
       return (
@@ -252,10 +306,12 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
             setOptionsPost(item);
             setOptionsModalVisible(true);
           }}
+          onActionComplete={refreshPosts}
         />
       );
     }
-    {}
+    {
+    }
 
     // Default: render Post
     return (
@@ -283,6 +339,7 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
           setOptionsPost(item);
           setOptionsModalVisible(true);
         }}
+        onActionComplete={refreshPosts}
       />
     );
   };
@@ -305,14 +362,20 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
     const hasUnseen = userStories.some(s => !s.isViewed && !s.is_seen);
     const avatar = firstStory.userProfilePicture || '';
     const username = firstStory.username || 'Unknown';
-    const showDefaultIcon = !avatar || avatar === 'null' || avatar === '' || avatar.includes('placeholder.com');
+    const showDefaultIcon =
+      !avatar ||
+      avatar === 'null' ||
+      avatar === '' ||
+      avatar.includes('placeholder.com');
     if (showDefaultIcon) {
       console.log('Rendering default icon for', username, avatar);
     }
     return (
-      <View style={{ alignItems: 'center', marginRight: 12 }} key={firstStory.userId || firstStory.username}>
+      <View
+        style={{alignItems: 'center', marginRight: 12}}
+        key={firstStory.userId || firstStory.username}>
         <TouchableOpacity
-          style={{ position: 'relative' }}
+          style={{position: 'relative'}}
           onPress={() => {
             // Open StoryViewerScreen with all stories for this user
             navigation.navigate('StoryViewerScreen', {
@@ -321,8 +384,7 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
               isPersonal: String(firstStory.userId) === String(currentUserId),
             });
           }}
-          activeOpacity={0.7}
-        >
+          activeOpacity={0.7}>
           {showDefaultIcon ? (
             <View
               style={{
@@ -335,13 +397,17 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
                 justifyContent: 'center',
                 alignItems: 'center',
                 overflow: 'hidden',
-              }}
-            >
-              <Ionicons name="person-circle" size={48} color="#bea063" style={{}} />
+              }}>
+              <Ionicons
+                name="person-circle"
+                size={48}
+                color="#bea063"
+                style={{}}
+              />
             </View>
           ) : (
             <Image
-              source={{ uri: avatar }}
+              source={{uri: avatar}}
               style={{
                 width: 62,
                 height: 62,
@@ -352,15 +418,54 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
             />
           )}
         </TouchableOpacity>
-        <Text style={styles.storyUsername} numberOfLines={1}>{username}</Text>
+        <Text style={styles.storyUsername} numberOfLines={1}>
+          {username}
+        </Text>
       </View>
     );
   };
 
+  // useEffect(() => {
+    // requestNotificationPermission();
+  // }, []);
+
+  // const requestNotificationPermission = async () => {
+  //   if (Platform.OS === 'android') {
+  //     // Only check for Android 13+ (API 33+)
+  //     console.log("Platform.Version==>", Platform.Version);
+  //     if (+Platform.Version >= 33) {
+  //       try {
+  //         // Use the constant from react-native-permissions, not a string
+  //         const permission = PERMISSIONS.ANDROID.POST_NOTIFICATIONS;
+  //         console.log("PERMISSIONS.ANDROID.POST_NOTIFICATIONS", permission);
+  //         if (!permission) {
+  //           console.log("PERMISSIONS.ANDROID.POST_NOTIFICATIONS is undefined");
+  //           return;
+  //         }
+  //         const checkResult = await check(permission);
+  //         console.log("PERMISSION check", checkResult);
+  //         if (checkResult === "denied") {
+  //           const requestResult = await request(permission);
+  //           console.log("PERMISSION RESULT", requestResult);
+  //         }
+  //       } catch (error) {
+  //         console.log("PERMISSION ERROR", error);
+  //       }
+  //     }
+  //   }
+  //   // For iOS, you can add similar logic if needed
+  // };
+
   return (
     <View style={styles.container}>
-      { (storiesLoading || loading) ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+      {storiesLoading || loading ? (
+        <View
+          style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: '#fff',
+          }}>
           <ActivityIndicator size="large" color="#bea063" />
         </View>
       ) : (
@@ -377,11 +482,25 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
               resizeMode="contain"
             />
             <View style={styles.headerIcons}>
-              <TouchableOpacity onPress={() => navigation.navigate('Notifications' as never)}>
-                <Ionicons name="notifications-outline" size={24} color="#bea063" style={styles.icon} />
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Notifications' as never)}>
+                <Ionicons
+                  name="notifications-outline"
+                  size={24}
+                  color="#bea063"
+                  style={styles.icon}
+                />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => navigation.navigate('ChatListScreen',{userid : newUsers})}>
-                <Ionicons name="chatbubble-outline" size={24} color="#bea063" style={styles.icon} />
+              <TouchableOpacity
+                onPress={() =>
+                  navigation.navigate('ChatListScreen', {userid: newUsers})
+                }>
+                <Ionicons
+                  name="chatbubble-outline"
+                  size={24}
+                  color="#bea063"
+                  style={styles.icon}
+                />
               </TouchableOpacity>
             </View>
           </View>
@@ -410,55 +529,79 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
               onEndReachedCalledDuringMomentum.current = false;
             }}
             showsVerticalScrollIndicator={false}
-            ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#bea063" style={{ marginVertical: 16 }} /> : null}
+            ListFooterComponent={
+              loadingMore ? (
+                <ActivityIndicator
+                  size="small"
+                  color="#bea063"
+                  style={{marginVertical: 16}}
+                />
+              ) : null
+            }
             ListHeaderComponent={
               storiesError ? (
-                <Text style={{ color: 'red', textAlign: 'center', marginVertical: 20 }}>{storiesError}</Text>
+                <Text
+                  style={{
+                    color: 'red',
+                    textAlign: 'center',
+                    marginVertical: 20,
+                  }}>
+                  {storiesError}
+                </Text>
               ) : (
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.storyList}
-                >
+                  contentContainerStyle={styles.storyList}>
                   {/* My Story Avatar with Add Icon */}
-                  <View style={{ alignItems: 'center', marginRight: 12 }}>
+                  <View style={{alignItems: 'center', marginRight: 12}}>
                     <TouchableOpacity
-                      style={{ position: 'relative' }}
+                      style={{position: 'relative'}}
                       onPress={() => {
                         if (myStories.length > 0) {
                           navigation.navigate('StoryViewerScreen', {
                             stories: myStories,
                             initialIndex: 0,
-                            isPersonal: true
+                            isPersonal: true,
                           });
                         } else {
-                          Alert.alert('No Story', 'You have not added a story yet.');
+                          Alert.alert(
+                            'No Story',
+                            'You have not added a story yet.',
+                          );
                         }
                       }}
-                      activeOpacity={0.7}
-                    >
-                      {(!currentUserAvatar || currentUserAvatar === 'null' || currentUserAvatar.includes('placeholder.com')) ? (
-                        <View style={{
-                          width: 62,
-                          height: 62,
-                          borderRadius: 31,
-                          borderWidth: 2,
-                          borderColor: '#bea063',
-                          backgroundColor: '#f5f5f5',
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                        }}>
-                          <Ionicons name="person-circle" size={48} color="#bea063" />
-                        </View>
-                      ) : (
-                        <Image
-                          source={{ uri: currentUserAvatar }}
+                      activeOpacity={0.7}>
+                      {!currentUserAvatar ||
+                      currentUserAvatar === 'null' ||
+                      currentUserAvatar.includes('placeholder.com') ? (
+                        <View
                           style={{
                             width: 62,
                             height: 62,
                             borderRadius: 31,
                             borderWidth: 2,
                             borderColor: '#bea063',
+                            backgroundColor: '#f5f5f5',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}>
+                          <Ionicons
+                            name="person-circle"
+                            size={48}
+                            color="#bea063"
+                          />
+                        </View>
+                      ) : (
+                        <Image
+                          source={{uri: currentUserAvatar}}
+                          style={{
+                            width: 62,
+                            height: 62,
+                            borderRadius: 31,
+                            borderWidth: 2,
+                            borderColor:
+                              myStories.length > 0 ? '#bea063' : '#fff',
                           }}
                         />
                       )}
@@ -478,24 +621,37 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
                           alignItems: 'center',
                         }}
                         onPress={() => navigation.navigate('StoryUpload')}
-                        activeOpacity={0.7}
-                      >
+                        activeOpacity={0.7}>
                         <Ionicons name="add" size={16} color="#bea063" />
                       </TouchableOpacity>
                     </TouchableOpacity>
-                    <Text style={styles.storyUsername} numberOfLines={1}>Your Story</Text>
+                    <Text style={styles.storyUsername} numberOfLines={1}>
+                      Your Story
+                    </Text>
                   </View>
                   {/* Other users' stories */}
-                  {(allStories.length > 0 ? Object.values(allStories.reduce((acc: any, story: any) => {
-                    const userId = story.userId;
-                    if (!acc[userId]) acc[userId] = [];
-                    acc[userId].push(story);
-                    return acc;
-                  }, {})) : []).map((userStories) => renderStoryCircle(userStories as any[]))}
+                  {(allStories.length > 0
+                    ? Object.values(
+                        allStories.reduce((acc: any, story: any) => {
+                          const userId = story.userId;
+                          if (!acc[userId]) acc[userId] = [];
+                          acc[userId].push(story);
+                          return acc;
+                        }, {}),
+                      )
+                    : []
+                  ).map(userStories => renderStoryCircle(userStories as any[]))}
                 </ScrollView>
               )
             }
-            ListEmptyComponent={error ? <Text style={{ color: 'red', textAlign: 'center', marginTop: 40 }}>{error}</Text> : null}
+            ListEmptyComponent={
+              error ? (
+                <Text
+                  style={{color: 'red', textAlign: 'center', marginTop: 40}}>
+                  {error}
+                </Text>
+              ) : null
+            }
           />
         </>
       )}
@@ -530,7 +686,8 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
           Alert.alert('Favourites', 'Add to Favourites coming soon!');
         }}
         {...(optionsPost?.is_following
-          ? { onUnfollow: async () => {
+          ? {
+              onUnfollow: async () => {
                 setOptionsModalVisible(false);
                 try {
                   await unfollowUser(optionsPost?.profile?.id?.toString());
@@ -538,8 +695,10 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
                 } catch (e) {
                   Alert.alert('Error', 'Failed to unfollow user.');
                 }
-              } }
-          : { onFollow: async () => {
+              },
+            }
+          : {
+              onFollow: async () => {
                 setOptionsModalVisible(false);
                 try {
                   await followUser(optionsPost?.profile?.id?.toString());
@@ -547,7 +706,8 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
                 } catch (e) {
                   Alert.alert('Error', 'Failed to follow user.');
                 }
-              } })}
+              },
+            })}
         onAbout={() => {
           // navigation.navigate('UserProfile', { userId: optionsPost?.profile?.id?.toString(), isFromSearch: true, isFromHome: true });
         }}
@@ -557,7 +717,7 @@ export default function HomeScreen({ navigation, showOptionsModal = false }: any
         }}
         onWhy={() => {
           setOptionsModalVisible(false);
-          Alert.alert('Why', 'Why you\'re seeing this post coming soon!');
+          Alert.alert('Why', "Why you're seeing this post coming soon!");
         }}
         onHide={() => {
           setOptionsModalVisible(false);
@@ -643,7 +803,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: {width: 0, height: 1},
     shadowOpacity: 0.3,
     shadowRadius: 2,
     elevation: 2,

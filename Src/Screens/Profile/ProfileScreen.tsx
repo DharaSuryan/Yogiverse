@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useRef} from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,26 +12,24 @@ import {
   ActivityIndicator,
   Modal,
   Alert,
-  TextInput,
-  SectionList,
+  TextInput
 } from 'react-native';
-const Ionicons = require('react-native-vector-icons/Ionicons').default;
 import Video from 'react-native-video';
 import Post from '../../Component/Post';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import {
-  useNavigation,
   useFocusEffect,
-  useRoute,
+  useRoute
 } from '@react-navigation/native';
-import {getProfile, getUserPosts, getUserReels} from '../../Api/Api';
-import LocationPicker, {LocationOption} from '../../Components/LocationPicker';
-import CommentModal from '../../Components/CommentModal';
+import { getProfile, getUserPosts, getUserReels } from '../../Api/Api';
+import LocationPicker, { LocationOption } from '../../Components/LocationPicker';
+import InstagramCommentModal from '../Comment/InstagramCommentModal';
+const Ionicons = require('react-native-vector-icons/Ionicons').default;
 // import {getAccounts, switchAccount} from '../../Utils/accountManager';
 //  import { Image as Compressor } from 'react-native-compressor';
 
-const {width} = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 const NUM_COLUMNS = 3;
 const ITEM_SIZE = width / NUM_COLUMNS;
 
@@ -55,12 +53,10 @@ interface Post {
   hide_like_count?: boolean;
 }
 
-const ProfileScreen = ({navigation} : any) => {
+const ProfileScreen = ({ navigation }: any) => {
   // const navigation = useNavigation<any>();
-  
-  const [activeTab, setActiveTab] = useState<'posts' | 'reels' | 'saved'>(
-    'posts',
-  );
+
+  const [activeTab, setActiveTab] = useState<'draft' | 'posts' | 'reels' | 'saved' | 'tagged'>('draft');
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState({
     username: '',
@@ -74,8 +70,8 @@ const ProfileScreen = ({navigation} : any) => {
     location: '',
   });
   const route = useRoute<any>();
-  let {userId} = route?.params || {};
-  let {isFromSearch} = route?.params || {};
+  let { userId } = route?.params || {};
+  let { isFromSearch } = route?.params || {};
   console.log('isFromSearch', isFromSearch);
 
   // console.log("profile s state",profile.id);
@@ -97,23 +93,27 @@ const ProfileScreen = ({navigation} : any) => {
 
   // Individual video controls state
   const [videoStates, setVideoStates] = useState<{
-    [key: string]: {isPlaying: boolean; isMuted: boolean};
+    [key: string]: { isPlaying: boolean; isMuted: boolean };
   }>({});
-  const [videoRefs, setVideoRefs] = useState<{[key: string]: any}>({});
+  const [videoRefs, setVideoRefs] = useState<{ [key: string]: any }>({});
 
   // Post functionality state
   const [postStates, setPostStates] = useState<{
-    [key: string]: {isLiked: boolean; likesCount: number; likeLoading: boolean};
+    [key: string]: { isLiked: boolean; likesCount: number; likeLoading: boolean };
   }>({});
   const [optionsVisible, setOptionsVisible] = useState(false);
   const [selectedPost, setSelectedPost] = useState<any>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [postLoading, setPostLoading] = useState(false);
 
   // Edit functionality state
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editCaption, setEditCaption] = useState('');
   const [editLoading, setEditLoading] = useState(false);
   const [editLocation, setEditLocation] = useState<LocationOption | null>(null);
+  const [feedPosts, setFeedPosts] = useState([]);
+  const [feedLoading, setFeedLoading] = useState(false);
+  // console.log("feedPosts ..",feedPosts);
 
   // Collection creation state
   const [createCollectionModalVisible, setCreateCollectionModalVisible] =
@@ -123,18 +123,53 @@ const ProfileScreen = ({navigation} : any) => {
   const [profileOptionsModalVisible, setProfileOptionsModalVisible] =
     useState(false);
 
+  // console.log("data profile",data);
+
+  const feedPostCount = feedPosts.length;
+
   // Fullscreen media state
   const [postMediaIndices, setPostMediaIndices] = useState<{
     [postId: string]: number;
   }>({});
   const imageSource = require('../../Assets/userProfile.png');
-  // Simple swipe-to-close using ScrollView drag
-  const dragOffsetY = useRef(0);
+  // post feed
+  const getPostReelFeed = async () => {
+    const authToken = await AsyncStorage.getItem('accessToken');
+    const headers = {
+      Accept: 'application/json',
+      Authorization: `Bearer ${authToken}`,
+    };
+    // You may need params: see API docs
+    return axios.get('https://pashuahar.com/post_reel_feed/', { headers });
+  };
+
+  useEffect(() => {
+    fetchPostReelFeed();
+  }, []);
+
+  const fetchPostReelFeed = async () => {
+    setFeedLoading(true);
+    try {
+      const res = await getPostReelFeed();
+      // Check response shape, assuming: { data: { results: [...] } }
+      // console.log("res ,,,res",res);
+
+
+      setFeedPosts(res.data.data || []);
+    } catch (err) {
+      console.log('Failed to fetch feed:', err);
+      setFeedPosts([]);
+    } finally {
+      setFeedLoading(false);
+    }
+  };
+
+
 
   // FlatList viewability config for reels autoplay
-  const viewabilityConfig = {viewAreaCoveragePercentThreshold: 80};
+  const viewabilityConfig = { viewAreaCoveragePercentThreshold: 80 };
   const onViewableItemsChanged = useRef(
-    ({viewableItems}: {viewableItems: any}) => {
+    ({ viewableItems }: { viewableItems: any }) => {
       if (viewableItems && viewableItems.length > 0) {
         const newIndex = viewableItems[0].index ?? 0;
         setCurrentFullscreenIndex(newIndex);
@@ -199,7 +234,7 @@ const ProfileScreen = ({navigation} : any) => {
       setPostMediaIndices({}); // Reset all post media indices when closing fullscreen
       // Pause all videos when modal closes
       setVideoStates(prev => {
-        const newStates = {...prev};
+        const newStates = { ...prev };
         Object.keys(newStates).forEach(itemId => {
           newStates[itemId] = {
             ...newStates[itemId],
@@ -237,7 +272,7 @@ const ProfileScreen = ({navigation} : any) => {
 
     setPostStates(prev => ({
       ...prev,
-      [postId]: {...currentState, likeLoading: true},
+      [postId]: { ...currentState, likeLoading: true },
     }));
 
     try {
@@ -253,7 +288,7 @@ const ProfileScreen = ({navigation} : any) => {
           content_type: post.type === 'reel' ? 'reel' : 'post',
           object_id: post.id,
         },
-        {headers},
+        { headers },
       );
 
       // Update the post state
@@ -273,10 +308,10 @@ const ProfileScreen = ({navigation} : any) => {
         prevPosts.map(p =>
           p.id === postId
             ? {
-                ...p,
-                likes: currentState.isLiked ? p.likes - 1 : p.likes + 1,
-                isLiked: !currentState.isLiked,
-              }
+              ...p,
+              likes: currentState.isLiked ? p.likes - 1 : p.likes + 1,
+              isLiked: !currentState.isLiked,
+            }
             : p,
         ),
       );
@@ -287,7 +322,7 @@ const ProfileScreen = ({navigation} : any) => {
       // Revert the state on error
       setPostStates(prev => ({
         ...prev,
-        [postId]: {...currentState, likeLoading: false},
+        [postId]: { ...currentState, likeLoading: false },
       }));
     }
   };
@@ -323,7 +358,7 @@ const ProfileScreen = ({navigation} : any) => {
         deleteUrl = `https://pashuahar.com/posts/${postId}/`;
       }
 
-      await axios.delete(deleteUrl, {headers});
+      await axios.delete(deleteUrl, { headers });
 
       // Remove from posts array
       setPosts(prevPosts => prevPosts.filter(p => p.id !== postId));
@@ -335,8 +370,7 @@ const ProfileScreen = ({navigation} : any) => {
       setSelectedPost(null);
       Alert.alert(
         'Deleted',
-        `${
-          selectedPost.type === 'reel' ? 'Reel' : 'Post'
+        `${selectedPost.type === 'reel' ? 'Reel' : 'Post'
         } deleted successfully.`,
       );
     } catch (err) {
@@ -357,7 +391,7 @@ const ProfileScreen = ({navigation} : any) => {
     setEditCaption(selectedPost.caption || '');
     setEditLocation(
       selectedPost.location
-        ? {display_name: selectedPost.location, lat: '', lon: ''}
+        ? { display_name: selectedPost.location, lat: '', lon: '' }
         : null,
     );
     setEditModalVisible(true);
@@ -391,20 +425,20 @@ const ProfileScreen = ({navigation} : any) => {
           caption: editCaption,
           location: editLocation ? editLocation.display_name : '',
         },
-        {headers},
+        { headers },
       );
 
       // Update the post in the posts array
       setPosts(prevPosts =>
         prevPosts.map(p =>
-          p.id === postId ? {...p, caption: editCaption} : p,
+          p.id === postId ? { ...p, caption: editCaption } : p,
         ),
       );
 
       // Also update in saved posts if it's there
       setSavedPosts(prevSaved =>
         prevSaved.map(p =>
-          p.id === postId ? {...p, caption: editCaption} : p,
+          p.id === postId ? { ...p, caption: editCaption } : p,
         ),
       );
 
@@ -419,8 +453,7 @@ const ProfileScreen = ({navigation} : any) => {
       setSelectedPost(null);
       Alert.alert(
         'Success',
-        `${
-          selectedPost.type === 'reel' ? 'Reel' : 'Post'
+        `${selectedPost.type === 'reel' ? 'Reel' : 'Post'
         } updated successfully.`,
       );
     } catch (err) {
@@ -437,25 +470,7 @@ const ProfileScreen = ({navigation} : any) => {
 
 
   // Video control functions
-  const toggleMute = (itemId: string) => {
-    setVideoStates(prev => ({
-      ...prev,
-      [itemId]: {
-        ...prev[itemId],
-        isMuted: !prev[itemId]?.isMuted,
-      },
-    }));
-  };
 
-  const togglePlayPause = (itemId: string) => {
-    setVideoStates(prev => ({
-      ...prev,
-      [itemId]: {
-        ...prev[itemId],
-        isPlaying: !prev[itemId]?.isPlaying,
-      },
-    }));
-  };
 
   const handleVideoRef = (videoRef: any, itemId: string) => {
     if (videoRef && !videoRefs[itemId]) {
@@ -480,7 +495,7 @@ const ProfileScreen = ({navigation} : any) => {
   // Initialize video states for all videos
   const initializeVideoStates = (mediaItems: Post[]) => {
     const newVideoStates: {
-      [key: string]: {isPlaying: boolean; isMuted: boolean};
+      [key: string]: { isPlaying: boolean; isMuted: boolean };
     } = {};
     mediaItems.forEach(item => {
       if (item.type === 'reel') {
@@ -506,7 +521,7 @@ const ProfileScreen = ({navigation} : any) => {
   // Pause all videos except the current one
   const pauseAllVideosExcept = (currentItemId: string) => {
     setVideoStates(prev => {
-      const newStates = {...prev};
+      const newStates = { ...prev };
       Object.keys(newStates).forEach(itemId => {
         if (itemId !== currentItemId) {
           newStates[itemId] = {
@@ -689,8 +704,8 @@ const ProfileScreen = ({navigation} : any) => {
       //   isFromSearch ? profileResponse : profileResponse.data?.data?.results,
       // );
       const profileResponse = await getProfile();
-      console.log("profileResponse",profileResponse?.data?.data?.vendor_profile?.main_categories);
-      
+      // console.log("profileResponse",profileResponse?.data?.data?.vendor_profile?.main_categories);
+
       setData(profileResponse?.data?.data);
       let followersCount = 0;
       let followingCount = 0;
@@ -717,9 +732,8 @@ const ProfileScreen = ({navigation} : any) => {
         setProfile({
           username: profileData?.username || '',
           fullName:
-            `${profileData?.first_name || ''} ${
-              profileData?.last_name || ''
-            }`.trim() || '',
+            `${profileData?.first_name || ''} ${profileData?.last_name || ''
+              }`.trim() || '',
           bio: profileData?.bio || '',
           profileImage:
             profileData?.profile_picture || 'https://picsum.photos/200',
@@ -738,7 +752,7 @@ const ProfileScreen = ({navigation} : any) => {
       const postsResponse = isFromSearch
         ? response?.data?.data
         : await getUserPosts();
-      console.log('postsResponse', postsResponse?.data?.data?.results);
+      // console.log('postsResponse', postsResponse?.data?.data?.results);
 
       // Fetch reels data
       const reelsResponse = isFromSearch
@@ -862,10 +876,10 @@ const ProfileScreen = ({navigation} : any) => {
         {
           name: name,
         },
-        {headers},
+        { headers },
       );
 
-      console.log('Created collection', res.data);
+      // console.log('Created collection', res.data);
 
       // Refresh collections after creating
       fetchSavedPosts();
@@ -913,24 +927,124 @@ const ProfileScreen = ({navigation} : any) => {
     }, []),
   );
 
+  // Draft posts state
+  const [draftPosts, setDraftPosts] = useState<Post[]>([]);
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [draftError, setDraftError] = useState<string | null>(null);
+
+  // Fetch draft posts from API
+  const fetchDraftPosts = async () => {
+    setDraftLoading(true);
+    setDraftError(null);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+      const res = await axios.get('https://pashuahar.com/is_draft/', { headers });
+      // console.log("Draft posts response:", res.data);
+
+      // Use your response shape directly
+      const draftData = res.data?.data || [];
+      const processedDrafts: Post[] = draftData.map((item: any) => {
+        let mediaFiles: string[] = [];
+        if (item.type === 'reel' && item.video_file) {
+          mediaFiles = [item.video_file];
+        } else if (item.media && Array.isArray(item.media)) {
+          mediaFiles = item.media.map((media: any) => media.media_file).filter(Boolean);
+        }
+        return {
+          id: item.id?.toString(),
+          type: item.type === 'reel' ? 'reel' : 'image',
+          uri: mediaFiles[0] || '',
+          compressedUri: mediaFiles[0] || '',
+          likes: item.like_count || 0,
+          comments: item.comment_count || 0,
+          caption: item.caption || '',
+          location: item.location || '',
+          createdAt: item.created_at || '',
+          collection_id: item.collection_id || 1,
+          mediaCount: mediaFiles.length > 1 ? mediaFiles.length : undefined,
+          allMedia: mediaFiles,
+          allow_comments: item.allow_comments,
+          hide_like_count: item.hide_like_count,
+        };
+      });
+      setDraftPosts(processedDrafts);
+    } catch (err) {
+      setDraftError('Failed to load drafts');
+      setDraftPosts([]);
+    } finally {
+      setDraftLoading(false);
+    }
+  };
+
+  // Fetch drafts when switching to draft tab
+  useEffect(() => {
+    if (activeTab === 'draft') {
+      fetchDraftPosts();
+    }
+  }, [activeTab]);
+
+  // Tagged posts state
+  const [taggedPosts, setTaggedPosts] = useState<Post[]>([]);
+  const [taggedLoading, setTaggedLoading] = useState(false);
+  const [taggedError, setTaggedError] = useState<string | null>(null);
+
+  // Fetch tagged posts from API
+  const fetchTaggedPosts = async () => {
+    setTaggedLoading(true);
+    setTaggedError(null);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+      const res = await axios.get('https://pashuahar.com/mentioned_user/', { headers });
+      const taggedData = res.data?.data || [];
+      // Attach profile data to each post
+      const processedTagged = await processMediaData(taggedData, 'image');
+      // Attach profile info from API to each tagged post
+      processedTagged.forEach((post, idx) => {
+        post.mentionedProfile = taggedData[idx]?.profile || null;
+      });
+      setTaggedPosts(processedTagged);
+    } catch (err) {
+      setTaggedError('Failed to load tagged posts');
+      setTaggedPosts([]);
+    } finally {
+      setTaggedLoading(false);
+    }
+  };
+
+  // Fetch tagged posts when switching to tagged tab
+  useEffect(() => {
+    if (activeTab === 'tagged' && taggedPosts.length === 0 && !taggedLoading) {
+      fetchTaggedPosts();
+    }
+  }, [activeTab]);
+
   // Use correct posts for the current tab
   const filteredPosts =
     activeTab === 'saved'
       ? savedPosts
-      : posts.filter(post => {
-          if (activeTab === 'posts') return post.type === 'image';
-          if (activeTab === 'reels') return post.type === 'reel';
-          return true;
-        });
+      : activeTab === 'draft'
+        ? draftPosts
+        : activeTab === 'tagged'
+          ? taggedPosts
+          : activeTab === 'posts'
+            ? posts // Show both posts and reels
+            : activeTab === 'reels'
+              ? posts.filter(post => post.type === 'reel')
+              : posts;
 
-  const renderPostItem = ({item, index}: {item: any; index: number}) => {
+  const renderPostItem = ({ item, index }: { item: any; index: number }) => {
+    console.log("renderPostItem item", item);
+
     const isReel = item.type === 'reel';
     const isCollection = item.isCollection;
-    const shouldShowVideoControls = isReel && activeTab === 'reels';
-    const videoState = videoStates[item.id] || {
-      isPlaying: false,
-      isMuted: true,
-    };
 
     return (
       <TouchableOpacity
@@ -964,21 +1078,26 @@ const ProfileScreen = ({navigation} : any) => {
           />
         ) : !isReel ? (
           <Image
-            source={{uri: item.compressedUri || item.uri}}
+            source={{ uri: item.compressedUri || item.uri }}
             style={styles.postImage}
           />
         ) : (
           <View style={styles.videoContainer}>
             <Video
               ref={ref => handleVideoRef(ref, item.id)}
-              source={{uri: item.uri}}
+              source={{ uri: item.uri }}
               style={styles.postImage}
               muted={true} // always muted in grid
               repeat
               resizeMode="cover"
               paused={true} // always paused in grid
               onLoad={() => setVideoLoading(false)}
-              onError={() => setVideoLoading(false)}
+
+              onError={(error: any) => {
+                console.log("Video error:", error);
+                Alert.alert('Error', 'Failed to load video');
+                setVideoLoading(false)
+              }}
             />
             {/* Video controls overlay removed for grid layout */}
           </View>
@@ -1001,12 +1120,17 @@ const ProfileScreen = ({navigation} : any) => {
         )}
 
         {/* Top-right options icon */}
-        {isFromSearch ? null : (
+        {
+          console.log("activeTab", activeTab)
+
+        }
+        {isFromSearch || activeTab == 'tagged' ? null : (
           <TouchableOpacity
-            style={{position: 'absolute', top: 8, right: 8, zIndex: 2}}
+            style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
             onPress={e => {
               e.stopPropagation();
-              handleOptions(item);
+              setSelectedPost(item);
+              setOptionsVisible(true);
             }}>
             <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
           </TouchableOpacity>
@@ -1035,10 +1159,10 @@ const ProfileScreen = ({navigation} : any) => {
   const renderStats = () => (
     <View style={styles.statsContainer}>
       <View style={styles.statItem}>
-        <Text style={[styles.statNumber, {color: '#bea063'}]}>
-          {profile.postsCount}
+        <Text style={[styles.statNumber, { color: '#bea063' }]}>
+          {feedPostCount}
         </Text>
-        <Text style={[styles.statLabel, {color: '#bea063'}]}>Posts</Text>
+        <Text style={[styles.statLabel, { color: '#bea063' }]}>Posts</Text>
       </View>
       <TouchableOpacity
         style={styles.statItem}
@@ -1046,15 +1170,15 @@ const ProfileScreen = ({navigation} : any) => {
           isFromSearch
             ? null
             : navigation.navigate('FollowersFollowingScreen', {
-                type: 'followers',
-                userId: '1',
-                username: profile.username,
-              })
+              type: 'followers',
+              userId: '1',
+              username: profile.username,
+            })
         }>
-        <Text style={[styles.statNumber, {color: '#bea063'}]}>
+        <Text style={[styles.statNumber, { color: '#bea063' }]}>
           {profile.followersCount}
         </Text>
-        <Text style={[styles.statLabel, {color: '#bea063'}]}>Followers</Text>
+        <Text style={[styles.statLabel, { color: '#bea063' }]}>Followers</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.statItem}
@@ -1062,15 +1186,15 @@ const ProfileScreen = ({navigation} : any) => {
           isFromSearch
             ? null
             : navigation.navigate('FollowersFollowingScreen', {
-                type: 'following',
-                userId: '1',
-                username: profile.username,
-              })
+              type: 'following',
+              userId: '1',
+              username: profile.username,
+            })
         }>
-        <Text style={[styles.statNumber, {color: '#bea063'}]}>
+        <Text style={[styles.statNumber, { color: '#bea063' }]}>
           {profile.followingCount}
         </Text>
-        <Text style={[styles.statLabel, {color: '#bea063'}]}>Following</Text>
+        <Text style={[styles.statLabel, { color: '#bea063' }]}>Following</Text>
       </TouchableOpacity>
     </View>
   );
@@ -1094,7 +1218,7 @@ const ProfileScreen = ({navigation} : any) => {
           source={
             showDefaultImage
               ? imageSource // your local asset
-              : {uri: profile.profileImage}
+              : { uri: profile.profileImage }
           }
           style={styles.profileImage}
         />{' '}
@@ -1116,7 +1240,7 @@ const ProfileScreen = ({navigation} : any) => {
           <>
             {/* <Text style={{ color: '#bea063', fontWeight: 'bold', marginTop: 8, marginBottom: 2 }}>Main Categories</Text> */}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 4 }}>
-              {vendorProfile?.main_categories.map((cat: {id: number, name: string}) => (
+              {vendorProfile?.main_categories.map((cat: { id: number, name: string }) => (
                 <View key={cat.id} style={{
                   backgroundColor: '#fffbe6',
                   borderColor: '#bea063',
@@ -1138,7 +1262,7 @@ const ProfileScreen = ({navigation} : any) => {
           <>
             <Text style={{ color: '#bea063', fontWeight: 'bold', marginTop: 4, marginBottom: 2 }}>Sub Categories</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 4 }}>
-              {vendorProfile?.subcategories.map((cat: {id: number, name: string}) => (
+              {vendorProfile?.subcategories.map((cat: { id: number, name: string }) => (
                 <View key={cat.id} style={{
                   backgroundColor: '#fff5e0',
                   borderColor: '#bea063',
@@ -1159,9 +1283,18 @@ const ProfileScreen = ({navigation} : any) => {
       </View>
     );
   };
-  
+
   const renderTabBar = () => (
     <View style={styles.tabBar}>
+      <TouchableOpacity
+        style={[styles.tabButton, activeTab === 'draft' && styles.activeTab]}
+        onPress={() => setActiveTab('draft')}>
+        <Ionicons
+          name="document-outline"
+          size={24}
+          color={activeTab === 'draft' ? '#bea063' : '#888'}
+        />
+      </TouchableOpacity>
       <TouchableOpacity
         style={[styles.tabButton, activeTab === 'posts' && styles.activeTab]}
         onPress={() => setActiveTab('posts')}>
@@ -1181,21 +1314,30 @@ const ProfileScreen = ({navigation} : any) => {
         />
       </TouchableOpacity>
       {isFromSearch ? null : (
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'saved' && styles.activeTab]}
-          onPress={() => setActiveTab('saved')}>
-          <Ionicons
-            name="bookmark-outline"
-            size={24}
-            color={activeTab === 'saved' ? '#bea063' : '#888'}
-          />
-        </TouchableOpacity>
+        <>
+          <TouchableOpacity
+            style={[styles.tabButton, activeTab === 'saved' && styles.activeTab]}
+            onPress={() => setActiveTab('saved')}>
+            <Ionicons
+              name="bookmark-outline"
+              size={24}
+              color={activeTab === 'saved' ? '#bea063' : '#888'}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabButton, activeTab === 'tagged' && styles.activeTab]}
+            onPress={() => setActiveTab('tagged')}>
+            <Ionicons
+              name="pricetag-outline"
+              size={24}
+              color={activeTab === 'tagged' ? '#bea063' : '#888'}
+            />
+          </TouchableOpacity>
+        </>
       )}
     </View>
   );
-
-  const renderFullscreenItem = ({item, index}: {item: any; index: number}) => {
-    const windowHeight = Dimensions.get('window').height;
+  const renderFullscreenItem = ({ item, index }: { item: any, index: number }) => {
     const windowWidth = Dimensions.get('window').width;
     const postState = postStates[item.id] || {
       isLiked: false,
@@ -1214,61 +1356,138 @@ const ProfileScreen = ({navigation} : any) => {
       mediaItems.length > 1
         ? `${item.id}-${currentMediaIndexForPost}`
         : item.id;
-    const videoState = videoStates[videoId] || {
-      isPlaying: false,
-      isMuted: true,
-    };
+    const videoState = fullscreenVideoStates[videoId] || { paused: true, muted: true };
+
+    // Use mentioned user's profile if in tagged tab and available
+    let displayProfile = profile;
+    if (activeTab === 'tagged' && item.mentionedProfile) {
+      displayProfile = {
+        username: item.mentionedProfile.username || '',
+        fullName: `${item.mentionedProfile.first_name || ''} ${item.mentionedProfile.last_name || ''}`.trim(),
+        bio: item.mentionedProfile.bio || '',
+        profileImage: item.mentionedProfile.profile_picture,
+        postsCount: 0,
+        followersCount: 0,
+        followingCount: 0,
+        id: item.mentionedProfile.user || '',
+        location: '',
+      };
+    }
+    console.log("displayProfile.profileImage", displayProfile.profileImage);
+
+
     return (
-      <View style={{backgroundColor: '#fff', width: windowWidth}}>
+      <View style={{ backgroundColor: '#fff', width: windowWidth }}>
         {/* Header: Profile, location, options */}
-        <View style={{flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingTop: 8, paddingBottom: 2}}>
-          <Image source={{uri: profile.profileImage}} style={{width: 32, height: 32, borderRadius: 16, marginRight: 8}} />
-          <View style={{flex: 1}}>
-            <Text style={{color: '#bea063', fontWeight: 'bold', fontSize: 15}}>{profile.username}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingTop: 8, paddingBottom: 4 }}>
+          {displayProfile.profileImage ?
+            <Image source={{ uri: displayProfile.profileImage }} style={{ width: 32, height: 32, borderRadius: 16, marginRight: 8 }} /> :
+            <View style={{
+              width: 42,
+              height: 42,
+              borderRadius: 21,
+              backgroundColor: '#f5f5f5',
+              justifyContent: 'center',
+              alignItems: 'center',
+              borderWidth: 1.5,
+              borderColor: '#bea063',
+              overflow: 'hidden',
+              marginRight: 10,
+            }}>
+              <Ionicons name="person-circle" size={38} color="#bea063" />
+            </View>
+          }
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#bea063', fontWeight: 'bold', fontSize: 15 }}>{displayProfile.username}</Text>
             {item.location ? (
-              <Text style={{color: '#bea063', fontSize: 12}}>{item.location}</Text>
+              <Text style={{ color: '#bea063', fontSize: 12 }}>{item.location}</Text>
             ) : null}
           </View>
-          {isFromSearch ? null : (
-            <TouchableOpacity onPress={() => handleOptions(item)} style={{padding: 2}}>
+          {(isFromSearch || activeTab === 'tagged') ? null : (
+            <TouchableOpacity onPress={() => {
+              setSelectedPost(item);
+              setOptionsVisible(true);
+            }} style={{ padding: 2 }}>
               <Ionicons name="ellipsis-vertical" size={20} color="#bea063" />
             </TouchableOpacity>
           )}
         </View>
         {/* Date under header, left-aligned */}
-        {item.createdAt && (
-          <Text style={{color: '#bea063', fontSize: 11, marginLeft: 48, marginBottom: 2}}>
-            {new Date(item.createdAt).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})}
-          </Text>
-        )}
+
         {/* Main media - dynamic height, no aspect ratio */}
-        <View style={{width: '100%', backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center'}}>
+        <View style={{ width: '100%', backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' }}>
           {isVideo ? (
             <>
               <Video
                 ref={ref => handleVideoRef(ref, videoId)}
-                source={{uri: currentMedia}}
-                style={{width: '100%', height: undefined, aspectRatio: 1, backgroundColor: '#fff'}}
-                muted={videoState.isMuted}
+                source={{ uri: currentMedia }}
+                style={{ width: '100%', height: undefined, aspectRatio: 1, backgroundColor: '#fff' }}
+                muted={videoState.muted}
                 repeat
                 resizeMode="contain"
-                paused={!videoState.isPlaying} // only control with isPlaying in fullscreen
+                paused={videoState.paused}
                 onLoadStart={() => setVideoLoading(true)}
                 onLoad={() => setVideoLoading(false)}
-                onError={() => setVideoLoading(false)}
+                onError={(error: any) => {
+                  console.log("Video error:", error);
+                  Alert.alert('Error', 'Failed to load video');
+
+
+                  setVideoLoading(false)
+                }}
               />
+              {videoLoading && (
+                <ActivityIndicator
+                  size="large"
+                  color="#bea063"
+                  style={{ position: 'absolute', top: '45%', left: '45%' }}
+                />
+              )}
+              {/* Video controls */}
+              <View style={{
+                position: 'absolute',
+                bottom: 24,
+                right: 24,
+                flexDirection: 'row-reverse',
+                gap: 16,
+              }}>
+                <TouchableOpacity
+                  onPress={() => setFullscreenVideoStates(prev => ({
+                    ...prev,
+                    [videoId]: { ...videoState, paused: !videoState.paused }
+                  }))}
+                  style={{ marginLeft: 16, backgroundColor: '#fff', borderRadius: 20, padding: 8, elevation: 2 }}
+                >
+                  <Ionicons name={videoState.paused ? 'play' : 'pause'} size={24} color="#bea063" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setFullscreenVideoStates(prev => ({
+                    ...prev,
+                    [videoId]: { ...videoState, muted: !videoState.muted }
+                  }))}
+                  style={{ backgroundColor: '#fff', borderRadius: 20, padding: 8, elevation: 2 }}
+                >
+                  <Ionicons name={videoState.muted ? 'volume-mute' : 'volume-high'} size={24} color="#bea063" />
+                </TouchableOpacity>
+              </View>
+              {/* Overlay play icon if paused */}
+              {videoState.paused && !videoLoading && (
+                <View style={{ position: 'absolute', top: '45%', left: '45%' }}>
+                  <Ionicons name="play-circle" size={48} color="#bea063" />
+                </View>
+              )}
             </>
           ) : (
             <Image
-              source={{uri: currentMedia}}
-              style={{width: '100%', height: undefined, aspectRatio: 1, resizeMode: 'contain', backgroundColor: '#fff'}}
+              source={{ uri: currentMedia }}
+              style={{ width: '100%', height: undefined, aspectRatio: 1, resizeMode: 'contain', backgroundColor: '#fff' }}
             />
           )}
         </View>
         {/* Action row: like, comment, share, play/pause, mute/unmute, bookmark */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 10 }}>
           {/* Like button and count */}
-          <TouchableOpacity onPress={() => handleLike(item)} disabled={postState.likeLoading} style={{marginRight: 5}}>
+          <TouchableOpacity onPress={() => handleLike(item)} disabled={postState.likeLoading} style={{ marginRight: 5 }}>
             {postState.likeLoading ? (
               <ActivityIndicator size={20} color="#bea063" />
             ) : (
@@ -1276,15 +1495,15 @@ const ProfileScreen = ({navigation} : any) => {
             )}
           </TouchableOpacity>
           {item.hide_like_count === false && postState.likesCount > 0 && (
-          <Text style={{color: '#bea063', fontWeight: '600', fontSize: 13, marginRight: 5, marginBottom: 1}}>
-            {postState.likesCount} 
-            {/* {postState.likesCount === 1 ? 'like' : 'likes'} */}
-          </Text>
-        )}
+            <Text style={{ color: '#bea063', fontWeight: '600', fontSize: 13, marginRight: 5, marginBottom: 1 }}>
+              {postState.likesCount}
+              {/* {postState.likesCount === 1 ? 'like' : 'likes'} */}
+            </Text>
+          )}
           {/* Comment button and count */}
           {item.allow_comments !== false && (
             <>
-              <TouchableOpacity onPress={() => handleComment(item)} style={{marginLeft: 8}}>
+              <TouchableOpacity onPress={() => handleComment(item)} style={{ marginLeft: 8 }}>
                 <Ionicons name="chatbubble-outline" size={22} color="#bea063" />
               </TouchableOpacity>
               <Text style={{ color: '#bea063', fontWeight: '600', marginLeft: 5 }}>
@@ -1293,22 +1512,92 @@ const ProfileScreen = ({navigation} : any) => {
             </>
           )}
           {/* Share button */}
-          <TouchableOpacity onPress={() => handleShare(item)} style={{marginLeft: 10}}>
+          <TouchableOpacity onPress={() => handleShare(item)} style={{ marginLeft: 10 }}>
             <Ionicons name="share-social-outline" size={24} color="#bea063" />
           </TouchableOpacity>
         </View>
         {/* Likes row */}
-        
+
         {/* Caption row */}
+        {item.createdAt && (
+          <Text style={{ color: '#bea063', fontSize: 13, marginLeft: 16, marginBottom: 2 }}>
+            {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </Text>
+        )}
         {item.caption && (
-          <Text style={{color: '#fff', fontSize: 13, paddingHorizontal: 10, marginBottom: 1}}>
-            <Text style={{fontWeight: 'bold', color:'gray'}}>{profile.username} </Text>
+          <Text style={{ color: '#fff', fontSize: 13, paddingHorizontal: 10, marginBottom: 1 }}>
+            <Text style={{ fontWeight: 'bold', color: 'gray' }}>{profile.username} </Text>
             {item.caption}
           </Text>
         )}
       </View>
     );
   };
+
+  // Add state for video controls in fullscreen
+  const [fullscreenVideoStates, setFullscreenVideoStates] = useState<{ [key: string]: { paused: boolean; muted: boolean } }>({});
+
+  // Fullscreen Modal for video playback
+  <Modal
+    visible={fullscreenVisible}
+    animationType="slide"
+    onRequestClose={() => setFullscreenVisible(false)}
+    transparent={false}
+  >
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingTop: 20,
+        paddingBottom: 10,
+        paddingHorizontal: 10,
+        backgroundColor: '#fff',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 10,
+      }}>
+        <TouchableOpacity
+          onPress={() => setFullscreenVisible(false)}
+          style={{ padding: 6, marginRight: 10 }}>
+          <Ionicons name="arrow-back" size={26} color="#bea063" />
+        </TouchableOpacity>
+        <Text style={{ color: '#bea063', fontWeight: 'bold', fontSize: 18 }}>
+          Posts
+        </Text>
+      </View>
+      {filteredPosts.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: '#fff', fontSize: 18 }}>
+            No posts to display
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          ref={fullscreenFlatListRef}
+          data={filteredPosts}
+          renderItem={renderFullscreenItem}
+          keyExtractor={item => item.id}
+          initialScrollIndex={selectedIndex}
+          getItemLayout={(data, index) => ({
+            length: Dimensions.get('window').height,
+            offset: Dimensions.get('window').height * index,
+            index,
+          })}
+          showsVerticalScrollIndicator={false}
+          viewabilityConfig={viewabilityConfig}
+          onViewableItemsChanged={onViewableItemsChanged}
+          removeClippedSubviews={true} // Only render visible items
+          initialNumToRender={3} // Only render 3 items at a time
+          maxToRenderPerBatch={3}
+          windowSize={5}
+          contentContainerStyle={{ backgroundColor: '#fff' }}
+        />
+      )}
+    </SafeAreaView>
+  </Modal>
+
+
 
   // Initialize post states when posts are loaded
   const initializePostStates = (mediaItems: Post[]) => {
@@ -1378,10 +1667,20 @@ const ProfileScreen = ({navigation} : any) => {
         Accept: 'application/json',
         Authorization: `Bearer ${authToken}`,
       };
-      setCreateHighlightModalVisible(false);
-      setNewHighlightTitle('');
-      await fetchHighlights(); // Refresh highlights after creation
-      // Removed: openStorySelectModal(Number(profile.id), Number(res.data.id));
+      const res = await axios.post(
+        'https://pashuahar.com/highlights/',
+        {
+          title: newHighlightTitle,
+        },
+        { headers },
+      );
+
+      // console.log('Created collection', res.data);
+
+      // Refresh collections after creating
+      fetchHighlights();
+
+      return res.data;
     } catch (err) {
       setCreateHighlightError('Failed to create highlight');
     } finally {
@@ -1390,11 +1689,11 @@ const ProfileScreen = ({navigation} : any) => {
   };
 
   // Render highlight item
-  const renderHighlightItem = ({item}: {item: any}) => {
+  const renderHighlightItem = ({ item }: { item: any }) => {
     if (item.isNew) {
       // + New button
       return (
-        <View style={{alignItems: 'center', marginRight: 16}}>
+        <View style={{ alignItems: 'center', marginRight: 16 }}>
           <TouchableOpacity
             style={{
               width: 70,
@@ -1409,7 +1708,7 @@ const ProfileScreen = ({navigation} : any) => {
             onPress={() => setCreateHighlightModalVisible(true)}>
             <Ionicons name="add" size={36} color="#bea063" />
           </TouchableOpacity>
-          <Text style={{color: '#bea063', marginTop: 6, fontSize: 13}}>
+          <Text style={{ color: '#bea063', marginTop: 6, fontSize: 13 }}>
             New
           </Text>
         </View>
@@ -1421,7 +1720,7 @@ const ProfileScreen = ({navigation} : any) => {
       (item.stories && item.stories[0]?.media_file) ||
       'https://via.placeholder.com/100x100/222/fff?text=H';
     return (
-      <View style={{alignItems: 'center', marginRight: 16}}>
+      <View style={{ alignItems: 'center', marginRight: 16 }}>
         <TouchableOpacity
           style={{
             width: 70,
@@ -1436,12 +1735,12 @@ const ProfileScreen = ({navigation} : any) => {
           }}
           onPress={() => openHighlightViewer(item.id, item.title)}>
           <Image
-            source={{uri: cover}}
-            style={{width: 66, height: 66, borderRadius: 33}}
+            source={{ uri: cover }}
+            style={{ width: 66, height: 66, borderRadius: 33 }}
           />
         </TouchableOpacity>
         <Text
-          style={{color: '#bea063', marginTop: 6, fontSize: 13, maxWidth: 80}}
+          style={{ color: '#bea063', marginTop: 6, fontSize: 13, maxWidth: 80 }}
           numberOfLines={1}>
           {item.title || 'Highlights'}
         </Text>
@@ -1476,7 +1775,7 @@ const ProfileScreen = ({navigation} : any) => {
       };
       const res = await axios.get(
         `https://pashuahar.com/highlights/${highlightIdParam}`,
-        {headers},
+        { headers },
       );
       setHighlightStories(res.data.stories || []);
       setHighlightTitle(title);
@@ -1528,14 +1827,14 @@ const ProfileScreen = ({navigation} : any) => {
       if (editHighlightTitle) payload.title = editHighlightTitle;
       // if (editHighlightCoverId) payload.cover_story = editHighlightCoverId;
       // if (editHighlightStories.length > 0) payload.story_ids = editHighlightStories.map(s => s.id).join(',');
-      console.log(
-        '[saveEditHighlight] PATCH /highlights/' + editHighlightId + '/',
-      );
-      console.log('[saveEditHighlight] Payload:', payload);
+      // console.log(
+      //   '[saveEditHighlight] PATCH /highlights/' + editHighlightId + '/',
+      // );
+      // console.log('[saveEditHighlight] Payload:', payload);
       let response = await axios.patch(
         `https://pashuahar.com/highlights/${editHighlightId}/`,
         payload,
-        {headers},
+        { headers },
       );
       console.log('[saveEditHighlight] Response:', response?.data);
       setEditHighlightModalVisible(false);
@@ -1543,7 +1842,7 @@ const ProfileScreen = ({navigation} : any) => {
       await fetchHighlights();
       // if (editHighlightId) await openHighlightViewer(editHighlightId, editHighlightTitle); // Ensure this stays commented out
     } catch (err) {
-      console.log('[saveEditHighlight] Error:', err);
+      // console.log('[saveEditHighlight] Error:', err);
       setEditHighlightError('Failed to update highlight');
     } finally {
       setEditHighlightLoading(false);
@@ -1557,7 +1856,7 @@ const ProfileScreen = ({navigation} : any) => {
       'Delete Highlight',
       'Are you sure you want to delete this highlight?',
       [
-        {text: 'Cancel', style: 'cancel'},
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
@@ -1570,7 +1869,7 @@ const ProfileScreen = ({navigation} : any) => {
               };
               await axios.delete(
                 `https://pashuahar.com/highlights/${highlightId}/`,
-                {headers},
+                { headers },
               );
               setHighlightViewerVisible(false);
               await fetchHighlights();
@@ -1612,7 +1911,7 @@ const ProfileScreen = ({navigation} : any) => {
         Accept: 'application/json',
         Authorization: `Bearer ${authToken}`,
       };
-      const payload = {story_ids: selectedStoryIds.join(',')};
+      const payload = { story_ids: selectedStoryIds.join(',') };
       console.log(
         '[saveStoriesToHighlight] PATCH /highlights/' + highlightId + '/',
       );
@@ -1620,7 +1919,7 @@ const ProfileScreen = ({navigation} : any) => {
       const response = await axios.patch(
         `https://pashuahar.com/highlights/${highlightId}/`,
         payload,
-        {headers},
+        { headers },
       );
       console.log('[saveStoriesToHighlight] Response:', response?.data);
       setStorySelectModalVisible(false);
@@ -1646,16 +1945,16 @@ const ProfileScreen = ({navigation} : any) => {
       const newValue = !selectedPost.allow_comments;
       await axios.patch(
         `https://pashuahar.com/posts/${selectedPost.id}/`,
-        {allow_comments: newValue},
-        {headers},
+        { allow_comments: newValue },
+        { headers },
       );
       setPosts(prevPosts =>
         prevPosts.map(p =>
-          p.id === selectedPost.id ? {...p, allow_comments: newValue} : p,
+          p.id === selectedPost.id ? { ...p, allow_comments: newValue } : p,
         ),
       );
       setSelectedPost((prev: any) =>
-        prev ? {...prev, allow_comments: newValue} : prev,
+        prev ? { ...prev, allow_comments: newValue } : prev,
       );
       Alert.alert(
         'Success',
@@ -1677,16 +1976,16 @@ const ProfileScreen = ({navigation} : any) => {
       const newValue = !selectedPost.hide_like_count;
       await axios.patch(
         `https://pashuahar.com/posts/${selectedPost.id}/`,
-        {hide_like_count: newValue},
-        {headers},
+        { hide_like_count: newValue },
+        { headers },
       );
       setPosts(prevPosts =>
         prevPosts.map(p =>
-          p.id === selectedPost.id ? {...p, hide_like_count: newValue} : p,
+          p.id === selectedPost.id ? { ...p, hide_like_count: newValue } : p,
         ),
       );
       setSelectedPost((prev: any) =>
-        prev ? {...prev, hide_like_count: newValue} : prev,
+        prev ? { ...prev, hide_like_count: newValue } : prev,
       );
       Alert.alert(
         'Success',
@@ -1714,8 +2013,8 @@ const ProfileScreen = ({navigation} : any) => {
       };
       await axios.post(
         `https://pashuahar.com/highlights/${highlightId}/remove-story/`,
-        {story_id: storyId},
-        {headers},
+        { story_id: storyId },
+        { headers },
       );
       // Remove the story from the local state
       setHighlightStories(prev => prev.filter(story => story.id !== storyId));
@@ -1728,30 +2027,27 @@ const ProfileScreen = ({navigation} : any) => {
 
   const [role, setRole] = useState<string | null>(null);
   const [vendorProfile, setVendorProfile] = useState<any>(null);
-console.log("vendorProfile ------->",vendorProfile);
 
   const renderVendorCategories = () => {
     if (role !== 'vendor' || !vendorProfile) return null;
-    console.log("renderVendorCategories",vendorProfile);
-    
+
     const mainCategories = vendorProfile?.main_categories || [];
     const subCategories = vendorProfile?.subcategories || [];
-console.log("mainCategories",mainCategories);
 
     // Only show if there is at least one main or sub category
     if (mainCategories.length === 0 && subCategories.length === 0) return null;
 
     return (
-      <View style={{paddingHorizontal: 20, marginBottom: 10}}>
+      <View style={{ paddingHorizontal: 20, marginBottom: 10 }}>
         {mainCategories.length > 0 && (
           <>
-            <Text style={{fontWeight: 'bold', color: '#bea063', fontSize: 16, marginBottom: 4}}>
+            <Text style={{ fontWeight: 'bold', color: '#bea063', fontSize: 16, marginBottom: 4 }}>
               Main Categories
             </Text>
-            <View style={{flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8}}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
               {mainCategories.map((cat: any, idx: number) => (
-                <View key={idx} style={{backgroundColor: '#fff5e0', borderColor: '#bea063', borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 4, marginRight: 8, marginBottom: 8}}>
-                  <Text style={{color: '#bea063', fontSize: 14}}>
+                <View key={idx} style={{ backgroundColor: '#fff5e0', borderColor: '#bea063', borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 4, marginRight: 8, marginBottom: 8 }}>
+                  <Text style={{ color: '#bea063', fontSize: 14 }}>
                     {cat.name || cat.category_name || cat.id}
                   </Text>
                 </View>
@@ -1761,13 +2057,13 @@ console.log("mainCategories",mainCategories);
         )}
         {subCategories.length > 0 && (
           <>
-            <Text style={{fontWeight: 'bold', color: '#bea063', fontSize: 16, marginBottom: 4}}>
+            <Text style={{ fontWeight: 'bold', color: '#bea063', fontSize: 16, marginBottom: 4 }}>
               Sub Categories
             </Text>
-            <View style={{flexDirection: 'row', flexWrap: 'wrap'}}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
               {subCategories.map((cat: any, idx: number) => (
-                <View key={idx} style={{backgroundColor: '#fff5e0', borderColor: '#bea063', borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 4, marginRight: 8, marginBottom: 8}}>
-                  <Text style={{color: '#bea063', fontSize: 14}}>
+                <View key={idx} style={{ backgroundColor: '#fff5e0', borderColor: '#bea063', borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 4, marginRight: 8, marginBottom: 8 }}>
+                  <Text style={{ color: '#bea063', fontSize: 14 }}>
                     {cat.name || cat.id}
                   </Text>
                 </View>
@@ -1780,12 +2076,62 @@ console.log("mainCategories",mainCategories);
   };
 
   // Add this function to ProfileScreen if not present
-  const handleShare = (post: any) => {
+  const handleShare = () => {
     Alert.alert('Share', 'Share functionality coming soon!');
   };
 
   const [isCommentModalVisible, setIsCommentModalVisible] = useState(false);
   const [selectedCommentPost, setSelectedCommentPost] = useState<any>(null);
+
+  // Add these functions above your return statement, with correct spelling and logic:
+
+  const handleDeleteDraft = async () => {
+    if (!selectedPost) return;
+    setDeleteLoading(true);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+      await axios.delete(`https://pashuahar.com/posts/${selectedPost.id}/`, { headers });
+      setDraftPosts(prev => prev.filter(p => p.id !== selectedPost.id));
+      setOptionsVisible(false);
+      setSelectedPost(null);
+      Alert.alert('Deleted', 'Draft deleted successfully.');
+    } catch (err) {
+      Alert.alert('Error', 'Failed to delete draft.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handlePostDraft = async () => {
+    if (!selectedPost) return;
+    setPostLoading(true);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+      console.log("selectedPostselectedPost", selectedPost);
+
+      await axios.patch(
+        `https://pashuahar.com/posts/${selectedPost.id}/`,
+        { is_draft: false },
+        { headers }
+      );
+      setDraftPosts(prev => prev.filter(p => p.id !== selectedPost.id));
+      setOptionsVisible(false);
+      setSelectedPost(null);
+      Alert.alert('Posted', 'Draft published successfully.');
+    } catch (err) {
+      Alert.alert('Error', 'Failed to publish draft.');
+    } finally {
+      setPostLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -1793,7 +2139,7 @@ console.log("mainCategories",mainCategories);
         <TouchableOpacity onPress={() => setProfileOptionsModalVisible(true)}>
           <Text style={styles.headerTitle}>{profile?.username}</Text>
         </TouchableOpacity>
-        <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <TouchableOpacity
             onPress={() => {
               navigation.navigate('UploadOptions');
@@ -1801,12 +2147,12 @@ console.log("mainCategories",mainCategories);
             }}>
             <Ionicons name="add" size={28} color="#bea063" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Menu',{data: data})}>
+          <TouchableOpacity onPress={() => navigation.navigate('Menu', { data: data })}>
             <Ionicons
               name="menu-outline"
               size={24}
               color="#bea063"
-              style={{marginRight: 18}}
+              style={{ marginRight: 18 }}
             />
           </TouchableOpacity>
         </View>
@@ -1816,50 +2162,33 @@ console.log("mainCategories",mainCategories);
         visible={fullscreenVisible}
         animationType="slide"
         onRequestClose={() => setFullscreenVisible(false)}
-        transparent={false}>
-        {/* Full-screen white background to prevent white flashes */}
-        <View style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: '#fff',
-          zIndex: 0,
-        }} />
-        <SafeAreaView style={{flex: 1, backgroundColor: '#fff'}}>
-          {/* <TouchableOpacity
-            style={{position: 'absolute', top: 40, right: 20, zIndex: 1}}
-            onPress={() => setFullscreenVisible(false)}>
-            <Ionicons name="close" size={30} color="#fff" />
-          </TouchableOpacity> */}
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingTop: 20,
-              paddingBottom: 10,
-              paddingHorizontal: 10,
-               backgroundColor:'#fff',
-              // position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              zIndex: 10,
-            }}>
+        transparent={false}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingTop: 20,
+            paddingBottom: 10,
+            paddingHorizontal: 10,
+            backgroundColor: '#fff',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 10,
+          }}>
             <TouchableOpacity
               onPress={() => setFullscreenVisible(false)}
-              style={{padding: 6, marginRight: 10}}>
+              style={{ padding: 6, marginRight: 10 }}>
               <Ionicons name="arrow-back" size={26} color="#bea063" />
             </TouchableOpacity>
-            <Text style={{color: '#bea063', fontWeight: 'bold', fontSize: 18}}>
+            <Text style={{ color: '#bea063', fontWeight: 'bold', fontSize: 18 }}>
               Posts
             </Text>
           </View>
           {filteredPosts.length === 0 ? (
-            <View
-              style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-              <Text style={{color: '#fff', fontSize: 18}}>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <Text style={{ color: '#fff', fontSize: 18 }}>
                 No posts to display
               </Text>
             </View>
@@ -1869,7 +2198,6 @@ console.log("mainCategories",mainCategories);
               data={filteredPosts}
               renderItem={renderFullscreenItem}
               keyExtractor={item => item.id}
-              // pagingEnabled removed for Instagram-like smooth scroll
               initialScrollIndex={selectedIndex}
               getItemLayout={(data, index) => ({
                 length: Dimensions.get('window').height,
@@ -1879,10 +2207,10 @@ console.log("mainCategories",mainCategories);
               showsVerticalScrollIndicator={false}
               viewabilityConfig={viewabilityConfig}
               onViewableItemsChanged={onViewableItemsChanged}
-              removeClippedSubviews={false}
-              initialNumToRender={10}
-              maxToRenderPerBatch={10}
-              windowSize={21}
+              removeClippedSubviews={true} // Only render visible items
+              initialNumToRender={3} // Only render 3 items at a time
+              maxToRenderPerBatch={3}
+              windowSize={5}
               contentContainerStyle={{ backgroundColor: '#fff' }}
             />
           )}
@@ -1909,12 +2237,12 @@ console.log("mainCategories",mainCategories);
         {renderVendorCategories()}
         {renderProfileHeader()}
         {renderBio()}
-       {renderVendorCategories()}
+        {renderVendorCategories()}
         <View style={styles.actionButtons}>
           <TouchableOpacity
             style={styles.editButton}
-            onPress={() => navigation.navigate('EditProfile', {data: data})}>
-            <Text style={[styles.editButtonText, {color: '#fff'}]}>
+            onPress={() => navigation.navigate('EditProfile', { data: data })}>
+            <Text style={[styles.editButtonText, { color: '#fff' }]}>
               Edit Profile
             </Text>
           </TouchableOpacity>
@@ -1937,15 +2265,15 @@ console.log("mainCategories",mainCategories);
           </View>
         ) : (
           <FlatList
-            data={[{isNew: true}, ...highlights]}
+            data={[{ isNew: true }, ...highlights]}
             renderItem={
-              renderHighlightItem as ({item}: {item: any}) => JSX.Element
+              renderHighlightItem as ({ item }: { item: any }) => JSX.Element
             }
             keyExtractor={item => (item.id ? item.id.toString() : 'new')}
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={{marginVertical: 12, marginLeft: 12}}
-            contentContainerStyle={{alignItems: 'center'}}
+            style={{ marginVertical: 12, marginLeft: 12 }}
+            contentContainerStyle={{ alignItems: 'center' }}
           />
         )}
 
@@ -1976,8 +2304,43 @@ console.log("mainCategories",mainCategories);
               </Text>
             </TouchableOpacity>
           </View>
+        ) : activeTab === 'draft' && draftLoading ? (
+          <View style={styles.emptyStateContainer}>
+            <ActivityIndicator size="large" color="#bea063" />
+            <Text style={styles.emptyStateText}>Loading drafts...</Text>
+          </View>
+        ) : activeTab === 'draft' && draftError ? (
+          <View style={styles.emptyStateContainer}>
+            <Ionicons name="alert-circle-outline" size={48} color="#666" />
+            <Text style={styles.emptyStateText}>{draftError}</Text>
+          </View>
+        ) : activeTab === 'draft' && filteredPosts.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
+            <Ionicons name="document-outline" size={48} color="#666" />
+            <Text style={styles.emptyStateText}>No drafts found</Text>
+            <Text style={styles.emptyStateSubtext}>
+              You have not saved any drafts yet.
+            </Text>
+
+          </View>
+        ) : activeTab === 'tagged' && taggedLoading ? (
+          <View style={styles.emptyStateContainer}>
+            <ActivityIndicator size="large" color="#bea063" />
+            <Text style={styles.emptyStateText}>Loading tagged posts...</Text>
+          </View>
+        ) : activeTab === 'tagged' && taggedError ? (
+          <View style={styles.emptyStateContainer}>
+            <Ionicons name="alert-circle-outline" size={48} color="#666" />
+            <Text style={styles.emptyStateText}>{taggedError}</Text>
+          </View>
+        ) : activeTab === 'tagged' && filteredPosts.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
+            <Ionicons name="pricetag-outline" size={48} color="#666" />
+            <Text style={styles.emptyStateText}>No tagged posts yet</Text>
+          </View>
         ) : (
           <FlatList
+            initialNumToRender={10}
             data={filteredPosts}
             renderItem={renderPostItem}
             keyExtractor={item => item.id}
@@ -2019,49 +2382,71 @@ console.log("mainCategories",mainCategories);
                 padding: 20,
                 minWidth: 180,
               }}>
-              <TouchableOpacity
-                onPress={handleEdit}
-                style={{paddingVertical: 10}}>
-                <Text style={{fontSize: 16}}>Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleDelete}
-                style={{
-                  paddingVertical: 10,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}>
-                {/* {deleteLoading ? (
-                  <ActivityIndicator
-                    size={18}
-                    color="#E74C3C"
-                    style={{marginRight: 8}}
-                  />
-                ) : (
-                  <Ionicons name="trash" size={20} color="#E74C3C" style={{marginRight: 8}} />
-                )} */}
-                <Text style={{fontSize: 16, color: 'black'}}>Delete</Text>
-              </TouchableOpacity>
-              {/* Toggle Comments Button */}
-              <TouchableOpacity
-                onPress={handleToggleComments}
-                style={{paddingVertical: 10}}>
-                <Text style={{fontSize: 16}}>
-                  {selectedPost?.allow_comments
-                    ? 'Turn Off Comments'
-                    : 'Turn On Comments'}
-                </Text>
-              </TouchableOpacity>
-              {/* Toggle Like Count Button */}
-              <TouchableOpacity
-                onPress={handleToggleLikeCount}
-                style={{paddingVertical: 10}}>
-                <Text style={{fontSize: 16}}>
-                  {selectedPost?.hide_like_count
-                    ? 'Show Like Count'
-                    : 'Hide Like Count'}
-                </Text>
-              </TouchableOpacity>
+              {activeTab === 'draft' ? (
+                <>
+                  <TouchableOpacity
+                    onPress={handlePostDraft}
+                    style={{ paddingVertical: 10, flexDirection: 'row', alignItems: 'center' }}
+                    disabled={postLoading}
+                  >
+                    {postLoading ? (
+                      <ActivityIndicator size={18} color="#bea063" style={{ marginRight: 8 }} />
+                    ) : (
+                      <Ionicons name="cloud-upload-outline" size={20} color="#bea063" style={{ marginRight: 8 }} />
+                    )}
+                    <Text style={{ fontSize: 16, color: '#bea063' }}>Post</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleDeleteDraft}
+                    style={{ paddingVertical: 10, flexDirection: 'row', alignItems: 'center' }}
+                    disabled={deleteLoading}
+                  >
+                    {deleteLoading ? (
+                      <ActivityIndicator size={18} color="#E74C3C" style={{ marginRight: 8 }} />
+                    ) : (
+                      <Ionicons name="trash" size={20} color="#E74C3C" style={{ marginRight: 8 }} />
+                    )}
+                    <Text style={{ fontSize: 16, color: 'black' }}>Delete</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    onPress={handleEdit}
+                    style={{ paddingVertical: 10 }}>
+                    <Text style={{ fontSize: 16 }}>Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleDelete}
+                    style={{
+                      paddingVertical: 10,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                    }}>
+                    <Text style={{ fontSize: 16, color: 'black' }}>Delete</Text>
+                  </TouchableOpacity>
+                  {/* Toggle Comments Button */}
+                  <TouchableOpacity
+                    onPress={handleToggleComments}
+                    style={{ paddingVertical: 10 }}>
+                    <Text style={{ fontSize: 16 }}>
+                      {selectedPost?.allow_comments
+                        ? 'Turn Off Comments'
+                        : 'Turn On Comments'}
+                    </Text>
+                  </TouchableOpacity>
+                  {/* Toggle Like Count Button */}
+                  <TouchableOpacity
+                    onPress={handleToggleLikeCount}
+                    style={{ paddingVertical: 10 }}>
+                    <Text style={{ fontSize: 16 }}>
+                      {selectedPost?.hide_like_count
+                        ? 'Show Like Count'
+                        : 'Hide Like Count'}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           )}
         </TouchableOpacity>
@@ -2116,7 +2501,7 @@ console.log("mainCategories",mainCategories);
             />
 
             <View
-              style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+              style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <TouchableOpacity
                 style={{
                   flex: 1,
@@ -2132,7 +2517,7 @@ console.log("mainCategories",mainCategories);
                   setCreateCollectionModalVisible(false);
                   setNewCollectionName('');
                 }}>
-                <Text style={{fontSize: 16, color: '#bea063', fontWeight: '600'}}>Cancel</Text>
+                <Text style={{ fontSize: 16, color: '#bea063', fontWeight: '600' }}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -2163,7 +2548,9 @@ console.log("mainCategories",mainCategories);
                 {createCollectionLoading ? (
                   <ActivityIndicator size={20} color="#fff" />
                 ) : (
-                  <Text style={{fontSize: 16, color: '#fff', fontWeight: '600'}}>Create</Text>
+                  <Text style={styles.createCollectionButtonText}>
+                    Create Collection
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -2224,7 +2611,7 @@ console.log("mainCategories",mainCategories);
             <LocationPicker
               value={editLocation}
               onChange={setEditLocation}
-              style={{marginBottom: 8}}
+              style={{ marginBottom: 8 }}
               isFromUserProfile={true}
             />
 
@@ -2277,7 +2664,7 @@ console.log("mainCategories",mainCategories);
                   <ActivityIndicator size={20} color="#fff" />
                 ) : (
                   <Text
-                    style={{fontSize: 16, color: '#fff', fontWeight: '600'}}>
+                    style={{ fontSize: 16, color: '#fff', fontWeight: '600' }}>
                     Update
                   </Text>
                 )}
@@ -2339,7 +2726,7 @@ console.log("mainCategories",mainCategories);
                   }
                 }}>
                 <Image
-                  source={{uri: acc.avatarUrl || 'https://picsum.photos/60'}}
+                  source={{ uri: acc.avatarUrl || 'https://picsum.photos/60' }}
                   style={{
                     width: 40,
                     height: 40,
@@ -2347,19 +2734,19 @@ console.log("mainCategories",mainCategories);
                     marginRight: 10,
                   }}
                 />
-                <Text style={{fontSize: 16, color: '#333'}}>
+                <Text style={{ fontSize: 16, color: '#333' }}>
                   {acc.username}
                 </Text>
               </TouchableOpacity>
             ))}
             <TouchableOpacity
-              style={{marginTop: 12}}
+              style={{ marginTop: 12 }}
               onPress={() => {
                 setAccountsModalVisible(false);
                 // Navigate to Login/Add Account Screen
                 navigation.navigate('Login');
               }}>
-              <Text style={{color: '#bea063', textAlign: 'center'}}>
+              <Text style={{ color: '#bea063', textAlign: 'center' }}>
                 Add Account
               </Text>
             </TouchableOpacity>
@@ -2413,7 +2800,7 @@ console.log("mainCategories",mainCategories);
               autoFocus
             />
             {createHighlightError && (
-              <Text style={{color: 'red', marginBottom: 8}}>
+              <Text style={{ color: 'red', marginBottom: 8 }}>
                 {createHighlightError}
               </Text>
             )}
@@ -2436,9 +2823,8 @@ console.log("mainCategories",mainCategories);
                 onPress={() => {
                   setCreateHighlightModalVisible(false);
                   setNewHighlightTitle('');
-                  setCreateHighlightError(null);
                 }}>
-                <Text style={{color: '#bea063', fontWeight: '600'}}>
+                <Text style={{ color: '#bea063', fontWeight: '600' }}>
                   Cancel
                 </Text>
               </TouchableOpacity>
@@ -2455,8 +2841,7 @@ console.log("mainCategories",mainCategories);
                 {createHighlightLoading ? (
                   <ActivityIndicator size={20} color="#fff" />
                 ) : (
-                  <Text
-                    style={{fontSize: 16, color: '#fff', fontWeight: '600'}}>
+                  <Text style={styles.createCollectionButtonText}>
                     Create
                   </Text>
                 )}
@@ -2471,7 +2856,7 @@ console.log("mainCategories",mainCategories);
         animationType="slide"
         onRequestClose={() => setHighlightViewerVisible(false)}
         transparent={false}>
-        <SafeAreaView style={{flex: 1, backgroundColor: '#fff'}}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
           <View
             style={{
               flexDirection: 'row',
@@ -2479,18 +2864,18 @@ console.log("mainCategories",mainCategories);
               justifyContent: 'space-between',
               padding: 16,
             }}>
-            <Text style={{color: '#bea063', fontSize: 18, fontWeight: 'bold'}}>
+            <Text style={{ color: '#bea063', fontSize: 18, fontWeight: 'bold' }}>
               {highlightTitle}
             </Text>
-            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TouchableOpacity
                 onPress={openEditHighlight}
-                style={{marginRight: 16}}>
+                style={{ marginRight: 16 }}>
                 <Ionicons name="create-outline" size={24} color="#bea063" />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={deleteHighlight}
-                style={{marginRight: 16}}
+                style={{ marginRight: 16 }}
                 accessibilityLabel="Delete Highlight">
                 <View
                   style={{
@@ -2511,17 +2896,17 @@ console.log("mainCategories",mainCategories);
           </View>
           {highlightLoading ? (
             <View
-              style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+              style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
               <ActivityIndicator size="large" color="#bea063" />
             </View>
           ) : highlightStories.length === 0 ? (
             <View
-              style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+              style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
               <Ionicons
                 name="image-outline"
                 size={64}
                 color="#bea063"
-                style={{marginBottom: 16}}
+                style={{ marginBottom: 16 }}
               />
               <Text
                 style={{
@@ -2549,7 +2934,7 @@ console.log("mainCategories",mainCategories);
                 horizontal
                 pagingEnabled
                 keyExtractor={item => item.id?.toString()}
-                renderItem={({item}) => (
+                renderItem={({ item }) => (
                   <View
                     style={{
                       width: Dimensions.get('window').width,
@@ -2585,18 +2970,19 @@ console.log("mainCategories",mainCategories);
                     {/* Story content */}
                     {item.is_video ? (
                       <Video
-                        source={{uri: item.media_file}}
+                        source={{ uri: item.media_file }}
                         style={{
                           width: '100%',
                           height: 400,
                           backgroundColor: '#eee',
                         }}
+                        onError={e => console.error('Video error:', e)}
                         resizeMode="contain"
                         controls
                       />
                     ) : (
                       <Image
-                        source={{uri: item.media_file}}
+                        source={{ uri: item.media_file }}
                         style={{
                           width: '100%',
                           height: 400,
@@ -2618,14 +3004,6 @@ console.log("mainCategories",mainCategories);
                     ) : null}
                   </View>
                 )}
-                showsHorizontalScrollIndicator={true}
-                onMomentumScrollEnd={event => {
-                  const newIndex = Math.round(
-                    event.nativeEvent.contentOffset.x /
-                      Dimensions.get('window').width,
-                  );
-                  setHighlightStoryIndex(newIndex);
-                }}
               />
               {/* Navigation dots for highlight stories */}
               {highlightStories.length > 1 && (
@@ -2661,7 +3039,7 @@ console.log("mainCategories",mainCategories);
         animationType="slide"
         onRequestClose={() => setEditHighlightModalVisible(false)}
         transparent={false}>
-        <SafeAreaView style={{flex: 1, backgroundColor: '#fff'}}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
           <View
             style={{
               flexDirection: 'row',
@@ -2669,7 +3047,7 @@ console.log("mainCategories",mainCategories);
               justifyContent: 'space-between',
               padding: 16,
             }}>
-            <Text style={{color: '#bea063', fontSize: 18, fontWeight: 'bold'}}>
+            <Text style={{ color: '#bea063', fontSize: 18, fontWeight: 'bold' }}>
               Edit Highlight
             </Text>
             <TouchableOpacity
@@ -2677,8 +3055,8 @@ console.log("mainCategories",mainCategories);
               <Ionicons name="close" size={28} color="#bea063" />
             </TouchableOpacity>
           </View>
-          <View style={{padding: 16}}>
-            <Text style={{color: '#bea063', fontSize: 16, marginBottom: 8}}>
+          <View style={{ padding: 16 }}>
+            <Text style={{ color: '#bea063', fontSize: 16, marginBottom: 8 }}>
               Title
             </Text>
             <TextInput
@@ -2695,13 +3073,13 @@ console.log("mainCategories",mainCategories);
               placeholder="Highlight Title"
               placeholderTextColor="#bea063"
             />
-            <Text style={{color: '#bea063', fontSize: 16, marginBottom: 8}}>
+            <Text style={{ color: '#bea063', fontSize: 16, marginBottom: 8 }}>
               Select Cover Story
             </Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              style={{marginBottom: 16}}>
+              style={{ marginBottom: 16 }}>
               {editHighlightStories.map(story => (
                 <TouchableOpacity
                   key={story.id}
@@ -2717,21 +3095,22 @@ console.log("mainCategories",mainCategories);
                   }}>
                   {story.is_video ? (
                     <Video
-                      source={{uri: story.media_file}}
-                      style={{width: 80, height: 120, borderRadius: 8}}
+                      source={{ uri: story.media_file }}
+                      style={{ width: 80, height: 120, borderRadius: 8 }}
                       resizeMode="cover"
+                      onError={e => console.error('Video error:', e)}
                     />
                   ) : (
                     <Image
-                      source={{uri: story.media_file}}
-                      style={{width: 80, height: 120, borderRadius: 8}}
+                      source={{ uri: story.media_file }}
+                      style={{ width: 80, height: 120, borderRadius: 8 }}
                     />
                   )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
             {editHighlightError && (
-              <Text style={{color: 'red', marginBottom: 8}}>
+              <Text style={{ color: 'red', marginBottom: 8 }}>
                 {editHighlightError}
               </Text>
             )}
@@ -2745,7 +3124,7 @@ console.log("mainCategories",mainCategories);
               }}
               onPress={saveEditHighlight}
               disabled={editHighlightLoading}>
-              <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 16}}>
+              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>
                 {editHighlightLoading ? 'Saving...' : 'Save Changes'}
               </Text>
             </TouchableOpacity>
@@ -2758,7 +3137,7 @@ console.log("mainCategories",mainCategories);
         animationType="slide"
         onRequestClose={() => setStorySelectModalVisible(false)}
         transparent={false}>
-        <SafeAreaView style={{flex: 1, backgroundColor: '#fff'}}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
           <View
             style={{
               flexDirection: 'row',
@@ -2766,7 +3145,7 @@ console.log("mainCategories",mainCategories);
               justifyContent: 'space-between',
               padding: 16,
             }}>
-            <Text style={{color: '#bea063', fontSize: 18, fontWeight: 'bold'}}>
+            <Text style={{ color: '#bea063', fontSize: 18, fontWeight: 'bold' }}>
               Add Stories to Highlight
             </Text>
             <TouchableOpacity onPress={() => setStorySelectModalVisible(false)}>
@@ -2775,18 +3154,18 @@ console.log("mainCategories",mainCategories);
           </View>
           {storySelectLoading ? (
             <View
-              style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+              style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
               <ActivityIndicator size="large" color="#bea063" />
             </View>
           ) : storySelectError ? (
-            <Text style={{color: 'red', textAlign: 'center', marginTop: 20}}>
+            <Text style={{ color: 'red', textAlign: 'center', marginTop: 20 }}>
               {storySelectError}
             </Text>
           ) : (
             <FlatList
               data={allUserStories}
               keyExtractor={item => item.id?.toString()}
-              renderItem={({item}) => (
+              renderItem={({ item }) => (
                 <TouchableOpacity
                   style={{
                     flexDirection: 'row',
@@ -2803,20 +3182,21 @@ console.log("mainCategories",mainCategories);
                     );
                   }}>
                   {item.media_file &&
-                  item.media_file.toLowerCase().endsWith('.mp4') ? (
+                    item.media_file.toLowerCase().endsWith('.mp4') ? (
                     <Video
-                      source={{uri: item.media_file}}
+                      source={{ uri: item.media_file }}
                       style={{
                         width: 60,
                         height: 90,
                         borderRadius: 8,
                         marginRight: 12,
                       }}
+                      onError={e => console.error('Video error:', e)}
                       resizeMode="cover"
                     />
                   ) : (
                     <Image
-                      source={{uri: item.media_file}}
+                      source={{ uri: item.media_file }}
                       style={{
                         width: 60,
                         height: 90,
@@ -2825,7 +3205,7 @@ console.log("mainCategories",mainCategories);
                       }}
                     />
                   )}
-                  <Text style={{flex: 1}}>{item.caption || 'No Caption'}</Text>
+                  <Text style={{ flex: 1 }}>{item.caption || 'No Caption'}</Text>
                   <Ionicons
                     name={
                       selectedStoryIds.includes(item.id)
@@ -2857,7 +3237,7 @@ console.log("mainCategories",mainCategories);
               !selectedStoryIds.length ||
               highlightId === null
             }>
-            <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 16}}>
+            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>
               {storySelectLoading ? 'Saving...' : 'Add Selected Stories'}
             </Text>
           </TouchableOpacity>
@@ -2880,20 +3260,24 @@ console.log("mainCategories",mainCategories);
           <ActivityIndicator size="large" color="#bea063" />
         </View>
       )}
-console.log("selectedCommentPost",selectedCommentPost);
+      console.log("selectedCommentPost",selectedCommentPost);
 
       {selectedCommentPost && (
-        <CommentModal
+        <InstagramCommentModal
           visible={isCommentModalVisible}
           onClose={() => {
             setIsCommentModalVisible(false);
             setSelectedCommentPost(null);
           }}
+          postId={selectedCommentPost.id}
+          mediaUrl={
+            selectedCommentPost.media?.[0]?.media_file ||
+            selectedCommentPost.uri ||
+            selectedCommentPost.video_file
+          }
+          username={selectedCommentPost.username || profile.username}
+          userAvatar={selectedCommentPost.userAvatar || profile.profileImage}
           content_type={selectedCommentPost.type === 'reel' ? 'reel' : 'post'}
-          object_id={parseInt(selectedCommentPost.id)}
-          media_url={selectedCommentPost.media?.[0]?.media_file}
-          username={selectedCommentPost.username}
-          profile_picture={selectedCommentPost.userAvatar}
           caption={selectedCommentPost.caption}
         />
       )}

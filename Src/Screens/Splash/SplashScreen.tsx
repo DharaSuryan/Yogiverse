@@ -5,6 +5,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../Navigation/types';
 import Video from 'react-native-video';
+import { registerFCMToken } from '../../Utils/NotificationConfig';
+import messaging from '@react-native-firebase/messaging'; // Import messaging for FCM token handling  
 type SplashNavProp = NativeStackNavigationProp<RootStackParamList, 'SplashScreen'>;
 
 const { width, height } = Dimensions.get('window');
@@ -12,6 +14,7 @@ const SplashScreen = () => {
   const navigation = useNavigation<SplashNavProp>();
 
   useEffect(() => {
+    registerFCMToken()
     const checkAuth = async () => {
       try {
         const [accessToken, userData] = await Promise.all([

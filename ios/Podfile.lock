@@ -2024,7 +2024,12 @@ PODS:
     - React-Core
     - React-RCTImage
     - TOCropViewController (~> 2.7.4)
-  - RNPermissions (5.4.1):
+  - RNNotifee (9.1.8):
+    - React-Core
+    - RNNotifee/NotifeeCore (= 9.1.8)
+  - RNNotifee/NotifeeCore (9.1.8):
+    - React-Core
+  - RNPermissions (3.10.1):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -2330,6 +2335,7 @@ DEPENDENCIES:
   - "RNFBMessaging (from `../node_modules/@react-native-firebase/messaging`)"
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - RNImageCropPicker (from `../node_modules/react-native-image-crop-picker`)
+  - "RNNotifee (from `../node_modules/@notifee/react-native`)"
   - RNPermissions (from `../node_modules/react-native-permissions`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
@@ -2521,6 +2527,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-gesture-handler"
   RNImageCropPicker:
     :path: "../node_modules/react-native-image-crop-picker"
+  RNNotifee:
+    :path: "../node_modules/@notifee/react-native"
   RNPermissions:
     :path: "../node_modules/react-native-permissions"
   RNReanimated:
@@ -2631,7 +2639,8 @@ SPEC CHECKSUMS:
   RNFBMessaging: e6480aaf434826565d5a40b01c422fb0f58fc8a9
   RNGestureHandler: 6cf5a1c46056300a35eefd39f12ec8d400972fe2
   RNImageCropPicker: b0afedeefd8655254a15c34103718455fde6ce59
-  RNPermissions: ccc7c610383bc5c1baa5b7d71364890d314c90b3
+  RNNotifee: 5e3b271e8ea7456a36eec994085543c9adca9168
+  RNPermissions: 4d4ad22ea2697288d0cb52d3ccb39b3aea0c2323
   RNReanimated: 1771cd2ba649a08588e93341c732048a4b05a0dd
   RNScreens: 3dad3f26f73966bce7e956589eb0f6f27c0cc12b
   RNSnackbar: c1b235eb606b03938c693ce769ed3059c31dff9b
@@ -2641,6 +2650,6 @@ SPEC CHECKSUMS:
   VisionCamera: c5c07db74721d37f4c9f8331ad1f8da7b2539995
   Yoga: f8ec45ce98bba1bc93dd28f2ee37215180e6d2b6
 
-PODFILE CHECKSUM: ed8fc4e778eece3e00fd10ead73ecef918f3b859
+PODFILE CHECKSUM: 6a4d8b655f7290eb9411040ce17a866669e33536
 
 COCOAPODS: 1.16.2

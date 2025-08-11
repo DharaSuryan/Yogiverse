@@ -18,6 +18,7 @@
     "android-build-release": "cd ./android && rm -rf app/src/main/res/drawable* && ./gradlew app:assembleRelease"
   },
   "dependencies": {
+    "@notifee/react-native": "^9.1.8",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-camera-roll/camera-roll": "^7.10.0",
     "@react-native-community/netinfo": "^11.4.1",
@@ -56,7 +57,7 @@
     "react-native-linear-gradient": "^2.8.3",
     "react-native-modal": "^14.0.0-rc.1",
     "react-native-multiple-select": "^0.5.12",
-    "react-native-permissions": "^5.4.1",
+    "react-native-permissions": "^3.8.0",
     "react-native-push-notification": "^8.1.1",
     "react-native-reanimated": "^3.17.5",
     "react-native-responsive-screen": "^1.4.2",

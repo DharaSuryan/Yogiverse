@@ -55,9 +55,9 @@ const ITEMS_PER_PAGE = 50;
 const UserSchema = Yup.object().shape({
   first_name: Yup.string().required('Required'),
   last_name: Yup.string().required('Required'),
-  username: Yup.string().required('Required'),
-  email: Yup.string().email('Invalid email').required('Required'),
-  phone_no: Yup.string().required('Required'),
+  username: Yup.string(),
+  email: Yup.string(),
+  phone_no: Yup.string(),
   password: Yup.string().min(6).required('Required'),
   confirm_password: Yup.string().oneOf([Yup.ref('password')], 'Passwords must match').required('Required'),
   country: Yup.string().nullable(),
@@ -334,7 +334,7 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
     console.log('Form values:', formValues);
     
     // Check if all required fields are filled
-    if (!formValues.first_name || !formValues.last_name || !formValues.email || !formValues.username || !formValues.password || !formValues.phone_no) {
+    if (!formValues.first_name || !formValues.last_name  || !formValues.username || !formValues.password ) {
       Alert.alert('Validation Error', 'Please fill in all required fields before proceeding.');
       return;
     }

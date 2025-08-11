@@ -17,16 +17,16 @@ const MENU_SECTIONS = [
       // You can add more options here
     ],
   },
-  {
-    title: 'Your Activity',
-    data: [
-      { icon: 'bookmark-outline', label: 'Keepers', action: 'Keepers' },
-      { icon: 'notifications-outline', label: 'Notifications', action: 'Notifications' },
-      { icon: 'chatbubble-ellipses-outline', label: 'Comments', action: 'Comments' },
-      // { icon: 'time-outline', label: 'Time Spent', action: 'TimeSpent' },
-      // { icon: 'people-outline', label: 'Close Friends', action: 'CloseFriends' },
-    ],
-  },
+  // {
+  //   title: 'Your Activity',
+  //   data: [
+  //     { icon: 'bookmark-outline', label: 'Keepers', action: 'Keepers' },
+  //     // { icon: 'notifications-outline', label: 'Notifications', action: 'Notifications' },
+  //     // { icon: 'chatbubble-ellipses-outline', label: 'Comments', action: 'Comments' },
+  //     // { icon: 'time-outline', label: 'Time Spent', action: 'TimeSpent' },
+  //     // { icon: 'people-outline', label: 'Close Friends', action: 'CloseFriends' },
+  //   ],
+  // },
   {
     title: 'From Yogi-verse',
     data: [
@@ -41,8 +41,8 @@ const MENU_SECTIONS = [
     data: [
       { icon: 'lock-open-outline', label: 'Change Password', action: 'ChangePassword' },
       { icon: 'person-add-outline', label: 'DeActivete Account', action: 'DeActivateAccount' },
-      { icon: 'person-add-outline', label: 'Delete Account', action: 'DeleteAccount' },
-      { icon: 'help-circle-outline', label: 'Help & Support', action: 'Help' },
+      // { icon: 'person-add-outline', label: 'Delete Account', action: 'DeleteAccount' },
+      // { icon: 'help-circle-outline', label: 'Help & Support', action: 'Help' },
       { icon: 'log-out-outline', label: 'Log Out', action: 'Logout' },
 
     ],

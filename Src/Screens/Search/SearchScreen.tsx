@@ -293,6 +293,17 @@ console.log("categories",categories);
           value={searchQuery}
           onChangeText={handleSearchChange}
         />
+        {searchQuery.trim().length > 0 && (
+          <TouchableOpacity
+            style={{ marginLeft: 8 }}
+            onPress={() => {
+              setSearchQuery('');
+              setSearchResults([]);
+            }}
+          >
+            <Text style={{ color: '#bea063', fontWeight: 'bold' }}>Clear All</Text>
+          </TouchableOpacity>
+        )}
       </View>
       {loading ? (
         <ActivityIndicator size="large" color="#bea063" style={{ marginTop: 20 }} />

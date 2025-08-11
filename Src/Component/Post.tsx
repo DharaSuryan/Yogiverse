@@ -22,6 +22,7 @@ const Ionicons = require('react-native-vector-icons/Ionicons').default;
 import Video from 'react-native-video';
 import OptionsBottomSheet from '../Components/OptionsBottomSheet';
 import CommentModal from '../Components/CommentModal';
+import InstagramCommentModal from '../Screens/Comment/InstagramCommentModal';
 
 interface Collection {
   id: number;
@@ -148,6 +149,7 @@ const Post: React.FC<PostProps> = (props) => {
   // Add state for save (collection) loading
   const [saveCollectionLoading, setSaveCollectionLoading] = useState(false);
   const [isCommentModalVisible, setIsCommentModalVisible] = useState(false);
+  const [isInstagramCommentModalVisible, setInstagramCommentModalVisible] = useState(false);
 
   const getMediaUri = (item: any) => {
     if (item.media_file) return item.media_file.startsWith('http') ? item.media_file : `http://192.168.1.160:9001${item.media_file}`;
@@ -176,7 +178,8 @@ const Post: React.FC<PostProps> = (props) => {
         object_id:  id,
       },{headers});
       console.log("like .....",like);
-      
+      // After like API call
+      props.onActionComplete?.();
     } catch (err) {
       console.log("error .....",err);
       
@@ -190,13 +193,7 @@ const Post: React.FC<PostProps> = (props) => {
   };
 
   const handleComment = () => {
-    console.log("items ......",item , contentType);
-    // return
-    // Navigate to CommentScreen with correct params
-    navigations.navigate('CommentScreen', {
-      content_type: contentType === 'reel' ? 'reel' : 'post',
-      object_id:  id,
-    });
+    setInstagramCommentModalVisible(true);
   };
 
   const handleSave = async () => {
@@ -274,6 +271,7 @@ const Post: React.FC<PostProps> = (props) => {
       
       Alert.alert('Success', 'Post saved to collection!');
       setSaveModalVisible(false);
+      props.onActionComplete?.();
     } catch (error: any) {
       console.error('Error saving post to collection:', error);
       const errorMessage = error.response?.data?.message || 'Failed to save post';
@@ -543,9 +541,9 @@ const Post: React.FC<PostProps> = (props) => {
               {!!location && <Text style={styles.location}>{location}</Text>}
             </View>
           </TouchableOpacity>
-          <TouchableOpacity onPress={onOptions}>
+          {/* <TouchableOpacity onPress={onOptions}>
             {React.createElement(Ionicons, { name: "ellipsis-vertical", size: 20, color: "#bea063" })}
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       )}
 
@@ -571,10 +569,10 @@ const Post: React.FC<PostProps> = (props) => {
       )}
 
       {/* Only show actions if hideActions is false */}
-      {!hideActions && (
+      {(
         <View style={styles.actions}>
           {/* Like button and count */}
-          {!hideLikeCount && (
+          { (
             <>
               <TouchableOpacity onPress={handleLike} disabled={likeLoading}>
                 {likeLoading ? (
@@ -583,7 +581,9 @@ const Post: React.FC<PostProps> = (props) => {
                   React.createElement(Ionicons, { name: isLiked ? 'heart' : 'heart-outline', size: 26, color: isLiked ? '#bea063' : '#bea063' })
                 )}
               </TouchableOpacity>
-              <Text style={{ color: '#bea063', fontWeight: '600', marginLeft: 4, marginRight: 0 }}>{likesCount}</Text>
+              {
+                
+                !hideLikeCount && <Text style={{ color: '#bea063', fontWeight: '600', marginLeft: 4, marginRight: 0 }}>{likesCount}</Text>}
             </>
           )}
 
@@ -806,14 +806,17 @@ const Post: React.FC<PostProps> = (props) => {
           {formatTimeAgo(createdAt)}
         </Text>
       )}
-      <CommentModal
-        visible={isCommentModalVisible}
-        onClose={() => setIsCommentModalVisible(false)}
-        content_type={contentType === 'reel' ? 'reel' : 'post'}
-        object_id={parseInt(id)}
-        media_url={media[0]?.media_file}
+      <InstagramCommentModal
+        visible={isInstagramCommentModalVisible}
+        onClose={() => {
+          setInstagramCommentModalVisible(false);
+          props.onActionComplete?.();
+        }}
+        postId={id}
+        mediaUrl={media[0]?.media_file}
         username={username}
-        profile_picture={userAvatar}
+        userAvatar={userAvatar}
+        content_type={contentType}
         caption={caption}
       />
     </View>
@@ -1028,4 +1031,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Post; 
+export default Post;

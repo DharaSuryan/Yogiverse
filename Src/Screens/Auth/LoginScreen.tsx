@@ -55,7 +55,8 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
           AsyncStorage.setItem('refreshToken', response.data.refresh_token),
           AsyncStorage.setItem('userData', JSON.stringify(response.data.user))
         ]);
-
+         console.log("fcmTokenfcmToken",fcmToken);
+         
         // Register device with FCM token if available
         if (fcmToken) {
           
@@ -100,7 +101,7 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
           })
         );
         // Navigate to main tab using reset
-        reset('MainTab')
+        // reset('MainTab')
         // navigation.reset({
         //   index: 0,
         //   routes: [{ name: 'MainTab' }], 

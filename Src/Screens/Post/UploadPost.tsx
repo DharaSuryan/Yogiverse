@@ -18,6 +18,8 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'react-native-image-picker';
 import Video from 'react-native-video';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { postPosts, postStories } from '../../Api/Api';
 import LocationPicker, { LocationOption } from '../../Components/LocationPicker';
@@ -58,6 +60,11 @@ const UploadPost = ({ navigation, route }) => {
   const [wizardIndex, setWizardIndex] = useState(0);
   const [forcePauseVideos, setForcePauseVideos] = useState(false);
   const { setPauseAll } = useContext(VideoPauseContext);
+  const [mentionInput, setMentionInput] = useState('');
+  const [mentionSuggestions, setMentionSuggestions] = useState<any[]>([]);
+  const [selectedMentions, setSelectedMentions] = useState<number[]>([]);
+  const [selectedMentionUsers, setSelectedMentionUsers] = useState<any[]>([]);
+  const [mentionLoading, setMentionLoading] = useState(false);
 
   // Open gallery on mount if isFromStory
   useEffect(() => {
@@ -326,6 +333,12 @@ const UploadPost = ({ navigation, route }) => {
               name: item.name,
             });
           });
+          // Add mentions as separate keys for each user
+          if (selectedMentions.length > 0) {
+            selectedMentions.forEach(id => {
+              formData.append('mentions', id);
+            });
+          }
           console.log("forma data ----->>>",JSON.stringify(formData))
           await postPosts({ formData });
           Alert.alert(
@@ -380,6 +393,41 @@ const UploadPost = ({ navigation, route }) => {
       onPost: handleShare, // call handleShare on final post
     });
   };
+
+  // Debounced mention search API call
+  useEffect(() => {
+    const delayDebounce = setTimeout(async () => {
+      if (mentionInput.trim().length > 0) {
+        setMentionLoading(true);
+        try {
+          const authToken = await AsyncStorage.getItem('accessToken');
+          const headers = {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+          };
+          console.log("Mention Input:", mentionInput);
+          
+          const res = await axios.get(
+            `https://pashuahar.com/users/search/?query=${mentionInput}`,
+            { headers }
+          );
+          console.log("Mention Suggestions Response:", res.data);
+          
+          setMentionSuggestions(res.data || []);
+        } catch (error: any) {
+          console.log("Error fetching mentions:", error);
+          
+          setMentionSuggestions([]);
+        } finally {
+          setMentionLoading(false);
+        }
+      } else {
+        setMentionSuggestions([]);
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(delayDebounce);
+  }, [mentionInput]);
 
   // Render media preview
   const renderMediaPreview = () => {
@@ -465,6 +513,58 @@ const UploadPost = ({ navigation, route }) => {
             <Text style={[styles.optionText, { color: '#bea063' }]}>Camera</Text>
           </TouchableOpacity>
         </View>
+          <View style={{paddingHorizontal: 15, marginBottom: 5}}>
+          <Text style={{fontSize: 16, marginTop: 5, color: '#bea063'}}>Mention Users</Text>
+          <TextInput
+            style={{
+              borderWidth: 1,
+              borderColor: '#bea063',
+              borderRadius: 8,
+              padding: 10,
+              marginTop: 10,
+              marginBottom: 5,
+              color: '#bea063'
+            }}
+            placeholder="Type to search users..."
+            placeholderTextColor="#bea063"
+            value={mentionInput}
+            onChangeText={setMentionInput}
+          />
+          {/* Suggestions dropdown */}
+          {mentionLoading ? (
+            <ActivityIndicator size="small" color="#bea063" />
+          ) : mentionSuggestions.length > 0 && (
+            <View style={{backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#bea063', marginTop: 2, maxHeight: 120}}>
+              <ScrollView>
+                {mentionSuggestions.map(user => (
+                  <TouchableOpacity
+                    key={user.id}
+                    style={{padding: 10, borderBottomWidth: 1, borderBottomColor: '#eee'}}
+                    onPress={() => {
+                      if (!selectedMentions.includes(user.id)) {
+                        setSelectedMentions(prev => [...prev, user.id]);
+                        setSelectedMentionUsers(prev => [...prev, user]);
+                      }
+                      setMentionInput('');
+                      setMentionSuggestions([]);
+                    }}>
+                    <Text style={{color: '#bea063'}}>{user.username} ({user.first_name} {user.last_name})</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+          {/* Show selected mentions */}
+          {selectedMentionUsers.length > 0 && (
+            <View style={{flexDirection: 'row', flexWrap: 'wrap', marginTop: 6}}>
+              {selectedMentionUsers.map(u => (
+                <View key={u.id} style={{backgroundColor: '#bea063', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4, marginRight: 6, marginBottom: 4}}>
+                  <Text style={{color: '#fff'}}>{u.username}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
 
         <View style={styles.captionContainer}>
           <TextInput
@@ -483,6 +583,8 @@ const UploadPost = ({ navigation, route }) => {
             <Text style={{ color: '#bea063' }}>{selectedLocation ? selectedLocation.display_name : 'Select Location'}</Text>
           </TouchableOpacity>
         </View>
+        {/* Mention input */}
+      
         {/* {isFromStory && (
           <View style={{flexDirection:'row',alignItems:'center',paddingLeft:15,marginTop:10}}>
             <Text style={{fontSize:16,marginRight:10}}>Highlight this story?</Text>
@@ -500,7 +602,7 @@ const UploadPost = ({ navigation, route }) => {
             />
           </View>
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ color: '#bea063', marginBottom: 8 }}>Allow Comments</Text>
+            <Text style={{ color: '#bea063', marginBottom: 8 }}> Dont Allow Comments</Text>
             <Switch
               value={allowComments}
               onValueChange={setAllowComments}
@@ -729,4 +831,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default UploadPost; 
+export default UploadPost;

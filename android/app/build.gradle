@@ -82,8 +82,8 @@ android {
         applicationId "com.yogiverse"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 15
-        versionName "3.2"
+        versionCode 17
+        versionName "3.6"
         missingDimensionStrategy 'react-native-camera', 'general'
         vectorDrawables.useSupportLibrary = true
         // Needed to load JS bundle from assets
