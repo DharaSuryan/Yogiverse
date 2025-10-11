@@ -1,15 +1,29 @@
-import React, { useState, useEffect, FC } from 'react';
+import React, {useState, useEffect, FC} from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  SafeAreaView, ScrollView, Alert, Image, ActivityIndicator, Modal, FlatList, GestureResponderEvent
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  Alert,
+  Image,
+  ActivityIndicator,
+  Modal,
+  FlatList,
+  GestureResponderEvent,
 } from 'react-native';
-import { Formik, FormikHelpers } from 'formik';
+import {Formik, FormikHelpers} from 'formik';
 import * as Yup from 'yup';
 import MultiSelect from 'react-native-multiple-select';
-import { launchImageLibrary, ImagePickerResponse } from 'react-native-image-picker';
-import api, { fetchCountries, registerUser } from '../../Api/Api';
-import Icon from 'react-native-vector-icons/Ionicons';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import {
+  launchImageLibrary,
+  ImagePickerResponse,
+} from 'react-native-image-picker';
+import api, {fetchCountries, registerUser} from '../../Api/Api';
+import {NativeStackScreenProps} from '@react-navigation/native-stack';
+import {AuthStackParamList} from '../../Navigation/types';
 
 // Type Definitions
 interface Country {
@@ -41,11 +55,6 @@ interface MainCategory {
   sub_categories: SubCategory[];
 }
 
-type AuthStackParamList = {
-  SignUp: { role: 'user' | 'vendor' };
-  Login: undefined;
-};
-
 type SignUpScreenProps = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
 
 // const MAIN_CATEGORIES = ["Yog", "Meditation", "Spiritual", "Holistic"];
@@ -59,7 +68,9 @@ const UserSchema = Yup.object().shape({
   email: Yup.string(),
   phone_no: Yup.string(),
   password: Yup.string().min(6).required('Required'),
-  confirm_password: Yup.string().oneOf([Yup.ref('password')], 'Passwords must match').required('Required'),
+  confirm_password: Yup.string()
+    .oneOf([Yup.ref('password')], 'Passwords must match')
+    .required('Required'),
   country: Yup.string().nullable(),
   state: Yup.string().nullable(),
   city: Yup.string().nullable(),
@@ -72,8 +83,10 @@ const VendorSchema = Yup.object().shape({
   subcategories: Yup.array().min(1, 'Select at least one'),
 });
 
-const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
-  const { role: initialRole } = route.params;
+const SignUpScreen: FC<SignUpScreenProps> = ({navigation, route}) => {
+  const {role: initialRole} = route.params;
+  console.log(initialRole, "initialRole");
+  
   const [role, setRole] = useState(initialRole);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -111,7 +124,6 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
         const res = await api.get('main_with_sub_categories/');
         setMainCategories(res.data.data || []);
         // console.log(res.data.data, "maincategories");
-
       } catch (err) {
         Alert.alert('Error', 'Failed to load categories');
         setMainCategories([]);
@@ -126,7 +138,8 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
   useEffect(() => {
     const fetchAllCountries = async () => {
       setIsLoadingCountries(true);
-      let page = 1, all: Country[] = [];
+      let page = 1,
+        all: Country[] = [];
       while (true) {
         const res = await fetchCountries(page, ITEMS_PER_PAGE);
         if (!res?.data?.data) break;
@@ -141,7 +154,10 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
   }, []);
 
   // 2. When country is selected
-  const handleCountrySelect = (item: Country, setFieldValue: (field: string, value: any) => void) => {
+  const handleCountrySelect = (
+    item: Country,
+    setFieldValue: (field: string, value: any) => void,
+  ) => {
     setSelectedCountry(item);
     setFieldValue('country', item.id.toString());
     setShowCountryPicker(false);
@@ -161,7 +177,7 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
       return {
         data: response.data,
         status: response.status,
-        message: 'Cities fetched successfully'
+        message: 'Cities fetched successfully',
       };
     } catch (error) {
       throw error;
@@ -169,7 +185,10 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
   };
 
   // State handler
-  const handleStateSelect = async (item: State, setFieldValue: (field: string, value: any) => void) => {
+  const handleStateSelect = async (
+    item: State,
+    setFieldValue: (field: string, value: any) => void,
+  ) => {
     setSelectedState(item);
     setFieldValue('state', item.id.toString());
     setShowStatePicker(false);
@@ -187,7 +206,6 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
 
       const cityArray = res?.data || [];
       setFilteredCities(cityArray?.data);
-
     } catch (err) {
       setFilteredCities([]);
     } finally {
@@ -195,9 +213,11 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
     }
   };
 
-
   // 4. When city is selected
-  const handleCitySelect = (item: City, setFieldValue: (field: string, value: any) => void) => {
+  const handleCitySelect = (
+    item: City,
+    setFieldValue: (field: string, value: any) => void,
+  ) => {
     setSelectedCity(item);
     setFieldValue('city', item.id.toString());
     setShowCityPicker(false);
@@ -205,16 +225,29 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
 
   // Image picker
   const handleImagePick = () => {
-    launchImageLibrary({ mediaType: 'photo', quality: 0.8 }, (response: ImagePickerResponse) => {
-      if (response.assets && response.assets.length > 0 && response.assets[0].uri) {
-        setProfileImage(response.assets[0].uri);
-      }
-    });
+    launchImageLibrary(
+      {mediaType: 'photo', quality: 0.8},
+      (response: ImagePickerResponse) => {
+        if (
+          response.assets &&
+          response.assets.length > 0 &&
+          response.assets[0].uri
+        ) {
+          setProfileImage(response.assets[0].uri);
+        }
+      },
+    );
   };
 
   // Pickers
-  const renderCountryPicker = (setFieldValue: (field: string, value: any) => void) => (
-    <Modal visible={showCountryPicker} transparent animationType="slide" onRequestClose={() => setShowCountryPicker(false)}>
+  const renderCountryPicker = (
+    setFieldValue: (field: string, value: any) => void,
+  ) => (
+    <Modal
+      visible={showCountryPicker}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowCountryPicker(false)}>
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
@@ -230,25 +263,45 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
             onChangeText={setCountrySearch}
           />
           <FlatList
-            data={allCountries.filter(c => (c?.country_name || c?.name || '').toLowerCase().includes(countrySearch.toLowerCase()))}
+            data={allCountries.filter(c =>
+              (c?.country_name || c?.name || '')
+                .toLowerCase()
+                .includes(countrySearch.toLowerCase()),
+            )}
             keyExtractor={item => item.id.toString()}
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.locationItem} onPress={() => handleCountrySelect(item, setFieldValue)}>
+            renderItem={({item}) => (
+              <TouchableOpacity
+                style={styles.locationItem}
+                onPress={() => handleCountrySelect(item, setFieldValue)}>
                 <View style={styles.countryItemContainer}>
-                  <Text style={styles.countryName}>{item.country_name || item.name}</Text>
-                  <Text style={styles.countryCodeText}>+{item.calling_code}</Text>
+                  <Text style={styles.countryName}>
+                    {item.country_name || item.name}
+                  </Text>
+                  <Text style={styles.countryCodeText}>
+                    +{item.calling_code}
+                  </Text>
                 </View>
               </TouchableOpacity>
             )}
-            ListEmptyComponent={() => <View style={styles.emptyContainer}><Text style={styles.emptyText}>No countries found</Text></View>}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No countries found</Text>
+              </View>
+            )}
           />
         </View>
       </View>
     </Modal>
   );
 
-  const renderStatePicker = (setFieldValue: (field: string, value: any) => void) => (
-    <Modal visible={showStatePicker} transparent animationType="slide" onRequestClose={() => setShowStatePicker(false)}>
+  const renderStatePicker = (
+    setFieldValue: (field: string, value: any) => void,
+  ) => (
+    <Modal
+      visible={showStatePicker}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowStatePicker(false)}>
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
@@ -264,22 +317,36 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
             onChangeText={setStateSearch}
           />
           <FlatList
-            data={filteredStates.filter(s => (s.name || '').toLowerCase().includes(stateSearch.toLowerCase()))}
+            data={filteredStates.filter(s =>
+              (s.name || '').toLowerCase().includes(stateSearch.toLowerCase()),
+            )}
             keyExtractor={item => item.id.toString()}
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.locationItem} onPress={() => handleStateSelect(item, setFieldValue)}>
+            renderItem={({item}) => (
+              <TouchableOpacity
+                style={styles.locationItem}
+                onPress={() => handleStateSelect(item, setFieldValue)}>
                 <Text style={styles.locationItemText}>{item.name}</Text>
               </TouchableOpacity>
             )}
-            ListEmptyComponent={() => <View style={styles.emptyContainer}><Text style={styles.emptyText}>No states found</Text></View>}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No states found</Text>
+              </View>
+            )}
           />
         </View>
       </View>
     </Modal>
   );
 
-  const renderCityPicker = (setFieldValue: (field: string, value: any) => void) => (
-    <Modal visible={showCityPicker} transparent animationType="slide" onRequestClose={() => setShowCityPicker(false)}>
+  const renderCityPicker = (
+    setFieldValue: (field: string, value: any) => void,
+  ) => (
+    <Modal
+      visible={showCityPicker}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowCityPicker(false)}>
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
@@ -295,15 +362,29 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
             onChangeText={setCitySearch}
           />
           <FlatList
-            data={filteredCities.filter(c => (c.name || '').toLowerCase().includes(citySearch.toLowerCase()))}
+            data={filteredCities.filter(c =>
+              (c.name || '').toLowerCase().includes(citySearch.toLowerCase()),
+            )}
             keyExtractor={item => item.id.toString()}
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.locationItem} onPress={() => handleCitySelect(item, setFieldValue)}>
+            renderItem={({item}) => (
+              <TouchableOpacity
+                style={styles.locationItem}
+                onPress={() => handleCitySelect(item, setFieldValue)}>
                 <Text style={styles.locationItemText}>{item.name}</Text>
               </TouchableOpacity>
             )}
-            ListEmptyComponent={() => <View style={styles.emptyContainer}><Text style={styles.emptyText}>No cities found</Text></View>}
-            ListFooterComponent={() => isLoadingCities ? (<View style={styles.loadingContainer}><ActivityIndicator size="small" color="#0000ff" /></View>) : null}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No cities found</Text>
+              </View>
+            )}
+            ListFooterComponent={() =>
+              isLoadingCities ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color="#0000ff" />
+                </View>
+              ) : null
+            }
           />
         </View>
       </View>
@@ -329,18 +410,29 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
     }),
   };
 
-  const handleVendorNext = (formValues) => {
+  const handleVendorNext = (formValues: typeof initialValues) => {
     console.log('=== VENDOR NEXT CLICKED ===');
     console.log('Form values:', formValues);
-    
+
     // Check if all required fields are filled
-    if (!formValues.first_name || !formValues.last_name  || !formValues.username || !formValues.password ) {
-      Alert.alert('Validation Error', 'Please fill in all required fields before proceeding.');
+    if (
+      !formValues.first_name ||
+      !formValues.last_name ||
+      !formValues.username ||
+      !formValues.password
+    ) {
+      Alert.alert(
+        'Validation Error',
+        'Please fill in all required fields before proceeding.',
+      );
       return;
     }
 
     if (!selectedCountry || !selectedState || !selectedCity) {
-      Alert.alert('Validation Error', 'Please select country, state, and city.');
+      Alert.alert(
+        'Validation Error',
+        'Please select country, state, and city.',
+      );
       return;
     }
 
@@ -356,66 +448,96 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
       last_name: formValues.last_name,
       username: formValues.username,
       email: formValues.email,
-      phone_no: `+${selectedCountry?.calling_code || '91'}${formValues.phone_no || ''}`,
+      phone_no: `+${selectedCountry?.calling_code || '91'}${
+        formValues.phone_no || ''
+      }`,
       password: formValues.password,
       confirm_password: formValues.confirm_password,
       bio: formValues.bio || '',
       business_name: formValues.business_name || '',
-      
+
       // Location IDs (same as handleSubmit)
       country_id: selectedCountry?.id,
       state_id: selectedState?.id,
       city_id: selectedCity?.id,
-      
+
       // Profile image (same as handleSubmit)
       profileImage: profileImage,
-      
+
       // Role (same as handleSubmit)
       role: route.params.role,
-      
+
       // Categories (will be filled in later screens)
-      main_categories:  [],
-      subcategories: []
+      main_categories: [],
+      subcategories: [],
     };
-    
+
     console.log('Signup data object created:', signupData);
     console.log('Navigating to MainCategory...');
-    
+
     // Navigate to MainCategory
-    navigation.navigate('MainCategory', { signupData });
+    navigation.navigate('MainCategory', {signupData});
   };
 
   // Form Submission
-  const handleSubmit = async (values: typeof initialValues, { setSubmitting }: FormikHelpers<typeof initialValues>) => {
+  const handleSubmit = async (
+    values: typeof initialValues,
+    {setSubmitting}: FormikHelpers<typeof initialValues>,
+  ) => {
     try {
       setSubmitting(true);
       console.log('Form submission started');
       console.log('Form values:', values);
+      if (!profileImage) {
+        Alert.alert('Validation Error', 'Please select a profile image.');
+        setSubmitting(false);
+        return;
+      }
+      if (!values.phone_no) {
+        Alert.alert('Validation Error', 'Please enter valid phone number.');
+        setSubmitting(false);
+      }
 
       const formData = new FormData();
 
-      // Append all fields one by one, which is the format the server expects
-      formData.append('first_name', values.first_name || '');
-      formData.append('last_name', values.last_name || '');
-      formData.append('email', values.email || '');
-      formData.append('phone_no', `+${selectedCountry?.calling_code || '91'}${values.phone_no || ''}`);
-      formData.append('username', values.username || '');
-      formData.append('password', values.password || '');
-      formData.append('country', selectedCountry ? selectedCountry.id.toString() : '');
-      formData.append('state', selectedState ? selectedState.id.toString() : '');
-      formData.append('city', selectedCity ? selectedCity.id.toString() : '');
-      formData.append('role', 'user');
-      formData.append('bio', values.bio || '');
+      // Append fields only if they have values
+      if (values.first_name) formData.append('first_name', values.first_name);
+      if (values.last_name) formData.append('last_name', values.last_name);
+      if (values.email) formData.append('email', values.email);
+      if (values.phone_no) {
+        formData.append(
+          'phone_no',
+          `+${selectedCountry?.calling_code || '91'}${values.phone_no}`,
+        );
+      }
+      if (values.username) formData.append('username', values.username);
+      if (values.password) formData.append('password', values.password);
+      if (selectedCountry) {
+        formData.append('country', selectedCountry.id.toString());
+      }
+      if (selectedState) {
+        formData.append('state', selectedState.id.toString());
+      }
+      if (selectedCity) {
+        formData.append('city', selectedCity.id.toString());
+      }
+      formData.append('role', 'user'); // Always append role
+      if (values.bio) formData.append('bio', values.bio);
 
       if (role === 'vendor') {
-        formData.append('business_name', values.business_name || '');
+        if (values.business_name) formData.append('business_name', values.business_name);
         // The server might expect the arrays as a JSON string
-        formData.append('main_categories', JSON.stringify(mainCategoryIds || []));
-        formData.append('subcategories', JSON.stringify(subCategoryIds || []));
+        if (mainCategoryIds && mainCategoryIds.length > 0) {
+          formData.append('main_categories', JSON.stringify(mainCategoryIds));
+        }
+        if (subCategoryIds && subCategoryIds.length > 0) {
+          formData.append('subcategories', JSON.stringify(subCategoryIds));
+        }
       }
 
+      // Handle profile image - use profile_picture to match working web API
       if (profileImage && !profileImage.startsWith('http')) {
-        formData.append('profile_image', {
+        formData.append('profile_picture', {
           uri: profileImage,
           type: 'image/jpeg',
           name: 'profile.jpg',
@@ -432,12 +554,18 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
         Alert.alert('Success', response.message || 'Registration successful!');
         navigation.navigate('Login');
       } else {
-        Alert.alert('Error', response.message || 'Registration failed. Please try again.');
+        Alert.alert(
+          'Error',
+          response.message || 'Registration failed. Please try again.',
+        );
       }
     } catch (error: any) {
-      console.error('Registration error:', error.errors);
+      console.error('Registration error:', error);
       const serverMessage = error?.response?.data?.message || error.message;
-      Alert.alert('Error', serverMessage || 'An error occurred during registration.');
+      Alert.alert(
+        'Error',
+        serverMessage || 'An error occurred during registration.',
+      );
     } finally {
       setSubmitting(false);
     }
@@ -445,11 +573,25 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12 }}>
-        <TouchableOpacity onPress={() => navigation.navigate('RoleSelection')} style={{ paddingHorizontal: 12, paddingVertical: 4 }}>
-  <Ionicons name="arrow-back" size={24} color="#bea063" />          {/* Or use <Icon name="arrow-back" size={24} color="#bea063" /> if Ionicons works */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: 12,
+        }}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('RoleSelection')}
+          style={{paddingHorizontal: 12, paddingVertical: 4}}>
+          <Ionicons name="arrow-back" size={24} color="#bea063" />{' '}
+          {/* Or use <Icon name="arrow-back" size={24} color="#bea063" /> if Ionicons works */}
         </TouchableOpacity>
-        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#bea063', marginLeft: 8 }}>
+        <Text
+          style={{
+            fontSize: 20,
+            fontWeight: 'bold',
+            color: '#bea063',
+            marginLeft: 8,
+          }}>
           Sign Up
         </Text>
       </View>
@@ -460,38 +602,58 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
         <Formik
           initialValues={initialValues}
           validationSchema={role === 'user' ? UserSchema : VendorSchema}
-          onSubmit={handleSubmit}
-        >
-          {({ handleChange, handleBlur, handleSubmit, setFieldValue, values, errors, touched, isSubmitting }) => (
+          onSubmit={handleSubmit}>
+          {({
+            handleChange,
+            handleBlur,
+            handleSubmit,
+            setFieldValue,
+            values,
+            errors,
+            touched,
+            isSubmitting,
+          }) => (
             <View style={styles.formContainer}>
               {/* Profile Image */}
               <View style={styles.profileImageContainer}>
                 {profileImage ? (
-                  <Image source={{ uri: profileImage }} style={styles.profileImage} />
+                  <Image
+                    source={{uri: profileImage}}
+                    style={styles.profileImage}
+                  />
                 ) : (
                   <View style={styles.profileImagePlaceholder} />
                 )}
                 <TouchableOpacity onPress={handleImagePick}>
-                  <Text style={styles.selectPhotoText}>Select Profile Photo</Text>
+                  <Text style={styles.selectPhotoText}>
+                    Select Profile Photo
+                  </Text>
                 </TouchableOpacity>
               </View>
 
               {/* Personal Information */}
               <Text style={styles.sectionTitle}>Personal Information</Text>
-              {(['first_name', 'last_name', 'username', 'email'] as const).map(field => (
-                <View key={field}>
-                  <Text style={styles.label}>{field.replace('_', ' ').toUpperCase()}</Text>
-                  <TextInput
-                    style={[styles.input, touched[field] && errors[field] && styles.inputError]}
-                    onChangeText={handleChange(field)}
-                    onBlur={handleBlur(field)}
-                    value={values[field]}
-                  />
-                  {touched[field] && errors[field] && (
-                    <Text style={styles.errorText}>{errors[field]}</Text>
-                  )}
-                </View>
-              ))}
+              {(['first_name', 'last_name', 'username', 'email'] as const).map(
+                field => (
+                  <View key={field}>
+                    <Text style={styles.label}>
+                      {field.replace('_', ' ').toUpperCase()}
+                    </Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        touched[field] && errors[field] && styles.inputError,
+                      ]}
+                      onChangeText={handleChange(field)}
+                      onBlur={handleBlur(field)}
+                      value={values[field]}
+                    />
+                    {touched[field] && errors[field] && (
+                      <Text style={styles.errorText}>{errors[field]}</Text>
+                    )}
+                  </View>
+                ),
+              )}
 
               {/* Security Information */}
               <Text style={styles.sectionTitle}>Security Information</Text>
@@ -499,37 +661,57 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
                 <TextInput
                   style={styles.passwordInput}
                   placeholder="Password"
+                  placeholderTextColor={'black'}
                   secureTextEntry={!showPassword}
                   onChangeText={handleChange('password')}
                   value={values.password}
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Icon name={showPassword ? 'eye' : 'eye-off'} size={20} color="#888" />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}>
+                  <Ionicons
+                    name={showPassword ? 'eye' : 'eye-off'}
+                    size={20}
+                    color="#888"
+                  />
                 </TouchableOpacity>
               </View>
-              {touched.password && errors.password && <Text style={styles.error}>{errors.password}</Text>}
+              {touched.password && errors.password && (
+                <Text style={styles.error}>{errors.password}</Text>
+              )}
 
               <View style={styles.passwordField}>
                 <TextInput
+                  placeholderTextColor={'black'}
                   style={styles.passwordInput}
                   placeholder="Confirm Password"
                   secureTextEntry={!showConfirmPassword}
                   onChangeText={handleChange('confirm_password')}
                   value={values.confirm_password}
                 />
-                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-                  <Icon name={showConfirmPassword ? 'eye' : 'eye-off'} size={20} color="#888" />
+                <TouchableOpacity
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                  <Ionicons
+                    name={showConfirmPassword ? 'eye' : 'eye-off'}
+                    size={20}
+                    color="#888"
+                  />
                 </TouchableOpacity>
               </View>
-              {touched.confirm_password && errors.confirm_password && <Text style={styles.error}>{errors.confirm_password}</Text>}
+              {touched.confirm_password && errors.confirm_password && (
+                <Text style={styles.error}>{errors.confirm_password}</Text>
+              )}
 
               {/* Location Information */}
               <Text style={styles.sectionTitle}>Location Information</Text>
               <View style={styles.locationContainer}>
-                <TouchableOpacity style={styles.locationField} onPress={() => setShowCountryPicker(true)}>
+                <TouchableOpacity
+                  style={styles.locationField}
+                  onPress={() => setShowCountryPicker(true)}>
                   <Text style={styles.locationLabel}>Country</Text>
                   <Text style={styles.locationValue}>
-                    {selectedCountry ? (selectedCountry.name || selectedCountry.country_name) : 'Select Country'}
+                    {selectedCountry
+                      ? selectedCountry.name || selectedCountry.country_name
+                      : 'Select Country'}
                   </Text>
                 </TouchableOpacity>
                 <View key="phone_no">
@@ -537,12 +719,20 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
                   <View style={styles.phoneContainer}>
                     <TouchableOpacity
                       style={styles.countryCodeContainer}
-                      onPress={() => setShowCountryPicker(true)}
-                    >
-                      <Text style={styles.countryCode}>{selectedCountry ? `+${selectedCountry.calling_code}` : '+91'}</Text>
+                      onPress={() => setShowCountryPicker(true)}>
+                      <Text style={styles.countryCode}>
+                        {selectedCountry
+                          ? `+${selectedCountry.calling_code}`
+                          : '+91'}
+                      </Text>
                     </TouchableOpacity>
                     <TextInput
-                      style={[styles.phoneInput, touched.phone_no && errors.phone_no && styles.inputError]}
+                      style={[
+                        styles.phoneInput,
+                        touched.phone_no &&
+                          errors.phone_no &&
+                          styles.inputError,
+                      ]}
                       onChangeText={handleChange('phone_no')}
                       onBlur={handleBlur('phone_no')}
                       value={values.phone_no}
@@ -554,22 +744,34 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
                   )}
                 </View>
                 <TouchableOpacity
-                  style={[styles.locationField, !selectedCountry && styles.locationFieldDisabled]}
+                  style={[
+                    styles.locationField,
+                    !selectedCountry && styles.locationFieldDisabled,
+                  ]}
                   onPress={() => selectedCountry && setShowStatePicker(true)}
-                  disabled={!selectedCountry}
-                >
+                  disabled={!selectedCountry}>
                   <Text style={styles.locationLabel}>State</Text>
-                  <Text style={[styles.locationValue, !selectedCountry && styles.locationValueDisabled]}>
+                  <Text
+                    style={[
+                      styles.locationValue,
+                      !selectedCountry && styles.locationValueDisabled,
+                    ]}>
                     {selectedState ? selectedState.name : 'Select State'}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.locationField, !selectedState && styles.locationFieldDisabled]}
+                  style={[
+                    styles.locationField,
+                    !selectedState && styles.locationFieldDisabled,
+                  ]}
                   onPress={() => selectedState && setShowCityPicker(true)}
-                  disabled={!selectedState}
-                >
+                  disabled={!selectedState}>
                   <Text style={styles.locationLabel}>City</Text>
-                  <Text style={[styles.locationValue, !selectedState && styles.locationValueDisabled]}>
+                  <Text
+                    style={[
+                      styles.locationValue,
+                      !selectedState && styles.locationValueDisabled,
+                    ]}>
                     {selectedCity ? selectedCity.name : 'Select City'}
                   </Text>
                 </TouchableOpacity>
@@ -584,7 +786,12 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
                   <Text style={styles.sectionTitle}>Business Information</Text>
                   <Text style={styles.label}>Business Name</Text>
                   <TextInput
-                    style={[styles.input, touched.business_name && errors.business_name && styles.inputError]}
+                    style={[
+                      styles.input,
+                      touched.business_name &&
+                        errors.business_name &&
+                        styles.inputError,
+                    ]}
                     onChangeText={handleChange('business_name')}
                     onBlur={handleBlur('business_name')}
                     value={values.business_name}
@@ -650,26 +857,30 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
                     : <Text style={styles.buttonText}>Next</Text>
                   }
                 </TouchableOpacity>)} */}
-                    {role === 'user' ? (
-                <TouchableOpacity style={styles.button} onPress={handleSubmit as (e?: GestureResponderEvent) => void} disabled={isSubmitting}>
-                  {isSubmitting
-                    ? <ActivityIndicator color="#FFFFFF" />
-                    : <Text style={styles.buttonText}>Sign Up</Text>
-                  }
+              {role === 'user' ? (
+                <TouchableOpacity
+                  style={styles.button}
+                  onPress={handleSubmit as (e?: GestureResponderEvent) => void}
+                  disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.buttonText}>Sign Up</Text>
+                  )}
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity 
-                  style={styles.button} 
+                <TouchableOpacity
+                  style={styles.button}
                   onPress={() => {
                     console.log('Current form values:', values);
                     handleVendorNext(values);
                   }}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting
-                    ? <ActivityIndicator color="#FFFFFF" />
-                    : <Text style={styles.buttonText}>Next</Text>
-                  }
+                  disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.buttonText}>Next</Text>
+                  )}
                 </TouchableOpacity>
               )}
             </View>
@@ -681,15 +892,21 @@ const SignUpScreen: FC<SignUpScreenProps> = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { padding: 20, paddingBottom: 40 },
-  header: { fontSize: 22, fontWeight: 'bold', marginVertical: 16, alignSelf: 'center', color: '#bea063' },
+  container: {flex: 1, backgroundColor: '#fff'},
+  content: {padding: 20, paddingBottom: 40},
+  header: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginVertical: 16,
+    alignSelf: 'center',
+    color: '#bea063',
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#bea063',
     marginTop: 20,
-    marginBottom: 10
+    marginBottom: 10,
   },
   subCategoryHeader: {
     fontSize: 16,
@@ -698,8 +915,20 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 16,
   },
-  input: { backgroundColor: '#fafafa', borderRadius: 5, padding: 15, fontSize: 16, marginBottom: 10 },
-  picker: { backgroundColor: '#fafafa', borderColor: '#ccc', borderWidth: 1, marginBottom: 10 },
+  input: {
+    backgroundColor: '#fafafa',
+    borderRadius: 5,
+    padding: 15,
+    fontSize: 16,
+    marginBottom: 10,
+    color: '#000', // Ensure text color is black
+  },
+  picker: {
+    backgroundColor: '#fafafa',
+    borderColor: '#ccc',
+    borderWidth: 1,
+    marginBottom: 10,
+  },
   loadMoreButton: {
     padding: 8,
     alignItems: 'center',
@@ -710,7 +939,7 @@ const styles = StyleSheet.create({
     color: '#bea063',
     fontSize: 14,
   },
-  error: { color: '#ed4956', marginBottom: 4, fontSize: 12 },
+  error: {color: '#ed4956', marginBottom: 4, fontSize: 12},
   button: {
     backgroundColor: '#bea063',
     padding: 15,
@@ -757,9 +986,10 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
     fontSize: 16,
+    color: '#000', // Ensure text color is black
   },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  inputWrapper: { marginBottom: 10 },
+  buttonText: {color: '#fff', fontSize: 16, fontWeight: '600'},
+  inputWrapper: {marginBottom: 10},
   passwordField: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -773,6 +1003,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
     fontSize: 16,
+    color: '#000', // Ensure text color is black
   },
   modalContainer: {
     flex: 1,
@@ -884,13 +1115,17 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     // Add appropriate styles for the form container
-    marginTop: 10
+    marginTop: 10,
   },
   submitButton: {
-    backgroundColor: '#bea063', padding: 15, borderRadius: 5,
-    alignItems: 'center', marginTop: 24, marginBottom: 40,
+    backgroundColor: '#bea063',
+    padding: 15,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 40,
   },
-  submitButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  submitButtonText: {color: '#fff', fontSize: 16, fontWeight: '600'},
   arrayContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -917,5 +1152,3 @@ const styles = StyleSheet.create({
 });
 
 export default SignUpScreen;
-
-

@@ -40,7 +40,7 @@ const MENU_SECTIONS = [
     title: 'More',
     data: [
       { icon: 'lock-open-outline', label: 'Change Password', action: 'ChangePassword' },
-      { icon: 'person-add-outline', label: 'DeActivete Account', action: 'DeActivateAccount' },
+      { icon: 'trash-outline', label: 'Delete Account', action: 'DeleteAccount' },
       // { icon: 'person-add-outline', label: 'Delete Account', action: 'DeleteAccount' },
       // { icon: 'help-circle-outline', label: 'Help & Support', action: 'Help' },
       { icon: 'log-out-outline', label: 'Log Out', action: 'Logout' },
@@ -87,9 +87,9 @@ export default function MenuScreen({ navigation, route }: { navigation: any; rou
   const dispatch = useDispatch();
   const userData = route?.params?.data;
   const profile = userData?.profile || {};
-  
+
   // If you want other items to navigate, you can handle here
-  
+
   // Unified confirmation modal handler for logout and deactivate
   const handleConfirmAction = async ({
     title,
@@ -152,69 +152,109 @@ export default function MenuScreen({ navigation, route }: { navigation: any; rou
     });
   };
 
-  const handleDeactivateAccount = async () => {
-  handleConfirmAction({
-    title: 'Deactivate Account',
-    message: 'Are you sure you want to deactivate your account? This action cannot be undone.',
-    confirmText: 'Deactivate',
-    onConfirm: async () => {
-      try {
-        setLoading(true);
-        const accessToken = await AsyncStorage.getItem('accessToken');
-        const res = await onTemporaryDeactivateAccountAPICall(accessToken);
-        console.log("deactivarte", res);
-        
-        if (res.status === 200) {
+  //   const handleDeactivateAccount = async () => {
+  //   handleConfirmAction({
+  //     title: 'Deactivate Account',
+  //     message: 'Are you sure you want to deactivate your account? This action cannot be undone.',
+  //     confirmText: 'Deactivate',
+  //     onConfirm: async () => {
+  //       try {
+  //         setLoading(true);
+  //         const accessToken = await AsyncStorage.getItem('accessToken');
+  //         const res = await onTemporaryDeactivateAccountAPICall(accessToken);
+  //         console.log("deactivarte", res);
 
-          Alert.alert('Success', 'Your account has been deactivated.', [
-            {
-              text: 'OK',
-              onPress: async () => {
-                await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
-                dispatch({ type: 'AUTH_LOGOUT' });
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'Auth' }],
-                });
+  //         if (res.status === 200) {
+
+  //           Alert.alert('Success', 'Your account has been deactivated.', [
+  //             {
+  //               text: 'OK',
+  //               onPress: async () => {
+  //                 await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
+  //                 dispatch({ type: 'AUTH_LOGOUT' });
+  //                 navigation.reset({
+  //                   index: 0,
+  //                   routes: [{ name: 'Auth' }],
+  //                 });
+  //               },
+  //             },
+  //           ]);
+  //         } else {
+  //           Alert.alert('Error', res.error || 'Failed to deactivate your account. Please try again.');
+  //         }
+  //       } catch (error) {
+  //         Alert.alert(
+  //           'Error',
+  //           error?.message || 'Unexpected error occurred while deactivating your account.'
+  //         );
+  //       } finally {
+  //         setLoading(false);
+  //       }
+  //     },
+  //   });
+  // };
+
+  const handleDeleteAccount = async () => {
+    handleConfirmAction({
+      title: 'Delete Account',
+      message: 'Are you sure you want to permanently delete your account? This action cannot be undone and all your data will be lost.',
+      confirmText: 'Delete',
+      onConfirm: async () => {
+        try {
+          setLoading(true);
+          const accessToken = await AsyncStorage.getItem('accessToken');
+          const res = await onTemporaryDeactivateAccountAPICall(accessToken);
+          console.log("delete account", res);
+
+          if (res.status === 200) {
+            Alert.alert('Success', 'Your account has been permanently deleted.', [
+              {
+                text: 'OK',
+                onPress: async () => {
+                  await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
+                  dispatch({ type: 'AUTH_LOGOUT' });
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'Auth' }],
+                  });
+                },
               },
-            },
-          ]);
-        } else {
-          Alert.alert('Error', res.error || 'Failed to deactivate your account. Please try again.');
+            ]);
+          } else {
+            Alert.alert('Error', res.error || 'Failed to delete your account. Please try again.');
+          }
+        } catch (error) {
+          Alert.alert(
+            'Error',
+            error?.message || 'Unexpected error occurred while deleting your account.'
+          );
+        } finally {
+          setLoading(false);
         }
-      } catch (error) {
-        Alert.alert(
-          'Error',
-          error?.message || 'Unexpected error occurred while deactivating your account.'
-        );
-      } finally {
-        setLoading(false);
-      }
-    },
-  });
-};
-
+      },
+    });
+  };
   const handleMenuAction = (action: string) => {
-  if (action === 'Logout') {
-    handleLogout();
-    return;
-  }
-  if (action === 'ChangePassword') {
-    navigation.navigate('ChangePassword');
-    return;
-  }
-  if (action === 'Ei') {
-    Linking.openURL('https://ethicalintelligence.in/');
-    return;
-  }
-  if (action === 'DeActivateAccount') {
-    handleDeactivateAccount();
-    return;
-  }
-  if (action) {
-    navigation.navigate(action);
-  }
-};
+    if (action === 'Logout') {
+      handleLogout();
+      return;
+    }
+    if (action === 'ChangePassword') {
+      navigation.navigate('ChangePassword');
+      return;
+    }
+    if (action === 'Ei') {
+      Linking.openURL('https://ethicalintelligence.in/');
+      return;
+    }
+    if (action === 'DeleteAccount') {
+      handleDeleteAccount();
+      return;
+    }
+    if (action) {
+      navigation.navigate(action);
+    }
+  };
 
   // ... rest of your component code ...
 
@@ -286,7 +326,21 @@ export default function MenuScreen({ navigation, route }: { navigation: any; rou
             </View>
             {/* Profile */}
             <View style={styles.profileRow}>
-              <Image source={{ uri: (typeof profile.profile_picture === 'string' && profile.profile_picture ? profile.profile_picture : 'https://randomuser.me/api/portraits/men/11.jpg') as string }} style={styles.avatar} />
+              {profile.profile_picture ? <Image source={{ uri: (typeof profile.profile_picture === 'string' && profile.profile_picture ? profile.profile_picture : '') as string }} style={styles.avatar} /> :
+
+              <View style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: "#eee",
+                marginRight: 12,
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}>
+                <Text style={{ color: '#bea063', fontSize: 18, fontWeight: 'bold' }}>
+                  {(profile.username.charAt(0) || ' ').toUpperCase()}
+                </Text>
+              </View>}
               <View>
                 <Text style={styles.username}>{profile.username}</Text>
                 <Text style={styles.info}> {profile.first_name || 'N/A'}</Text>
@@ -295,7 +349,7 @@ export default function MenuScreen({ navigation, route }: { navigation: any; rou
               </View>
             </View>
             {/* Linked Accounts */}
-           
+
           </View>
         </View>
       </Modal>

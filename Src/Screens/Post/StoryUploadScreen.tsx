@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,15 @@ import {
   Platform,
   Switch,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import * as ImagePicker from 'react-native-image-picker';
 import { postStories } from '../../Api/Api';
 import LocationPicker, { LocationOption } from '../../Components/LocationPicker';
 import { useNavigation, useFocusEffect, CommonActions } from '@react-navigation/native';
 import MediaEditModal from './MediaEditModal';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const screenWidth = Dimensions.get('window').width;
 const screenHeight = Dimensions.get('window').height;
@@ -32,6 +35,12 @@ const StoryUploadScreen = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [activeModal, setActiveModal] = useState<'input' | 'location' | null>(null);
+  const [pendingModal, setPendingModal] = useState<'input' | 'location' | null>(null);
+  const [mentionInput, setMentionInput] = useState('');
+    const [mentionSuggestions, setMentionSuggestions] = useState<any[]>([]);
+    const [selectedMentions, setSelectedMentions] = useState<number[]>([]);
+    const [selectedMentionUsers, setSelectedMentionUsers] = useState<any[]>([]);
+    const [mentionLoading, setMentionLoading] = useState(false);
 
   // Step 1: Pick image on mount
   React.useEffect(() => {
@@ -59,6 +68,48 @@ const StoryUploadScreen = () => {
     setShowEditModal(true);
   };
 
+  useEffect(() => {
+    const delayDebounce = setTimeout(async () => {
+      if (mentionInput.trim().length > 0) {
+        setMentionLoading(true);
+        try {
+          const authToken = await AsyncStorage.getItem('accessToken');
+          const headers = {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+          };
+          console.log("Mention Input:", mentionInput);
+          
+          const res = await axios.get(
+            `https://pashuahar.com/users/search/?query=${mentionInput}`,
+            { headers }
+          );
+          console.log("Mention Suggestions Response:", res.data);
+          
+          setMentionSuggestions(res.data || []);
+        } catch (error: any) {
+          console.log("Error fetching mentions:", error);
+          
+          setMentionSuggestions([]);
+        } finally {
+          setMentionLoading(false);
+        }
+      } else {
+        setMentionSuggestions([]);
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(delayDebounce);
+  }, [mentionInput]);
+
+  // Handle pending modal transitions
+  React.useEffect(() => {
+    if (pendingModal && activeModal === null) {
+      setActiveModal(pendingModal);
+      setPendingModal(null);
+    }
+  }, [activeModal, pendingModal]);
+
   // Step 3: Handle story upload
   const handleNext = async () => {
     const imageToUpload = processedImage || selectedImage;
@@ -79,6 +130,14 @@ const StoryUploadScreen = () => {
       } else {
         formData.append('location', '');
       }
+      if (selectedMentions.length > 0) {
+            selectedMentions.forEach(id => {
+              formData.append('mentions', id);
+            });
+          }
+          console.log("formData",formData);
+          // return
+          
       await postStories({ formData });
       Alert.alert('Success', 'Your story has been uploaded!');
       navigation.dispatch(
@@ -114,8 +173,28 @@ const StoryUploadScreen = () => {
 
   if (!selectedImage) return null;
 
+  // Debug modal states
+  console.log("Modal states - activeModal:", activeModal, "showEditModal:", showEditModal, "pendingModal:", pendingModal);
+
   return (
     <View style={styles.container}>
+      {/* Close button in top-left corner */}
+      <TouchableOpacity 
+        style={styles.topCloseButton} 
+        onPress={() => {
+          Alert.alert(
+            'Discard Story?',
+            'Are you sure you want to discard this story? Your changes will be lost.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Discard', style: 'destructive', onPress: () => navigation.goBack() }
+            ]
+          );
+        }}
+      >
+        <Text style={styles.topCloseButtonText}>✕</Text>
+      </TouchableOpacity>
+      
       {/* Next button in top-right corner */}
       <TouchableOpacity style={styles.topNextButton} onPress={handleNext} disabled={uploading}>
         {uploading ? (
@@ -131,13 +210,28 @@ const StoryUploadScreen = () => {
 
       {/* Bottom Toolbar */}
       <View style={styles.toolbar}>
-        <TouchableOpacity style={styles.toolbarButton} onPress={() => setShowEditModal(true)}>
+        <TouchableOpacity style={styles.toolbarButton} onPress={() => {
+          // Force close any other modals first
+          setActiveModal(null);
+          
+          // Toggle the edit modal
+          setShowEditModal(prev => !prev);
+        }}>
           <Text style={styles.toolbarButtonText}>Edit</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.toolbarButton} onPress={() => setActiveModal('input')}>
+        <TouchableOpacity style={styles.toolbarButton} onPress={() => {
+          console.log("=== CAPTION BUTTON PRESSED ===");
+          console.log("Current showEditModal:", showEditModal);
+          console.log("Current activeModal:", activeModal);
+          setShowEditModal(false);
+          setActiveModal('input');
+        }}>
           <Text style={styles.toolbarButtonText}>Caption</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.toolbarButton} onPress={() => setActiveModal('location')}>
+        <TouchableOpacity style={styles.toolbarButton} onPress={() => {
+          setShowEditModal(false);
+          setActiveModal('location');
+        }}>
           <Text style={styles.toolbarButtonText}>Location</Text>
         </TouchableOpacity>
       </View>
@@ -145,6 +239,14 @@ const StoryUploadScreen = () => {
       <Modal visible={activeModal === 'input'} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.inputModal}>
+            {/* Close button */}
+            <TouchableOpacity 
+              style={styles.modalCloseButton}
+              onPress={() => setActiveModal(null)}
+            >
+              <Text style={styles.modalCloseButtonText}>✕</Text>
+            </TouchableOpacity>
+            
             <Text style={[styles.inputLabel, { color: '#bea063' }]}>Add a caption...</Text>
             <TextInput
               style={[styles.captionInput, { borderColor: '#bea063', color: '#bea063' }]}
@@ -154,6 +256,58 @@ const StoryUploadScreen = () => {
               onChangeText={setCaption}
               multiline
             />
+            <View style={{paddingHorizontal: 1, marginBottom: 5}}>
+                      <Text style={{fontSize: 16, marginTop: 10, color: '#bea063'}}>Mention Users</Text>
+                      <TextInput
+                        style={{
+                          borderWidth: 1,
+                          borderColor: '#bea063',
+                          borderRadius: 8,
+                          padding: 10,
+                          marginTop: 10,
+                          marginBottom: 5,
+                          color: '#bea063'
+                        }}
+                        placeholder="Type to search users..."
+                        placeholderTextColor="#bea063"
+                        value={mentionInput}
+                        onChangeText={setMentionInput}
+                      />
+                      {/* Suggestions dropdown */}
+                      {mentionLoading ? (
+                        <ActivityIndicator size="small" color="#bea063" />
+                      ) : mentionSuggestions.length > 0 && (
+                        <View style={{backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#bea063', marginTop: 2, maxHeight: 120}}>
+                          <ScrollView>
+                            {mentionSuggestions.map(user => (
+                              <TouchableOpacity
+                                key={user.id}
+                                style={{padding: 10, borderBottomWidth: 1, borderBottomColor: '#eee'}}
+                                onPress={() => {
+                                  if (!selectedMentions.includes(user.id)) {
+                                    setSelectedMentions(prev => [...prev, user.id]);
+                                    setSelectedMentionUsers(prev => [...prev, user]);
+                                  }
+                                  setMentionInput('');
+                                  setMentionSuggestions([]);
+                                }}>
+                                <Text style={{color: '#bea063'}}>{user.username} ({user.first_name} {user.last_name})</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </ScrollView>
+                        </View>
+                      )}
+                      {/* Show selected mentions */}
+                      {selectedMentionUsers.length > 0 && (
+                        <View style={{flexDirection: 'row', flexWrap: 'wrap', marginTop: 6}}>
+                          {selectedMentionUsers.map(u => (
+                            <View key={u.id} style={{backgroundColor: '#bea063', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4, marginRight: 6, marginBottom: 4}}>
+                              <Text style={{color: '#fff'}}>{u.username}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
             {/* <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
               <Text style={{ fontSize: 16, marginRight: 10, color: '#bea063' }}>Highlight this story?</Text>
               <Switch
@@ -165,7 +319,11 @@ const StoryUploadScreen = () => {
             </View> */}
             <TouchableOpacity
               style={[styles.locationButton, { borderColor: '#bea063' }]}
-              onPress={() => setActiveModal('location')}
+              onPress={() => {
+                // Set pending modal and close current modal
+                setPendingModal('location');
+                setActiveModal(null);
+              }}
             >
               <Text style={{ color: '#bea063' }}>{selectedLocation ? selectedLocation.display_name : 'Select Location'}</Text>
             </TouchableOpacity>
@@ -186,28 +344,56 @@ const StoryUploadScreen = () => {
           </View>
         </View>
       </Modal>
-      {/* Location Picker Modal */}
-      <Modal visible={activeModal === 'location'} animationType="slide" onRequestClose={() => setActiveModal(null)}>
-        <LocationPicker
-          value={selectedLocation}
-          onChange={location => {
-            setSelectedLocation(location);
-            setActiveModal('input'); // Go back to input modal after selecting location
-          }}
-        />
-      </Modal>
+      {/* Location Modal - iOS Compatible */}
+      {activeModal === 'location' && (
+        <View style={styles.locationModalOverlay}>
+          <View style={styles.locationModalContainer}>
+            {/* <View style={styles.locationModalHeader}>
+              <Text style={styles.locationModalTitle}>Select Location</Text>
+              <TouchableOpacity 
+                style={styles.locationModalCloseButton}
+                onPress={() => {
+                  setActiveModal(null);
+                }}
+              >
+                <Text style={styles.locationModalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View> */}
+            <View style={styles.locationModalContent}>
+              <LocationPicker
+                value={selectedLocation}
+                onChange={location => {
+                  setSelectedLocation(location);
+                  setActiveModal(null); // Close location modal after selecting
+                }}
+              />
+            </View>
+          </View>
+        </View>
+      )}
       {/* Pinch/Filter Edit Modal */}
-      <Modal visible={showEditModal} animationType="slide" transparent={false} onRequestClose={() => setShowEditModal(false)}>
+      <Modal 
+        visible={showEditModal && activeModal === null} 
+        animationType="slide" 
+        transparent={false}
+        onRequestClose={() => {
+          console.log("=== MODAL ONREQUESTCLOSE ===");
+          setShowEditModal(false);
+        }}
+        presentationStyle="fullScreen"
+      >
         <MediaEditModal
           uri={processedImage || selectedImage}
           onApply={({ uri }) => {
+            console.log("=== MEDIA EDIT MODAL APPLY ===");
             setProcessedImage(uri);
             setShowEditModal(false);
-            setActiveModal('input'); // Open caption/location modal after filter
+            // Don't automatically open caption modal - let user choose
           }}
           onCancel={() => {
+            console.log("=== MEDIA EDIT MODAL CANCEL ===");
             setShowEditModal(false);
-            setActiveModal('input'); // Open caption/location modal after cancel
+            // Don't automatically open caption modal - let user choose
           }}
         />
       </Modal>
@@ -319,6 +505,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  topCloseButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    zIndex: 10,
+  },
+  topCloseButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   topNextButton: {
     position: 'absolute',
     top: 50,
@@ -333,6 +534,69 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 15,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    zIndex: 10,
+  },
+  modalCloseButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  locationModalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 1000,
+  },
+  locationModalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    marginTop: Platform.OS === 'ios' ? 44 : 0,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  locationModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  locationModalTitle: {
+    color: '#bea063',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  locationModalCloseButton: {
+    backgroundColor: '#bea063',
+    borderRadius: 15,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  locationModalCloseText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  locationModalContent: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 0,
   },
 });
 

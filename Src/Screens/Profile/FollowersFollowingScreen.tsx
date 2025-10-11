@@ -13,11 +13,15 @@ const Icon = require('react-native-vector-icons/Ionicons').default;
 import { useNavigation, useRoute } from '@react-navigation/native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { getFollowersList, getFollowingList, unfollowUser } from '../../Api/Api';
 
 const FollowersFollowingScreen = () => {
   const navigation = useNavigation<any>();
   const route = useRoute();
-  const { type, userId, username } = route.params as { type: 'followers' | 'following'; userId: string; username: string };
+  const { type, userId, username,isFromUUserProfile } = route.params as { type: 'followers' | 'following'; userId: string; username: string,isFromUUserProfile:any };
+  // console.log("type, userId, username",isFromUUserProfile,userId,username);
+  
 
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<any[]>([]);
@@ -32,27 +36,32 @@ const FollowersFollowingScreen = () => {
     setLoading(true);
     setError(null);
     try {
-      const authToken = await AsyncStorage.getItem('accessToken');
-
-      const headers = {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      };
-      // Replace with your actual API endpoints
-      // const params = {
-      //   page: 1,
-      //   page_size: 20,
-      // }
-      const endpoint = tabType === 'followers'
-        ? `https://pashuahar.com/follower/followers`
-        : `https://pashuahar.com/follower/following`
-      const res = await axios.get(endpoint,{headers});
-      console.log("followers following screen",res.data?.data?.results);
+      console.log("=== FETCHING FOLLOWERS/FOLLOWING DATA ===");
+      console.log("tabType:", tabType, "userId:", userId, "isFromUUserProfile:", isFromUUserProfile);
       
-      setUsers(res.data.data?.results || []);
+      let users: any[] = [];
+      
+      if (isFromUUserProfile) {
+        // Fetch for specific user
+        if (tabType === 'followers') {
+          users = await getFollowersList(userId?.toString());
+        } else {
+          users = await getFollowingList(userId?.toString());
+        }
+      } else {
+        // Fetch for current user
+        if (tabType === 'followers') {
+          users = await getFollowersList();
+        } else {
+          users = await getFollowingList();
+        }
+      }
+      
+      console.log("followers following screen data:", users);
+      setUsers(users);
+     
     } catch (err) {
-      console.log("error in followers following screen",err);
-      
+      console.log("error in followers following screen", err);
       setError('Failed to load data');
     } finally {
       setLoading(false);
@@ -65,26 +74,24 @@ const FollowersFollowingScreen = () => {
   };
 
   const handleRemove = async (user: any) => {
-    console.log("user",user?.following?.id);
-    // return
-    
+    console.log("=== UNFOLLOWING USER ===");
+    console.log("user to unfollow:", user?.following?.id);
     
     try {
       setLoading(true);
-      const authToken = await AsyncStorage.getItem('accessToken');
-      const headers = {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      };
-      // Call unfollow API
-      await axios.post('https://pashuahar.com/follower/unfollow/', {
-        user_id: user?.following?.id
-      }, { headers });
-      // Remove user from list on success
-      setUsers(prev => prev.filter(u => u.id !== user.id));
-    } catch (err) {
-      console.log("here come here",err);
       
+      // Use the configured API function
+      const success = await unfollowUser(user?.following?.id);
+      
+      if (success) {
+        // Remove user from list on success
+        setUsers(prev => prev.filter(u => u.id !== user.id));
+        console.log("Successfully unfollowed user");
+      } else {
+        setError('Failed to unfollow user');
+      }
+    } catch (err) {
+      console.log("Error unfollowing user:", err);
       setError('Failed to unfollow user');
     } finally {
       setLoading(false);
@@ -94,7 +101,7 @@ const FollowersFollowingScreen = () => {
   const renderUserItem = ({ item }: { item: any }) => {
     // Pick the correct user object based on tab
     const userObj = activeTab === 'followers' ? item.follower : item.following;
-    const avatar = userObj?.profile_picture || 'https://picsum.photos/100';
+    const avatar = userObj?.profile_picture;
     const username = userObj?.username || '';
     const fullName = (userObj?.first_name || '') + (userObj?.last_name ? ' ' + userObj.last_name : '');
 
@@ -103,15 +110,31 @@ const FollowersFollowingScreen = () => {
         style={styles.userRow}
         activeOpacity={0.8}
         onPress={() => {
-          // navigation.navigate('UserProfile', { userId: userObj?.id,isFromSearch: true, username,isFromFollower:true });
+          navigation.navigate('UserProfile', { userId: userObj?.id,isFromSearch: true, username,isFromFollower:true });
         }}
       >
-        <Image source={{ uri: avatar }} style={styles.avatar} />
+       { avatar ?  <Image source={{ uri: avatar }} style={styles.avatar} />
+      :
+       <View style={{
+                width: 42,
+                height: 42,
+                borderRadius: 21,
+                backgroundColor: '#f5f5f5',
+                justifyContent: 'center',
+                alignItems: 'center',
+                borderWidth: 1.5,
+                borderColor: '#bea063',
+                overflow: 'hidden',
+                marginRight: 4,
+              }}>
+                <Ionicons name="person-circle" size={38} color="#bea063" />
+              </View> 
+      }
         <View style={{ flex: 1 }}>
           <Text style={styles.username}>{username}</Text>
           <Text style={styles.fullName}>{fullName}</Text>
         </View>
-        {activeTab === 'following' && (
+        {activeTab === 'following' && !isFromUUserProfile && (
           <TouchableOpacity
             style={styles.removeButton}
             onPress={e => {

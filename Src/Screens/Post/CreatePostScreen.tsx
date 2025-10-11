@@ -69,6 +69,8 @@ const CreatePostScreen = () => {
             value={caption}
             onChangeText={setCaption}
             multiline
+            placeholderTextColor="#000000"
+
           />
         </View>
       </View>

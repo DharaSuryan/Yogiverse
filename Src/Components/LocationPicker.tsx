@@ -73,26 +73,37 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ value, onChange, style,
           return res.json();
         })
         .then(data => {
+          console.log("data",data);
+          
           setLocationOptions(data || []);
           setLocationLoading(false);
         })
         .catch(err => {
-            setLocationOptions([]);
-            setLocationLoading(false);
-          console.error('Location fetch error:', err);
+          // Only log error if it's not an abort error
+          if (err.name !== 'AbortError') {
+            console.error('Location fetch error:', err);
+          }
+          setLocationOptions([]);
+          setLocationLoading(false);
         });
     }, 500);
 
     return () => {
       clearTimeout(timeout);
-      controller.abort();
+      // Only abort if the request hasn't completed yet
+      if (controller.signal && !controller.signal.aborted) {
+        controller.abort();
+      }
     };
   }, [locationInput]);
 
   const handleSelect = (item: LocationOption) => {
     setLocationInput(item.display_name);
     setShowOptions(false);
-    onChange(item);
+    // Small delay to ensure proper state update before calling onChange
+    setTimeout(() => {
+      onChange(item);
+    }, 100);
   };
 
   const screenHeight = dimensions.height;
@@ -108,7 +119,18 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ value, onChange, style,
   const isLandscape = screenWidth > screenHeight;
 
   return (
-    <SafeAreaView style={[styles.safeArea, style]}>
+    <View style={[styles.safeArea, style]}>
+      {/* Header with close button */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Select Location</Text>
+        <TouchableOpacity 
+          style={styles.closeButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.closeButtonText}>✕</Text>
+        </TouchableOpacity>
+      </View>
+      
       <View style={[
         styles.container, 
         isFromUserProfile 
@@ -153,7 +175,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ value, onChange, style,
           />
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -165,21 +187,23 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#fff',
+    paddingTop: Platform.OS === 'ios' ? 44 : 0, // Account for status bar
   },
   container: {
     width: '100%',
     zIndex: 10,
     backgroundColor: '#fff',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 8 : 16,
-    paddingBottom: Platform.OS === 'ios' ? 16 : 16,
+    paddingTop: Platform.OS === 'ios' ? 20 : 16,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 16,
     flex: 1,
   },
   landscapeContainer: {
     paddingHorizontal: 20,
   },
   input: {
-    borderWidth: 0,
+    borderWidth: 1,
+    borderColor: '#bea063',
     padding: 12,
     borderRadius: 16,
     marginBottom: 16,
@@ -236,5 +260,33 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    backgroundColor: '#fff',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#bea063',
+  },
+  closeButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: 'bold',
   },
 }); 

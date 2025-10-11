@@ -1,16 +1,29 @@
 import NotifService from "./NotifService";
-
+import messaging from '@react-native-firebase/messaging';
 import notifee, { AndroidImportance, AndroidStyle } from '@notifee/react-native';
 
 let notif: NotifService
 export const setupPushNotification = async () => {
+    // Request permission for iOS
+    const authStatus = await messaging().requestPermission();
+    const enabled =
+        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+    if (enabled) {
+        console.log('Authorization status:', authStatus);
+    }
 
     notif = new NotifService(
         onRegister,
         onNotif,
     );
 
-    //  notif.requestPermissions()
+    // Set up background message handler
+    messaging().setBackgroundMessageHandler(async remoteMessage => {
+        console.log('Message handled in the background!', remoteMessage);
+        onNotif(remoteMessage);
+    });
 }
 
 const onRegister = (token: any) => {

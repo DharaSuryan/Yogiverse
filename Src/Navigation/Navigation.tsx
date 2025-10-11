@@ -50,6 +50,7 @@ import CreateCollectionScreen from '../Screens/Profile/CreateCollectionScreen';
 import ProfilePostDetailScreen from '../Screens/Profile/ProfilePostDetailScreen';
 import UserProfileScreen from '../Screens/Profile/UserProfileScreen';
 import FollowersFollowingScreen from '../Screens/Profile/FollowersFollowingScreen';
+import HighlightViewer from '../Screens/Profile/HighlightViewer';
 
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
@@ -65,6 +66,7 @@ import CollectionPostDetailScreen from '../Screens/Profile/CollectionPostDetailS
 import VenderList from '../Screens/Vender/VenderList';
 import  vendorDetail  from '../Screens/Search/VenderDetail';
 import ContactUs from '../Screens/ContactUs';
+import EditPostScreen from '../Screens/Post/EditPostScreen';
 
 // Navigators
 const Stack = createNativeStackNavigator();
@@ -211,6 +213,7 @@ const Navigation = () => {
         <Stack.Screen name="UploadPost" component={UploadPost} />
         <Stack.Screen name="StoryViewerScreen" component={StoryViewerScreen} />
         <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+        <Stack.Screen name="HighlightViewer" component={HighlightViewer} />
         <Stack.Screen
           name="FollowersFollowingScreen"
           component={FollowersFollowingScreen}
@@ -234,6 +237,7 @@ const Navigation = () => {
         />
         <Stack.Screen name="VenderDetail" component={vendorDetail}/>
         <Stack.Screen name="ContactUs" component={ContactUs}/>
+        <Stack.Screen name="EditPostScreen" component={EditPostScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

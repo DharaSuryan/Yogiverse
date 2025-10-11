@@ -138,6 +138,8 @@ const LocationListScreen = () => {
         placeholder={`Search ${view}...`}
         value={searchQuery}
         onChangeText={setSearchQuery}
+        placeholderTextColor="#000000"
+
       />
       <FlatList
         data={filteredData}

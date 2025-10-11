@@ -115,6 +115,8 @@ const ProfilePostDetailScreen = () => {
             onChangeText={setComment}
             onSubmitEditing={handleAddComment}
             returnKeyType="send"
+            placeholderTextColor="#000000"
+
           />
           <TouchableOpacity onPress={handleAddComment}>
             <Icon name="send" size={24} color="#bea063" />

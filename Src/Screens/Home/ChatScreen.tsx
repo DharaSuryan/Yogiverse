@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, Image, ActivityIndicator, Linking, Modal, Alert, SectionList } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, Image, ActivityIndicator, Linking, Modal, Alert, SectionList, ScrollView, Dimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from 'Src/Navigation/types';
@@ -14,6 +15,7 @@ interface Message {
   id: string | number;
   sent_by: string;
   message: string;
+  message_type?: string;
   files_attachment?: { name: string; type: string; data: string }[];
   sent_at: string;
   [key: string]: any;
@@ -61,6 +63,8 @@ const ChatScreen = () => {
   const [currentUserId, setCurrentUserId] = useState<string | number | null>(null);
   const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
   const [previewImageUri, setPreviewImageUri] = useState<string | null>(null);
+  const [previewMediaArray, setPreviewMediaArray] = useState<string[]>([]);
+  const [previewCurrentIndex, setPreviewCurrentIndex] = useState(0);
   const [membersModalVisible, setMembersModalVisible] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [addMembersModalVisible, setAddMembersModalVisible] = useState(false);
@@ -74,6 +78,7 @@ const ChatScreen = () => {
   const [groupNameInput, setGroupNameInput] = useState(chat_name || '');
   const [updatingGroup, setUpdatingGroup] = useState(false);
   const [otherMember, setOtherMember] = useState<any | null>(null);
+  const [showScrollToEnd, setShowScrollToEnd] = useState(false);
   
   // Fetch other member data for single chat
   // useEffect(() => {
@@ -415,6 +420,10 @@ const ChatScreen = () => {
               (m.files_attachment && m.files_attachment.length > 0)
           );
           setMessages(filtered);
+          setTimeout(() => {
+            console.log("forceScrollToEnd");
+            forceScrollToEnd();
+          }, 100);
           // If no messages, try REST fallback
           if (filtered.length === 0 && !restTried) {
             fetchMessagesREST();
@@ -424,6 +433,11 @@ const ChatScreen = () => {
         } else if (data && typeof data === 'object') {
           setMessages(prev => (prev.some(m => m.id === data.id) ? prev : [...prev, data]));
           setLoading(false);
+          // Force scroll to end when new message arrives
+          setTimeout(() => {
+            console.log("forceScrollToEnd");
+            forceScrollToEnd();
+          }, 100);
         }
       } catch {
         setLoading(false);
@@ -495,6 +509,7 @@ const ChatScreen = () => {
       token,
       content: input,
       files: selectedFiles,
+      message_type: "text"
     };
     wsRef.current.send(JSON.stringify(payload));
     setInput('');
@@ -507,6 +522,62 @@ const ChatScreen = () => {
     const senderId = item.sender;
     const member = memberMap[senderId];
     const isMe = senderId == userid;
+
+    // Handle mentions message type
+    let displayText = item.message;
+    let mentionMedia = null;
+    let mentionMediaArray: string[] = [];
+    
+    if (item.message_type === 'mentions') {
+      try {
+        const parsedMessage = JSON.parse(item.message);
+        displayText = parsedMessage.text || item.message;
+        mentionMedia = parsedMessage.media || null;
+        
+        // Extract all media from post_data if available
+        if (parsedMessage.post_data && parsedMessage.post_data.media && Array.isArray(parsedMessage.post_data.media)) {
+          mentionMediaArray = parsedMessage.post_data.media.map((media: any) => media.media_file).filter(Boolean);
+        } else if (mentionMedia) {
+          // Fallback to single media if post_data not available
+          mentionMediaArray = [mentionMedia];
+        }
+      } catch (e) {
+        console.log('Error parsing mentions message:', e);
+        displayText = item.message;
+      }
+    }
+
+    // Helper function to get all media from a message
+    const getAllMediaFromMessage = (): string[] => {
+      const mediaArray: string[] = [];
+      
+      // Add mention media if available
+      if (mentionMediaArray.length > 0) {
+        mediaArray.push(...mentionMediaArray);
+      }
+      
+      // Add attachment_data media
+      if (item.attachment_data && Array.isArray(item.attachment_data)) {
+        item.attachment_data.forEach(file => {
+          if (file.file_url && file.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+            mediaArray.push(file.file_url);
+          }
+        });
+      }
+      
+      // Add files_attachment media
+      if (item.files_attachment && Array.isArray(item.files_attachment)) {
+        item.files_attachment.forEach(file => {
+          if (file && file.type && file.type.startsWith('image/') && file.data) {
+            mediaArray.push(file.data);
+          }
+        });
+      }
+      
+      return mediaArray;
+    };
+
+    const allMedia = getAllMediaFromMessage();
 
     return (
       <View style={[
@@ -540,11 +611,34 @@ const ChatScreen = () => {
         {isMe && (
           <Text style={styles.senderName}>You</Text>
         )}
+        
+        {/* Display text */}
         <Text style={{
           color: '#222',
           fontSize: 16,
           marginTop: 2,
-        }}>{item.message}</Text>
+        }}>{displayText}</Text>
+        
+        {/* Display mention media if present */}
+        {item.message_type === 'mentions' && mentionMedia && (
+          <TouchableOpacity
+            onPress={() => {
+              setPreviewMediaArray(allMedia);
+              setPreviewCurrentIndex(0);
+              setPreviewImageUri(allMedia[0] || mentionMedia);
+              setImagePreviewVisible(true);
+            }}
+            activeOpacity={0.8}
+            style={{ marginTop: 4 }}
+          >
+            <Image
+              source={{ uri: mentionMedia }}
+              style={{ width: 120, height: 120, borderRadius: 8 }}
+              resizeMode="cover"
+            />
+          </TouchableOpacity>
+        )}
+        
         {/* Render attachment_data if present */}
         {item.attachment_data && Array.isArray(item.attachment_data) && (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 }}>
@@ -553,6 +647,9 @@ const ChatScreen = () => {
                 <TouchableOpacity
                   key={idx}
                   onPress={() => {
+                    const mediaIndex = allMedia.indexOf(file.file_url);
+                    setPreviewMediaArray(allMedia);
+                    setPreviewCurrentIndex(mediaIndex >= 0 ? mediaIndex : 0);
                     setPreviewImageUri(file.file_url);
                     setImagePreviewVisible(true);
                   }}
@@ -580,6 +677,9 @@ const ChatScreen = () => {
                 <TouchableOpacity
                   key={idx}
                   onPress={() => {
+                    const mediaIndex = allMedia.indexOf(file.data);
+                    setPreviewMediaArray(allMedia);
+                    setPreviewCurrentIndex(mediaIndex >= 0 ? mediaIndex : 0);
                     setPreviewImageUri(file.data);
                     setImagePreviewVisible(true);
                   }}
@@ -604,298 +704,570 @@ const ChatScreen = () => {
     );
   };
 
+  // Add this ref for FlatList
+  const flatListRef = useRef<FlatList<any>>(null);
+
+  // Helper for getItemLayout for FlatList
+  const getItemLayout = (_: any, index: number) => ({
+    length: 120, // Approximate row height
+    offset: 120 * index,
+    index,
+  });
+
+  // Show/hide scroll-to-end button based on scroll position
+  const handleFlatListScroll = (event: any) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    // If not at bottom, show the button
+    if (contentOffset && contentSize && layoutMeasurement) {
+      const paddingToBottom = 100; // Increased padding to detect when user scrolls up
+      const isAtBottom =
+        contentOffset.y + layoutMeasurement.height >= contentSize.height - paddingToBottom;
+      setShowScrollToEnd(!isAtBottom && messages.length > 0);
+    }
+  };
+
+  // Manual scroll to end function
+  const scrollToEnd = () => {
+    if (flatListRef.current && messages.length > 0) {
+      console.log("scrollToEnd called", messages.length);
+      try {
+        // Try multiple approaches
+        flatListRef.current.scrollToEnd({ animated: true });
+        
+        // Also try scrolling to the last item as backup
+        setTimeout(() => {
+          if (flatListRef.current) {
+            flatListRef.current.scrollToIndex({
+              index: messages.length - 1,
+              animated: true,
+              viewPosition: 0,
+            });
+          }
+        }, 100);
+        
+        setShowScrollToEnd(false);
+      } catch (e) {
+        console.log('Manual scroll to end error:', e);
+      }
+    }
+  };
+
+  // Aggressive scroll to end function for new messages
+  const forceScrollToEnd = () => {
+    console.log("forceScrollToEnd called", messages.length);
+
+    if (flatListRef.current && messages.length > 0) {
+      // Try multiple approaches with different timing
+      setTimeout(() => {
+        try {
+          console.log("Attempting scrollToEnd");
+          flatListRef.current?.scrollToEnd({ animated: false });
+        } catch (e) {
+          console.log('Force scroll failed:', e);
+        }
+      }, 50);
+
+      // Backup approach
+      setTimeout(() => {
+        try {
+          console.log("Attempting scrollToIndex as backup");
+          if (flatListRef.current) {
+            flatListRef.current.scrollToIndex({
+              index: Math.max(0, messages.length - 1),
+              animated: false,
+              viewPosition: 0,
+            });
+          }
+        } catch (e) {
+          console.log('Backup scroll failed:', e);
+        }
+      }, 200);
+    }
+  };
+
+  // Scroll to end when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      // Use a longer delay to ensure the list is fully rendered
+      const timer = setTimeout(() => {
+        if (flatListRef.current) {
+          try {
+            // Try to scroll to the very end
+            flatListRef.current.scrollToEnd({ animated: false });
+          } catch (e) {
+            console.log('Scroll to end error:', e);
+          }
+        }
+      }, 300); // Increased delay
+
+      return () => clearTimeout(timer);
+    }
+  }, [messages.length]);
+
+  // Scroll to end when loading completes
+  useEffect(() => {
+    if (!loading && messages.length > 0) {
+      const timer = setTimeout(() => {
+        if (flatListRef.current) {
+          try {
+            flatListRef.current.scrollToEnd({ animated: false });
+          } catch (e) {
+            console.log('Scroll after loading error:', e);
+          }
+        }
+      }, 500); // Longer delay for initial load
+
+      return () => clearTimeout(timer);
+    }
+  }, [loading, messages.length]);
+
+  // Scroll to end when screen comes into focus (like Instagram/WhatsApp)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (messages.length > 0 && flatListRef.current) {
+        console.log("Screen focused, scrolling to end");
+        const timer = setTimeout(() => {
+          try {
+            flatListRef.current?.scrollToEnd({ animated: false });
+          } catch (e) {
+            console.log('Focus scroll error:', e);
+          }
+        }, 300);
+        return () => clearTimeout(timer);
+      }
+    }, [messages.length])
+  );
+
   return (
-    <View style={styles.container}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', height: 64, paddingLeft: 8, paddingRight: 16, backgroundColor: '#fff', marginTop: 16 }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: 8 }}>
-          {React.createElement(Ionicons, { name: "chevron-back", size: 28, color: "#bea063" })}
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={{ flexDirection: 'row', alignItems: 'center' }}
-          activeOpacity={0.7}
-          onPress={() => {
-            if (is_single_chat) {
-              const otherMember = group_members.members.find((m: any) => m.id !== userid);
-              if (otherMember) {
-                navigation.navigate('UserProfile', { 
-                  userId: otherMember.id.toString(), 
-                  isFromSearch: true 
-                });
-              }
-            } else {
-              setMembersModalVisible(true);
+  <View style={styles.container}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', height: 64, paddingLeft: 8, paddingRight: 16, backgroundColor: '#fff', marginTop: 16 }}>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: 8 }}>
+        {React.createElement(Ionicons, { name: "chevron-back", size: 28, color: "#bea063" })}
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={{ flexDirection: 'row', alignItems: 'center' }}
+        activeOpacity={0.7}
+        onPress={() => {
+          if (is_single_chat) {
+            const otherMember = group_members.members.find((m: any) => m.id !== userid);
+            if (otherMember) {
+              navigation.navigate('UserProfile', { 
+                userId: otherMember.id?.toString(), 
+                isFromSearch: true 
+              });
             }
-          }}
-        >
-          {is_single_chat ? (
-            (() => {
-              const otherMember = group_members.members.find((m: any) => m.id !== userid);
-              return otherMember ? (
-                <>
-                  {otherMember.profile_picture ? (
-                    <Image source={{ uri: otherMember.profile_picture }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 8 }} />
-                  ) : (
-                    <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#ccc', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
-                      <Text style={{ color: '#fff', fontSize: 20 }}>{otherMember.first_name?.[0]}</Text>
-                    </View>
-                  )}
-                  <View>
-                    <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#bea063' }}>{otherMember.first_name} {otherMember.last_name}</Text>
-                    {otherMember.username && (
-                      <Text style={{ fontSize: 13, color: '#888' }}>@{otherMember.username}</Text>
-                    )}
-                  </View>
-                </>
-              ) : null;
-            })()
-          ) : (
-            <>
-            
-              {group_icon ? (
-                <Image source={{ uri: group_icon }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 8 }} />
-              ) : (
-                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#ccc', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
-                  <Text style={{ color: '#fff', fontSize: 20 }}>{chat_name?.[0]}</Text>
-                </View>
-              )}
-              <View>
-                
-                <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#bea063' }}>{chat_name}</Text>
-              </View>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-      {socketError && (
-        <View style={{ alignItems: 'center', marginTop: 40 }}>
-          <Text style={{ color: 'red', fontSize: 16 }}>Could not connect to chat. Please try again.</Text>
-        </View>
-      )}
-      {loading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} />
-      ) : messages.length === 0 ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-          <Text style={{ color: '#888', fontSize: 16, marginBottom: 16 }}>No messages yet. Start the conversation!</Text>
-          <TouchableOpacity
-            style={{ backgroundColor: '#3897f0', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 }}
-            onPress={() => inputRef.current?.focus()}
-          >
-            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Send a Message</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <SectionList
-          sections={organizeMessagesIntoSections()}
-          keyExtractor={item => item.id.toString()}
-          renderItem={renderMessage}
-          renderSectionHeader={() => null}
-          contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
-        />
-      )}
-      {/* File preview - always show above input row */}
-      {selectedFiles.length > 0 && (
-        <View style={styles.selectedFilesRow}>
-          {selectedFiles.map((file, idx) =>
-            file && file.type && file.type.startsWith('image/') ? (
-              <Image
-                key={idx}
-                source={{ uri: file.data }}
-                style={{ width: 60, height: 60, marginRight: 8, borderRadius: 8 }}
-                resizeMode="cover"
-              />
-            ) : (
-              <View key={idx} style={styles.fileAttachment}>
-                <Text numberOfLines={1} style={{ marginLeft: 4, maxWidth: 60 }}>{file?.name}</Text>
-              </View>
-            )
-          )}
-        </View>
-      )}
-      {/* Input row */}
-      <View style={styles.inputRowModern}>
-        <TouchableOpacity onPress={() => setShowEmojiPicker(true)} style={styles.iconButtonModern}>
-          {React.createElement(Ionicons, { name: "happy-outline", size: 24, color: "#bea063" })}
-        </TouchableOpacity>
-        <TouchableOpacity onPress={handlePickFile} style={styles.iconButtonModern}>
-          {React.createElement(Ionicons, { name: "attach-outline", size: 24, color: "#bea063" })}
-        </TouchableOpacity>
-        <View style={styles.inputContainerModern}>
-          {selectedFiles.length > 0 && (
-            <View style={styles.selectedFilesInInputRow}>
-              {selectedFiles.map((file, idx) =>
-                file.type && file.type.startsWith('image/') ? (
-                  <View key={idx} style={styles.selectedFileThumbWrapper}>
-                    <Image
-                      source={{ uri: file.data }}
-                      style={{ width: 40, height: 40, borderRadius: 8, marginRight: 4, marginBottom: 4 }}
-                      resizeMode="cover"
-                    />
-                    <TouchableOpacity
-                      style={styles.removeThumbButton}
-                      onPress={() => setSelectedFiles(selectedFiles.filter((_, i) => i !== idx))}
-                    >
-                      <Text style={styles.removeThumbText}>✖</Text>
-                    </TouchableOpacity>
-                  </View>
+          } else {
+            setMembersModalVisible(true);
+          }
+        }}
+      >
+        {is_single_chat ? (
+          (() => {
+            const otherMember = group_members.members.find((m: any) => m.id !== userid);
+            return otherMember ? (
+              <>
+                {otherMember.profile_picture ? (
+                  <Image source={{ uri: otherMember.profile_picture }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 8 }} />
                 ) : (
-                  <View key={idx} style={[styles.fileAttachment, styles.selectedFileThumbWrapper]}>
-                    <Text numberOfLines={1} style={{ marginLeft: 4, maxWidth: 40 }}>{file?.name}</Text>
-                    <TouchableOpacity
-                      style={styles.removeThumbButton}
-                      onPress={() => setSelectedFiles(selectedFiles.filter((_, i) => i !== idx))}
-                    >
-                      <Text style={styles.removeThumbText}>✖</Text>
-                    </TouchableOpacity>
+                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#ccc', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+                    <Text style={{ color: '#fff', fontSize: 20 }}>{otherMember.first_name?.[0]}</Text>
                   </View>
-                )
-              )}
+                )}
+                <View>
+                  <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#bea063' }}>{otherMember.first_name} {otherMember.last_name}</Text>
+                  {otherMember.username && (
+                    <Text style={{ fontSize: 13, color: '#888' }}>@{otherMember.username}</Text>
+                  )}
+                </View>
+              </>
+            ) : null;
+          })()
+        ) : (
+          <>
+          
+          {group_icon ? (
+            <Image source={{ uri: group_icon }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 8 }} />
+          ) : (
+            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#ccc', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+              <Text style={{ color: '#fff', fontSize: 20 }}>{chat_name?.[0]}</Text>
             </View>
           )}
-          <TextInput
-            ref={inputRef}
-            value={input}
-            placeholderTextColor="#bea063"
-            onChangeText={setInput}
-            placeholder="Type a message..."
-            style={styles.inputModern}
-            multiline
-          />
-        </View>
+          <View>
+            
+            <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#bea063' }}>{chat_name}</Text>
+          </View>
+          </>
+        )}
+      </TouchableOpacity>
+    </View>
+    {socketError && (
+      <View style={{ alignItems: 'center', marginTop: 40 }}>
+        <Text style={{ color: 'red', fontSize: 16 }}>Could not connect to chat. Please try again.</Text>
+      </View>
+    )}
+    {loading ? (
+      <ActivityIndicator style={{ marginTop: 40 }} />
+    ) : messages.length === 0 ? (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+        <Text style={{ color: '#888', fontSize: 16, marginBottom: 16 }}>No messages yet. Start the conversation!</Text>
         <TouchableOpacity
-          onPress={handleSend}
-          style={styles.sendButtonModern}
-          disabled={sending}
+          style={{ backgroundColor: '#3897f0', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 24 }}
+          onPress={() => inputRef.current?.focus()}
         >
-          {React.createElement(Ionicons, { name: "send", size: 22, color: "#fff" })}
+          <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Send a Message</Text>
         </TouchableOpacity>
       </View>
-      <EmojiPicker
-        onEmojiSelected={(emoji: { emoji: string }) => setInput(input + emoji.emoji)}
-        open={showEmojiPicker}
-        onClose={() => setShowEmojiPicker(false)}
+    ) : (
+      <FlatList
+        ref={flatListRef}
+        data={messages}
+        keyExtractor={item => item.id?.toString()}
+        renderItem={renderMessage}
+        contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
+        getItemLayout={getItemLayout}
+        onScrollToIndexFailed={({ index }) => {
+          setTimeout(() => {
+            flatListRef.current?.scrollToIndex({
+              index,
+              animated: false,
+              viewPosition: 0,
+            });
+          }, 300);
+        }}
+        onScroll={handleFlatListScroll}
+        scrollEventThrottle={16}
+        removeClippedSubviews={false}
+        initialNumToRender={50}
+        maxToRenderPerBatch={20}
+        windowSize={10}
+        maintainVisibleContentPosition={{
+          minIndexForVisible: 0,
+          autoscrollToTopThreshold: 10,
+        }}
+        inverted={false}
+        showsVerticalScrollIndicator={false}
+        onContentSizeChange={() => {
+          // Auto-scroll when content size changes (new messages added)
+          if (messages.length > 0 && flatListRef.current) {
+            setTimeout(() => {
+              try {
+                flatListRef.current?.scrollToEnd({ animated: false });
+              } catch (e) {
+                console.log('Content size change scroll error:', e);
+              }
+            }, 100);
+          }
+        }}
+        onLayout={() => {
+          // Auto-scroll when layout changes
+          if (messages.length > 0 && flatListRef.current) {
+            setTimeout(() => {
+              try {
+                flatListRef.current?.scrollToEnd({ animated: false });
+              } catch (e) {
+                console.log('Layout change scroll error:', e);
+              }
+            }, 100);
+          }
+        }}
       />
-      {/* Full Image Preview Modal */}
-      <Modal
-        visible={imagePreviewVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setImagePreviewVisible(false)}
-      >
-        <View style={{
-          flex: 1,
-          backgroundColor: '#fff',
+    )}
+    
+    {/* Scroll to end button */}
+    {showScrollToEnd && (
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          bottom: 100,
+          right: 20,
+          backgroundColor: '#bea063',
+          borderRadius: 25,
+          width: 50,
+          height: 50,
           justifyContent: 'center',
           alignItems: 'center',
-        }}>
-          <TouchableOpacity
-            style={{ position: 'absolute', top: 40, right: 20, zIndex: 2 }}
-            onPress={() => setImagePreviewVisible(false)}
-          >
-            <Text style={{ color: '#000', fontSize: 28 }}>×</Text>
-          </TouchableOpacity>
-          {previewImageUri && (
+          elevation: 5,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.25,
+          shadowRadius: 3.84,
+          zIndex: 1000,
+        }}
+        onPress={scrollToEnd}
+      >
+        <Ionicons name="chevron-down" size={24} color="#fff" />
+      </TouchableOpacity>
+    )}
+    {/* File preview - always show above input row */}
+    {selectedFiles.length > 0 && (
+      <View style={styles.selectedFilesRow}>
+        {selectedFiles.map((file, idx) =>
+          file && file.type && file.type.startsWith('image/') ? (
+            <Image
+              key={idx}
+              source={{ uri: file.data }}
+              style={{ width: 60, height: 60, marginRight: 8, borderRadius: 8 }}
+              resizeMode="cover"
+            />
+          ) : (
+            <View key={idx} style={styles.fileAttachment}>
+              <Text numberOfLines={1} style={{ marginLeft: 4, maxWidth: 60 }}>{file?.name}</Text>
+            </View>
+          )
+        )}
+      </View>
+    )}
+    {/* Input row */}
+    <View style={styles.inputRowModern}>
+      <TouchableOpacity onPress={() => setShowEmojiPicker(true)} style={styles.iconButtonModern}>
+        {React.createElement(Ionicons, { name: "happy-outline", size: 24, color: "#bea063" })}
+      </TouchableOpacity>
+      <TouchableOpacity onPress={handlePickFile} style={styles.iconButtonModern}>
+        {React.createElement(Ionicons, { name: "attach-outline", size: 24, color: "#bea063" })}
+      </TouchableOpacity>
+      <View style={styles.inputContainerModern}>
+        {selectedFiles.length > 0 && (
+          <View style={styles.selectedFilesInInputRow}>
+            {selectedFiles.map((file, idx) =>
+              file.type && file.type.startsWith('image/') ? (
+                <View key={idx} style={styles.selectedFileThumbWrapper}>
+                  <Image
+                    source={{ uri: file.data }}
+                    style={{ width: 40, height: 40, borderRadius: 8, marginRight: 4, marginBottom: 4 }}
+                    resizeMode="cover"
+                  />
+                  <TouchableOpacity
+                    style={styles.removeThumbButton}
+                    onPress={() => setSelectedFiles(selectedFiles.filter((_, i) => i !== idx))}
+                  >
+                    <Text style={styles.removeThumbText}>✖</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View key={idx} style={[styles.fileAttachment, styles.selectedFileThumbWrapper]}>
+                  <Text numberOfLines={1} style={{ marginLeft: 4, maxWidth: 40 }}>{file?.name}</Text>
+                  <TouchableOpacity
+                    style={styles.removeThumbButton}
+                    onPress={() => setSelectedFiles(selectedFiles.filter((_, i) => i !== idx))}
+                  >
+                    <Text style={styles.removeThumbText}>✖</Text>
+                  </TouchableOpacity>
+                </View>
+              )
+            )}
+          </View>
+        )}
+        <TextInput
+          ref={inputRef}
+          value={input}
+          placeholderTextColor="#bea063"
+          onChangeText={setInput}
+          placeholder="Type a message..."
+          style={styles.inputModern}
+          multiline
+        />
+      </View>
+      <TouchableOpacity
+        onPress={handleSend}
+        style={styles.sendButtonModern}
+        disabled={sending}
+      >
+        {React.createElement(Ionicons, { name: "send", size: 22, color: "#fff" })}
+      </TouchableOpacity>
+    </View>
+    <EmojiPicker
+      onEmojiSelected={(emoji: { emoji: string }) => setInput(input + emoji.emoji)}
+      open={showEmojiPicker}
+      onClose={() => setShowEmojiPicker(false)}
+    />
+    {/* Full Image Preview Modal */}
+    <Modal
+      visible={imagePreviewVisible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setImagePreviewVisible(false)}
+    >
+      <View style={{
+        flex: 1,
+        backgroundColor: '#000',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        <TouchableOpacity
+          style={{ position: 'absolute', top: 40, right: 20, zIndex: 2 }}
+          onPress={() => setImagePreviewVisible(false)}
+        >
+          <Text style={{ color: '#fff', fontSize: 28 }}>×</Text>
+        </TouchableOpacity>
+        
+        {previewMediaArray.length > 1 ? (
+          <>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(e) => {
+                const newIndex = Math.round(e.nativeEvent.contentOffset.x / Dimensions.get('window').width);
+                setPreviewCurrentIndex(newIndex);
+                setPreviewImageUri(previewMediaArray[newIndex]);
+              }}
+              style={{ width: '100%', height: '100%' }}
+            >
+              {previewMediaArray.map((mediaUri, index) => (
+                <View key={index} style={{ width: Dimensions.get('window').width, height: '100%', justifyContent: 'center', alignItems: 'center' }}>
+                  <Image
+                    source={{ uri: mediaUri }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="contain"
+                  />
+                </View>
+              ))}
+            </ScrollView>
+            
+            {/* Image counter */}
+            <View style={{
+              position: 'absolute',
+              top: 60,
+              left: 20,
+              backgroundColor: 'rgba(0,0,0,0.7)',
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 15,
+            }}>
+              <Text style={{ color: '#fff', fontSize: 14 }}>
+                {previewCurrentIndex + 1} / {previewMediaArray.length}
+              </Text>
+            </View>
+            
+            {/* Navigation dots */}
+            <View style={{
+              position: 'absolute',
+              bottom: 40,
+              left: 0,
+              right: 0,
+              flexDirection: 'row',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}>
+              {previewMediaArray.map((_, index) => (
+                <View
+                  key={index}
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: index === previewCurrentIndex ? '#fff' : 'rgba(255,255,255,0.5)',
+                    marginHorizontal: 4,
+                  }}
+                />
+              ))}
+            </View>
+          </>
+        ) : (
+          previewImageUri && (
             <Image
               source={{ uri: previewImageUri }}
               style={{ width: '100%', height: '100%' }}
               resizeMode="contain"
             />
-          )}
-        </View>
-      </Modal>
-      {/* Group Members Modal */}
-      <Modal
-        visible={membersModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setMembersModalVisible(false)}
-      >
-        <View style={{ flex: 1, backgroundColor: '#fff', width: '100%', height: '100%' }}>
-          <View style={{ flex: 1, backgroundColor: '#fff', width: '100%', height: '100%', overflow: 'hidden' }}>
-            {/* Modern Header */}
-            <View style={styles.modalHeaderModern}>
-              <TouchableOpacity onPress={() => setMembersModalVisible(false)} style={styles.backButtonModern}>
-                {React.createElement(Ionicons, { name: "chevron-back", size: 28, color: "#bea063" })}
-              </TouchableOpacity>
-              {!is_single_chat && (
-                <View>
-                  <Text style={styles.groupNameModern}>{chat_name}</Text>
-                  <Text style={styles.memberCountModern}>{group_members.members.length} members</Text>
-                </View>
-              )}
-            </View>
-            {/* Section Title */}
+          )
+        )}
+      </View>
+    </Modal>
+    {/* Group Members Modal */}
+    <Modal
+      visible={membersModalVisible}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setMembersModalVisible(false)}
+    >
+      <View style={{ flex: 1, backgroundColor: '#fff', width: '100%', height: '100%' }}>
+        <View style={{ flex: 1, backgroundColor: '#fff', width: '100%', height: '100%', overflow: 'hidden' }}>
+          {/* Modern Header */}
+          <View style={styles.modalHeaderModern}>
+            <TouchableOpacity onPress={() => setMembersModalVisible(false)} style={styles.backButtonModern}>
+              {React.createElement(Ionicons, { name: "chevron-back", size: 28, color: "#bea063" })}
+            </TouchableOpacity>
             {!is_single_chat && (
-              <View style={styles.sectionTitleRowModern}>
-                <Text style={styles.sectionTitleModern}>GROUP MEMBERS</Text>
+              <View>
+                <Text style={styles.groupNameModern}>{chat_name}</Text>
+                <Text style={styles.memberCountModern}>{group_members.members.length} members</Text>
               </View>
             )}
-            {/* Add Members Row - Only show for group chats with admin user */}
-            {!is_single_chat && shouldShowAdminControls && (
+          </View>
+          {/* Section Title */}
+          {!is_single_chat && (
+            <View style={styles.sectionTitleRowModern}>
+              <Text style={styles.sectionTitleModern}>GROUP MEMBERS</Text>
+            </View>
+          )}
+          {/* Add Members Row - Only show for group chats with admin user */}
+          {!is_single_chat && shouldShowAdminControls && (
+            <TouchableOpacity
+              style={styles.addMembersRowModern}
+              onPress={handleAddMembers}
+            >
+              <View style={styles.addMembersIconModern}>
+                <Text style={styles.addMembersPlusModern}>+</Text>
+              </View>
+              <Text style={styles.addMembersTextModern}>Add members</Text>
+            </TouchableOpacity>
+          )}
+          {/* Member List */}
+          <SectionList
+            sections={[
+              {
+                title: 'Group Members',
+                data: is_single_chat
+                  ? group_members.members.filter((m: any) => m.id !== userid)
+                  : group_members.members
+              }
+            ]}
+            keyExtractor={item => item.id?.toString()}
+            style={{ backgroundColor: '#fff' }}
+            contentContainerStyle={{ paddingBottom: 24 }}
+            renderItem={({ item }) => (
               <TouchableOpacity
-                style={styles.addMembersRowModern}
-                onPress={handleAddMembers}
+                style={styles.memberRowModern}
+                onPress={() => {
+                  if (!is_single_chat) {
+                    navigation.navigate('UserProfile', { 
+                      userId: item.id?.toString(), 
+                      isFromSearch: true 
+                    });
+                  }
+                }}
+                disabled={is_single_chat}
               >
-                <View style={styles.addMembersIconModern}>
-                  <Text style={styles.addMembersPlusModern}>+</Text>
-                </View>
-                <Text style={styles.addMembersTextModern}>Add members</Text>
-              </TouchableOpacity>
-            )}
-            {/* Member List */}
-            <SectionList
-              sections={[
-                {
-                  title: 'Group Members',
-                  data: is_single_chat
-                    ? group_members.members.filter((m: any) => m.id !== userid)
-                    : group_members.members
-                }
-              ]}
-              keyExtractor={item => item.id.toString()}
-              style={{ backgroundColor: '#fff' }}
-              contentContainerStyle={{ paddingBottom: 24 }}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.memberRowModern}
-                  onPress={() => {
-                    if (!is_single_chat) {
-                      navigation.navigate('UserProfile', { 
-                        userId: item.id.toString(), 
-                        isFromSearch: true 
-                      });
-                    }
-                  }}
-                  disabled={is_single_chat}
-                >
-                  {item.profile_picture ? (
-                    <Image source={{ uri: item.profile_picture }} style={styles.avatarModern} />
-                  ) : (
-                    <View style={styles.avatarPlaceholderModern}>
-                      <Text style={styles.avatarInitialModern}>{item.first_name?.[0]}</Text>
+                {item.profile_picture ? (
+                  <Image source={{ uri: item.profile_picture }} style={styles.avatarModern} />
+                ) : (
+                  <View style={styles.avatarPlaceholderModern}>
+                    <Text style={styles.avatarInitialModern}>{item.first_name?.[0]}</Text>
+                  </View>
+                )}
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.memberNameModern}>
+                    {`${item.first_name} ${item.last_name}`}
+                  </Text>
+                  {item.type === 'admin' && (
+                    <View style={styles.adminBadge}>
+                      <Text style={styles.adminBadgeText}>Admin</Text>
                     </View>
                   )}
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={styles.memberNameModern}>
-                      {`${item.first_name} ${item.last_name}`}
-                    </Text>
-                    {item.type === 'admin' && (
-                      <View style={styles.adminBadge}>
-                        <Text style={styles.adminBadgeText}>Admin</Text>
-                      </View>
-                    )}
-                  </View>
-                  {/* Remove button for admin, not for self, only in group chat */}
-                  {!is_single_chat && item.id !== userid && shouldShowAdminControls && (
-                    <TouchableOpacity onPress={() => handleRemoveMember(item)} style={styles.removeMemberButtonModern}>
-                      <Text style={styles.removeMemberTextModern}>✖</Text>
-                    </TouchableOpacity>
-                  )}
-                </TouchableOpacity>
-              )}
-              renderSectionHeader={() => null}
-              ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 24 }}>No members found.</Text>}
-            />
-          </View>
+                </View>
+                {/* Remove button for admin, not for self, only in group chat */}
+                {!is_single_chat && item.id !== userid && shouldShowAdminControls && (
+                  <TouchableOpacity onPress={() => handleRemoveMember(item)} style={styles.removeMemberButtonModern}>
+                    <Text style={styles.removeMemberTextModern}>✖</Text>
+                  </TouchableOpacity>
+                )}
+              </TouchableOpacity>
+            )}
+            renderSectionHeader={() => null}
+            ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 24 }}>No members found.</Text>}
+          />
+        </View>
         </View>
       </Modal>
       
@@ -941,6 +1313,8 @@ const ChatScreen = () => {
                   fontSize: 16,
                   backgroundColor: '#f9f9f9',
                 }}
+                placeholderTextColor="#000000"
+
                 placeholder="Search followers..."
                 value={searchFollowers}
                 onChangeText={setSearchFollowers}
@@ -965,7 +1339,7 @@ const ChatScreen = () => {
                     )
                   }
                 ]}
-                keyExtractor={item => item.id.toString()}
+                keyExtractor={item => item.id?.toString()}
                 style={{ backgroundColor: '#fff' }}
                 contentContainerStyle={{ paddingBottom: 80 }}
                 renderItem={({ item }) => {
@@ -1135,6 +1509,8 @@ const ChatScreen = () => {
                     backgroundColor: '#f9f9f9',
                     color: '#262626',
                   }}
+                  placeholderTextColor="#000000"
+
                   placeholder="Enter group name"
                   value={groupNameInput}
                   onChangeText={setGroupNameInput}
@@ -1439,4 +1815,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ChatScreen; 
+export default ChatScreen;

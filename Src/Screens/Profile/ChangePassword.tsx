@@ -49,6 +49,8 @@ const ChangePasswordScreen = ({navigation}:any) => {
       <View style={{ position: 'relative', marginBottom: 16 }}>
         <TextInput
           style={styles.input}
+          placeholderTextColor={'#bea063'}
+          color={'#bea063'}
           placeholder="Old Password"
           secureTextEntry={!showOld}
           value={oldPassword}
@@ -65,6 +67,8 @@ const ChangePasswordScreen = ({navigation}:any) => {
       {/* New Password */}
       <View style={{ position: 'relative', marginBottom: 16 }}>
         <TextInput
+        placeholderTextColor={'#bea063'}
+        color={'#bea063'}
           style={styles.input}
           placeholder="New Password"
           secureTextEntry={!showNew}
@@ -82,6 +86,8 @@ const ChangePasswordScreen = ({navigation}:any) => {
       {/* Confirm Password */}
       <View style={{ position: 'relative', marginBottom: 16 }}>
         <TextInput
+        placeholderTextColor={'#bea063'}
+        color={'#bea063'}
           style={styles.input}
           placeholder="Confirm Password"
           secureTextEntry={!showConfirm}

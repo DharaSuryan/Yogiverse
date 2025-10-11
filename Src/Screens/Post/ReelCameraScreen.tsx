@@ -14,6 +14,8 @@ import { useNavigation } from '@react-navigation/native';
 import { check, PERMISSIONS, request, RESULTS } from 'react-native-permissions';
 import * as ImagePicker from 'react-native-image-picker';
 import { Camera, useCameraDevices, CameraDevice } from 'react-native-vision-camera';
+import { requestCameraAndMicrophonePermissions, handleCameraPermissions } from '../../Utils/CameraPermissions';
+import { testPermissions } from '../../Utils/PermissionTest';
 
 const ReelCameraScreen = () => {
   const navigation = useNavigation();
@@ -28,10 +30,19 @@ const ReelCameraScreen = () => {
   const requestPermissions = useCallback(async () => {
     try {
       if (Platform.OS === 'ios') {
+        console.log("=== REQUESTING iOS PERMISSIONS ===");
+        
+        // Check current permissions first
+        const cameraStatus = await check(PERMISSIONS.IOS.CAMERA);
+        const microphoneStatus = await check(PERMISSIONS.IOS.MICROPHONE);
+        console.log("Current camera status:", cameraStatus);
+        console.log("Current microphone status:", microphoneStatus);
+        
         const cameraPermission = await request(PERMISSIONS.IOS.CAMERA);
         const microphonePermission = await request(PERMISSIONS.IOS.MICROPHONE);
-        
-        if (cameraPermission === RESULTS.GRANTED && microphonePermission === RESULTS.GRANTED) {
+        console.log("cameraPermission",cameraPermission);
+        console.log("microphonePermission",microphonePermission);
+        if (cameraPermission === RESULTS.GRANTED) {
           setHasPermission(true);
         } else {
           Alert.alert(
@@ -119,6 +130,8 @@ const ReelCameraScreen = () => {
   }, [requestPermissions]);
 
   useEffect(() => {
+    // Test permissions first to debug the issue
+    testPermissions();
     checkPermissions();
   }, [checkPermissions]);
 

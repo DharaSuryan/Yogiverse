@@ -42,7 +42,7 @@ const ShareModal = ({ visible, onClose, post }) => {
   };
 
   const togglePlatform = (platformId) => {
-    setSelectedPlatforms(prev => 
+    setSelectedPlatforms(prev =>
       prev.includes(platformId)
         ? prev.filter(id => id !== platformId)
         : [...prev, platformId]
@@ -57,10 +57,10 @@ const ShareModal = ({ visible, onClose, post }) => {
       ]}
       onPress={() => togglePlatform(item.id)}
     >
-      <Icon 
-        name={item.icon} 
-        size={24} 
-        color={selectedPlatforms.includes(item.id) ? '#fff' : '#000'} 
+      <Icon
+        name={item.icon}
+        size={24}
+        color={selectedPlatforms.includes(item.id) ? '#fff' : '#000'}
       />
       <Text style={[
         styles.platformName,
@@ -85,7 +85,7 @@ const ShareModal = ({ visible, onClose, post }) => {
               <Icon name="close" size={24} color="#000" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Share Post</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={handleShare}
               disabled={selectedPlatforms.length === 0}
             >
@@ -101,6 +101,7 @@ const ShareModal = ({ visible, onClose, post }) => {
           <View style={styles.postPreview}>
             <Image source={{ uri: post?.image }} style={styles.postImage} />
             <TextInput
+              placeholderTextColor="#bea063"
               style={styles.captionInput}
               placeholder="Write a caption..."
               value={caption}
@@ -132,10 +133,10 @@ const ShareModal = ({ visible, onClose, post }) => {
                 ]}
                 onPress={() => setSelectedAudience(option.id)}
               >
-                <Icon 
-                  name={option.icon} 
-                  size={24} 
-                  color={selectedAudience === option.id ? '#0095f6' : '#000'} 
+                <Icon
+                  name={option.icon}
+                  size={24}
+                  color={selectedAudience === option.id ? '#0095f6' : '#000'}
                 />
                 <Text style={[
                   styles.audienceLabel,

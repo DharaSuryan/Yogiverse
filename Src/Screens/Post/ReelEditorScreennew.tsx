@@ -379,6 +379,8 @@ const ReelEditorScreen: React.FC = () => {
                     );
                   }
                 }}
+                placeholderTextColor="#000000"
+
               />
             </View>
             <View style={styles.timingInput}>
@@ -397,6 +399,8 @@ const ReelEditorScreen: React.FC = () => {
                     );
                   }
                 }}
+                placeholderTextColor="#000000"
+
               />
             </View>
           </View>

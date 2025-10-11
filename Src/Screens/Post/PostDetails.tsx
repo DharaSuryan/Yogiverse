@@ -154,6 +154,8 @@ export default function PostDetailsScreen() {
           style={styles.captionInput}
           placeholder="Write a caption..."
           value={caption}
+          placeholderTextColor="#000000"
+
           onChangeText={setCaption}
           multiline
           maxLength={2200}
@@ -225,6 +227,8 @@ export default function PostDetailsScreen() {
 
       <View style={styles.commentInputContainer}>
         <TextInput
+                    placeholderTextColor="#000000"
+
           style={styles.commentInput}
           placeholder="Add a comment..."
           value={comment}

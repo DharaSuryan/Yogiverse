@@ -14,6 +14,9 @@ import {
   SectionList,
   ListRenderItemInfo,
   ActivityIndicator,
+  Platform,
+  KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'react-native-image-picker';
@@ -50,7 +53,7 @@ const UploadPost = ({ navigation, route }) => {
   const [selectedFilters, setSelectedFilters] = useState<{ [uri: string]: string }>({});
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [isDraft, setIsDraft] = useState(false);
-  const [allowComments, setAllowComments] = useState(false);
+  const [allowComments, setAllowComments] = useState(true);
   const [hideLikeCount, setHideLikeCount] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editImage, setEditImage] = useState<string | null>(null);
@@ -65,6 +68,7 @@ const UploadPost = ({ navigation, route }) => {
   const [selectedMentions, setSelectedMentions] = useState<number[]>([]);
   const [selectedMentionUsers, setSelectedMentionUsers] = useState<any[]>([]);
   const [mentionLoading, setMentionLoading] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   // Open gallery on mount if isFromStory
   useEffect(() => {
@@ -79,6 +83,51 @@ const UploadPost = ({ navigation, route }) => {
     setPauseAll(true);
     return () => setPauseAll(false);
   }, [setPauseAll]);
+
+  // iOS-specific cleanup to prevent screen freezes
+  useEffect(() => {
+    if (Platform.OS === 'ios') {
+      // Force cleanup on component mount for iOS
+      setSelectedMedia([]);
+      setWizardMode(false);
+      setWizardIndex(0);
+      setEditIndex(null);
+      setEditImage(null);
+      setShowEditModal(false);
+      setForcePauseVideos(false);
+    }
+  }, []);
+
+  // Cleanup effect for iOS to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (Platform.OS === 'ios') {
+        // Force cleanup on unmount
+        setSelectedMedia([]);
+        setWizardMode(false);
+        setWizardIndex(0);
+        setEditIndex(null);
+        setEditImage(null);
+        setShowEditModal(false);
+        setForcePauseVideos(false);
+      }
+    };
+  }, []);
+
+  // Keyboard event listeners
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   // Update handleCameraCapture to only include durationLimit for video
   const handleCameraCapture = async (mediaType: 'photo' | 'video') => {
@@ -174,21 +223,93 @@ const UploadPost = ({ navigation, route }) => {
       return;
     }
 
+    // Aggressive iOS-specific options to prevent screen freezes
+    const options = {
+      mediaType,
+      includeBase64: false,
+      maxHeight: Platform.OS === 'ios' ? 1000 : 2000, // Much more reduced for iOS
+      maxWidth: Platform.OS === 'ios' ? 1000 : 2000, // Much more reduced for iOS
+      selectionLimit: Platform.OS === 'ios' ? 5 : 10, // Reduced selection limit for iOS
+      quality: Platform.OS === 'ios' ? 0.5 : 0.8, // Much lower quality for iOS
+    };
+
+    console.log('Opening image picker with options:', options);
+
     const picker = ImagePicker.launchImageLibrary;
     picker(
-      {
-        mediaType,
-        includeBase64: false,
-        maxHeight: 2000,
-        maxWidth: 2000,
-        selectionLimit: 10, // allow up to 10 images
-      },
+      options,
       (response) => {
-        if (response.didCancel) {
-          // User cancelled
-        } else if (response.errorCode) {
-          Alert.alert('Error', response.errorMessage);
-        } else if (response.assets && response.assets.length > 0) {
+        console.log('Image picker response received');
+        
+        // Force a longer delay for iOS to prevent screen freeze
+        if (Platform.OS === 'ios') {
+          // Force garbage collection and state reset
+          setTimeout(() => {
+            console.log('Processing iOS response after delay');
+            processImagePickerResponse(response);
+          }, 500); // Increased delay to 500ms
+        } else {
+          processImagePickerResponse(response);
+        }
+      }
+    );
+  };
+
+  // Separate function to process image picker response with iOS-specific handling
+  const processImagePickerResponse = (response: any) => {
+    console.log('Processing image picker response:', response);
+    
+    try {
+      if (response.didCancel) {
+        console.log('User cancelled image picker');
+        return;
+      } 
+      
+      if (response.errorCode) {
+        console.log('Image picker error:', response.errorMessage);
+        Alert.alert('Error', response.errorMessage);
+        return;
+      } 
+      
+      if (response.assets && response.assets.length > 0) {
+        console.log('Processing assets:', response.assets.length);
+        
+        // Force state reset for iOS to prevent freeze
+        if (Platform.OS === 'ios') {
+          setSelectedMedia([]);
+          setWizardMode(false);
+          setWizardIndex(0);
+          setEditIndex(null);
+          setEditImage(null);
+          setShowEditModal(false);
+          
+          // Force a small delay before setting new media
+          setTimeout(() => {
+            const newMedia = response.assets
+              .filter(asset => asset.uri)
+              .map(asset => ({
+                uri: asset.uri as string,
+                type: asset.type || 'image/jpeg',
+                name: asset.fileName || (asset.type?.startsWith('video') ? 'camera_video.mp4' : 'camera_photo.jpg'),
+              }));
+            
+            console.log('Setting new media for iOS:', newMedia.length);
+            setSelectedMedia(newMedia);
+            
+            if (newMedia.length > 1) {
+              setWizardMode(true);
+              setWizardIndex(0);
+              setEditIndex(0);
+              setEditImage(newMedia[0].uri);
+              setShowEditModal(true);
+            } else if (newMedia.length === 1) {
+              setEditIndex(0);
+              setEditImage(newMedia[0].uri);
+              setShowEditModal(true);
+            }
+          }, 100);
+        } else {
+          // Android - direct processing
           const newMedia = response.assets
             .filter(asset => asset.uri)
             .map(asset => ({
@@ -210,7 +331,10 @@ const UploadPost = ({ navigation, route }) => {
           }
         }
       }
-    );
+    } catch (error) {
+      console.log('Error processing image picker response:', error);
+      Alert.alert('Error', 'Failed to process selected images');
+    }
   };
 
   // Handler for when editing is done
@@ -315,7 +439,7 @@ const UploadPost = ({ navigation, route }) => {
         try {
           formData.append('caption', caption);
           formData.append('is_draft', isDraft ? 'true' : 'false');
-          formData.append('allow_comments', allowComments ? 'true' : 'false');
+          formData.append('allow_comments', allowComments ? 'false' : 'true');
           formData.append('hide_like_count', hideLikeCount ? 'true' : 'false');
           const isVideo = mediaMeta.type.startsWith('video');
           formData.append('media_metadata', JSON.stringify(selectedMedia.map(item => ({
@@ -403,19 +527,38 @@ const UploadPost = ({ navigation, route }) => {
           const authToken = await AsyncStorage.getItem('accessToken');
           const headers = {
             'Accept': 'application/json',
+            'Content-Type': 'application/json',
             'Authorization': `Bearer ${authToken}`,
+            'User-Agent': Platform.OS === 'ios' ? 'Yogiverse-iOS' : 'Yogiverse-Android',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
           };
           console.log("Mention Input:", mentionInput);
           
           const res = await axios.get(
             `https://pashuahar.com/users/search/?query=${mentionInput}`,
-            { headers }
+            { 
+              headers,
+              timeout: 15000, // 15 second timeout for iOS
+              validateStatus: function (status) {
+                return status >= 200 && status < 300; // default
+              }
+            }
           );
           console.log("Mention Suggestions Response:", res.data);
           
           setMentionSuggestions(res.data || []);
         } catch (error: any) {
           console.log("Error fetching mentions:", error);
+          console.log("Error response:", error.response?.data);
+          console.log("Error status:", error.response?.status);
+          
+          if (error.response?.status === 401) {
+            // Token expired or invalid
+            AsyncStorage.removeItem('accessToken');
+            navigation.navigate('Login');
+            return;
+          }
           
           setMentionSuggestions([]);
         } finally {
@@ -471,7 +614,11 @@ const UploadPost = ({ navigation, route }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           {React.createElement(Ionicons as any, { name: 'close', size: 24, color: '#bea063' })}
@@ -482,7 +629,7 @@ const UploadPost = ({ navigation, route }) => {
           disabled={!selectedMedia.length || uploading}
           style={[
             styles.shareButton,
-            (!selectedMedia.length || uploading) && styles.shareButtonDisabled,
+            (!selectedMedia.length || uploading) && styles.shareButtonDisabled
           ]}>
           <Text
             style={[
@@ -495,7 +642,14 @@ const UploadPost = ({ navigation, route }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingBottom: keyboardVisible ? 100 : 20
+        }}
+      >
         {renderMediaPreview()}
 
         <View style={styles.optionsContainer}>
@@ -573,6 +727,11 @@ const UploadPost = ({ navigation, route }) => {
             placeholderTextColor="#bea063"
             value={caption}
             onChangeText={setCaption}
+            multiline={true}
+            textAlignVertical="top"
+            returnKeyType="default"
+            blurOnSubmit={false}
+            scrollEnabled={true}
             // editable={!uploading}
           />
         </View>
@@ -602,12 +761,12 @@ const UploadPost = ({ navigation, route }) => {
             />
           </View>
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ color: '#bea063', marginBottom: 8 }}> Dont Allow Comments</Text>
+            <Text style={{ color: '#bea063', marginBottom: 8 }}>Dont Allow Comments</Text>
             <Switch
-              value={allowComments}
-              onValueChange={setAllowComments}
+              value={!allowComments}
+              onValueChange={() => setAllowComments(!allowComments)}
               trackColor={{ false: '#ccc', true: '#bea063' }}
-              thumbColor={allowComments ? '#bea063' : '#fff'}
+              thumbColor={!allowComments ? '#bea063' : '#fff'}
             />
           </View>
           <View style={{ alignItems: 'center' }}>
@@ -702,7 +861,7 @@ const UploadPost = ({ navigation, route }) => {
           </Text>
         </View>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -748,8 +907,8 @@ const styles = StyleSheet.create({
   },
   previewImage: {
     width: Dimensions.get('window').width,
-    height: Dimensions.get('window').width,
-    resizeMode: 'cover',
+    height: Dimensions.get('window').height - 350,
+    resizeMode: 'contain',
   },
   placeholderContainer: {
     height: 400,
@@ -776,13 +935,18 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   captionContainer: {
-    // padding: 5,
-    marginHorizontal:10
+    marginHorizontal: 13,
+    marginBottom: 10,
   },
   captionInput: {
     fontSize: 16,
-    minHeight: 60,
+    minHeight: 80,
+    maxHeight: 120,
     textAlignVertical: 'top',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#bea063',
+    borderRadius: 10,
   },
   // Modal styles
   modalOverlay: {

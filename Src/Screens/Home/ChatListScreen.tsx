@@ -110,6 +110,23 @@ const ChatListScreen = () => {
   };
 
   const handleChatPress = (group: Group) => {
+    console.log("group chatid",
+      group.chat_id,
+      "group name",
+       group.group_name, 
+       group.group_icon, 
+       "group members",
+       group.group_members, 
+       "is single chat",
+       group.is_single_chat, 
+       "chat name",
+       group.chat_name
+      ,"group"
+      ,group
+    );
+    console.log("useriduseriduserid",userid);
+    
+    
     navigation.navigate('ChatScreen', {
       chatId: group.chat_id,
       chat: group,
@@ -225,8 +242,11 @@ const ChatListScreen = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      {/* Header with New Chat button */}
+      {/* Header with Back button and New Chat button */}
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Icon name="arrow-left" size={24} color="#bea063" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Chats</Text>
         <TouchableOpacity onPress={openNewChatModal} style={styles.newChatBtn}>
           <Icon name="plus" size={22} color="#bea063" />
@@ -329,63 +349,96 @@ const ChatListScreen = () => {
         ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40 }}>No chats found.</Text>}
       />
       {/* New Chat Modal */}
-      <Modal visible={modalVisible} animationType="slide" onRequestClose={() => setModalVisible(false)}>
+      <Modal 
+        visible={modalVisible} 
+        animationType="slide" 
+        onRequestClose={() => setModalVisible(false)}
+        presentationStyle="pageSheet"
+      >
         <View style={styles.modalContainer}>
-          <Text style={styles.modalTitle}>New Message</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search followers"
-            value={search}
-            onChangeText={setSearch}
-          />
-          <SectionList
-            sections={[
-              {
-                title: 'Select Followers',
-                data: Array.isArray(followers) ? followers.filter(f =>
-                  f.first_name.toLowerCase().includes(search.toLowerCase()) ||
-                  f.last_name.toLowerCase().includes(search.toLowerCase()) ||
-                  f.email.toLowerCase().includes(search.toLowerCase())
-                ) : []
+          {/* Modal Header */}
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalCloseBtn}>
+              <Icon name="x" size={24} color="#bea063" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>New Message</Text>
+            <View style={styles.modalHeaderSpacer} />
+          </View>
+          
+          {/* Search Input */}
+          <View style={styles.modalSearchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search followers"
+              value={search}
+              onChangeText={setSearch}
+              placeholderTextColor="#999"
+            />
+          </View>
+          
+          {/* Followers List */}
+          <View style={styles.followersListContainer}>
+            <SectionList
+              sections={[
+                {
+                  title: 'Select Followers',
+                  data: Array.isArray(followers) ? followers.filter(f =>
+                    f.first_name.toLowerCase().includes(search.toLowerCase()) ||
+                    f.last_name.toLowerCase().includes(search.toLowerCase()) ||
+                    f.email.toLowerCase().includes(search.toLowerCase())
+                  ) : []
+                }
+              ]}
+              keyExtractor={item => item.id.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity onPress={() => handleSelect(item.id)} style={[styles.followerItem, selected.includes(item.id) && styles.selectedFollower]}>
+                  <Text style={styles.followerName}>{item.first_name} {item.last_name}</Text>
+                  {selected.includes(item.id) && <Icon name="check" size={18} color="#bea063" />}
+                </TouchableOpacity>
+              )}
+              renderSectionHeader={({ section: { title } }) => (
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionHeaderText}>{title}</Text>
+                </View>
+              )}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>No followers found.</Text>
+                </View>
               }
-            ]}
-            keyExtractor={item => item.id.toString()}
-            renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => handleSelect(item.id)} style={[styles.followerItem, selected.includes(item.id) && styles.selectedFollower]}>
-                <Text style={styles.followerName}>{item.first_name} {item.last_name}</Text>
-                {selected.includes(item.id) && <Icon name="check" size={18} color="#bea063" />}
-              </TouchableOpacity>
-            )}
-            renderSectionHeader={({ section: { title } }) => (
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionHeaderText}>{title}</Text>
-              </View>
-            )}
-            ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40 }}>No followers found.</Text>}
-          />
+              showsVerticalScrollIndicator={false}
+            />
+          </View>
+          
+          {/* Group Name Input */}
           {selected.length > 0 && (
-            <View style={{ marginTop: 16 }}>
-              <Text style={{ fontSize: 16, fontWeight: '500', marginBottom: 6 }}>Enter Group Name</Text>
+            <View style={styles.groupNameContainer}>
+              <Text style={styles.groupNameLabel}>Enter Group Name</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Group Name"
                 value={groupName}
                 onChangeText={setGroupName}
+                placeholderTextColor="#999"
               />
             </View>
           )}
-          {selected.length > 0 && (
-            <TouchableOpacity
-              style={[styles.createBtn, (selected.length > 1 && !groupName) && { backgroundColor: '#ccc' }]}
-              onPress={handleCreateChat}
-              disabled={creating || (selected.length > 1 && !groupName)}
-            >
-              <Text style={styles.createBtnText}>{creating ? 'Creating...' : 'Start Chat'}</Text>
+          
+          {/* Action Buttons */}
+          <View style={styles.modalActions}>
+            {selected.length > 0 && (
+              <TouchableOpacity
+                style={[styles.createBtn, (selected.length > 1 && !groupName) && { backgroundColor: '#ccc' }]}
+                onPress={handleCreateChat}
+                disabled={creating || (selected.length > 1 && !groupName)}
+              >
+                <Text style={styles.createBtnText}>{creating ? 'Creating...' : 'Start Chat'}</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.cancelBtn}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
-          )}
-          <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.cancelBtn}>
-            <Text style={styles.cancelBtnText}>Cancel</Text>
-          </TouchableOpacity>
+          </View>
         </View>
       </Modal>
     </View>
@@ -402,10 +455,16 @@ const styles = StyleSheet.create({
     borderColor: '#eee',
     backgroundColor: '#fff',
   },
+  backBtn: {
+    padding: 8,
+    marginRight: 8,
+  },
   headerTitle: {
     fontWeight: 'bold',
     fontSize: 22,
     color: '#bea063', // updated
+    flex: 1,
+    textAlign: 'center',
   },
   newChatBtn: {
     padding: 8,
@@ -429,13 +488,70 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     backgroundColor: '#fff',
-    padding: 16,
+    paddingTop: 0,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    backgroundColor: '#fff',
+  },
+  modalCloseBtn: {
+    padding: 8,
   },
   modalTitle: {
     fontWeight: 'bold',
-    fontSize: 20,
-    marginBottom: 16,
-    color: '#bea063', // updated
+    fontSize: 18,
+    color: '#bea063',
+    flex: 1,
+    textAlign: 'center',
+  },
+  modalHeaderSpacer: {
+    width: 40, // Same width as close button for centering
+  },
+  modalSearchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+  },
+  followersListContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  groupNameContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  groupNameLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 8,
+    color: '#333',
+  },
+  modalActions: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#999',
+    fontSize: 16,
   },
   followerItem: {
     flexDirection: 'row',

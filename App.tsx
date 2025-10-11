@@ -13,6 +13,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { registerFCMToken, setupFCMListeners } from './Src/Utils/NotificationConfig';
 import { SafeAreaView } from 'react-native';
 import NotifService from './Src/Utils/NotifService';
+import { setupPushNotification } from './Src/Utils/Firebase';
+import { testFirebaseSetup } from './Src/Utils/FirebaseTest';
 
 // const notifService = new NotifService(
 //   ({ token }) => {
@@ -46,18 +48,34 @@ import NotifService from './Src/Utils/NotifService';
 // );
 
 const App = () => {
-  // useEffect(() => {
-  //   // Register FCM token
-  //   registerFCMToken();
+  useEffect(() => {
+    // Initialize Firebase and push notifications
+    const initializeFirebase = async () => {
+      try {
+        console.log('🔥 Initializing Firebase...');
+        await setupPushNotification();
+        
+        // Test Firebase setup
+        const testResult = await testFirebaseSetup();
+        console.log('🧪 Firebase test result:', testResult);
+        
+        // Register FCM token
+        registerFCMToken();
 
-  //   // Setup FCM listeners
-  //   const unsubscribe = setupFCMListeners();
+        // Setup FCM listeners
+        const unsubscribe = setupFCMListeners();
 
-  //   // Cleanup
-  //   return () => {
-  //     unsubscribe();
-  //   };
-  // }, []);
+        // Cleanup
+        return () => {
+          unsubscribe();
+        };
+      } catch (error) {
+        console.error('❌ Firebase initialization failed:', error);
+      }
+    };
+
+    initializeFirebase();
+  }, []);
 
   return (
     <Provider store={store}>

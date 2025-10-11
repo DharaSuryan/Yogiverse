@@ -57,6 +57,7 @@ const ContactUs = () => {
         <View style={styles.formGroup}>
           <Text style={styles.label}>Your Company *</Text>
           <TextInput
+            placeholderTextColor="#000000"
             style={styles.input}
             placeholder="Your Company"
             value={company}
@@ -66,6 +67,8 @@ const ContactUs = () => {
         <View style={styles.formGroup}>
           <Text style={styles.label}>Your Name *</Text>
           <TextInput
+            placeholderTextColor="#000000"
+
             style={styles.input}
             placeholder="Your Name"
             value={name}
@@ -75,6 +78,8 @@ const ContactUs = () => {
         <View style={styles.formGroup}>
           <Text style={styles.label}>Email Address *</Text>
           <TextInput
+            placeholderTextColor="#000000"
+
             style={styles.input}
             placeholder="you@example.com"
             value={email}
@@ -86,6 +91,8 @@ const ContactUs = () => {
         <View style={styles.formGroup}>
           <Text style={styles.label}>Phone *</Text>
           <TextInput
+            placeholderTextColor="#000000"
+
             style={styles.input}
             placeholder="Your Phone Number"
             value={phone}
@@ -96,6 +103,8 @@ const ContactUs = () => {
         <View style={styles.formGroup}>
           <Text style={styles.label}>Subject *</Text>
           <TextInput
+            placeholderTextColor="#000000"
+
             style={styles.input}
             placeholder="Subject"
             value={subject}
@@ -105,6 +114,8 @@ const ContactUs = () => {
         <View style={styles.formGroup}>
           <Text style={styles.label}>Country *</Text>
           <TextInput
+            placeholderTextColor="#000000"
+
             style={styles.input}
             placeholder="Select country..."
             value={country}

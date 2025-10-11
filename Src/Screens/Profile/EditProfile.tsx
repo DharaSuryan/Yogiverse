@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,14 @@ import {
   SafeAreaView,
   ScrollView,
   Alert,
-  Image, Modal,
-  FlatList
+  Image,
+  Modal,
+  FlatList,
 } from 'react-native';
-import { launchImageLibrary } from 'react-native-image-picker';
-import api, { editProfile, fetchCountries } from '../../Api/Api';
+import {launchImageLibrary} from 'react-native-image-picker';
+import api, {editProfile, fetchCountries} from '../../Api/Api';
 import DocumentPicker from 'react-native-document-picker';
-import { Formik } from 'formik';
+import {Formik} from 'formik';
 import * as Yup from 'yup';
 const Ionicons = require('react-native-vector-icons/Ionicons').default;
 
@@ -25,7 +26,7 @@ const buildFormData = (values, files = {}) => {
     // Arrays as repeated fields
     if (Array.isArray(value) && value.length > 0) {
       value.forEach(val => formData.append(key, val));
-    } else if ((key === 'country' || key === 'state' || key === 'city')) {
+    } else if (key === 'country' || key === 'state' || key === 'city') {
       if (value) formData.append(key, value);
     } else if (typeof value === 'string' && value.trim() !== '') {
       formData.append(key, value);
@@ -46,12 +47,17 @@ const buildFormData = (values, files = {}) => {
   return formData;
 };
 
-const EditProfile = ({ navigation, route }: any) => {
-  const { role: initialRole, data }: { role: string; data: any } = route.params || { role: 'user' };
+const EditProfile = ({navigation, route}: any) => {
+  const {role: initialRole, data}: {role: string; data: any} = route.params || {
+    role: 'user',
+  };
+  // console.log('datadata', data?.profile?.city);
 
   // State for non-Formik fields
   const [role, setRole] = useState(initialRole);
-  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(
+    data?.profile?.profile_picture || null,
+  );
 
   // Location and category picker states
   const [allCountries, setAllCountries] = useState<any[]>([]);
@@ -80,7 +86,8 @@ const EditProfile = ({ navigation, route }: any) => {
   // --- Fetch countries & categories ---
   useEffect(() => {
     const fetchAllCountries = async () => {
-      let page = 1, all: any[] = [];
+      let page = 1,
+        all: any[] = [];
       while (true) {
         const res = await fetchCountries(page, 10);
         if (!res?.data?.data) break;
@@ -117,16 +124,30 @@ const EditProfile = ({ navigation, route }: any) => {
 
   // File and image pickers
   const pickImage = (setter: (file: any) => void) => {
-    launchImageLibrary({ mediaType: 'photo', quality: 0.8 }, response => {
-      if (response.assets && response.assets.length > 0) {
-        setter(response.assets[0]);
-      }
-    });
+    try {
+      launchImageLibrary({mediaType: 'photo', quality: 0.8}, response => {
+        if (response.assets && response.assets.length > 0) {
+          const asset = response.assets[0];
+          setter(asset.uri);
+        }
+      });
+    } catch (error) {
+      console.log("Error picking image: ", error);
+      
+      // Alert.alert('Error', 'Failed to pick image');
+    // launchImageLibrary({mediaType: 'photo', quality: 0.8}, response => {
+    //   if (response.assets && response.assets.length > 0) {
+    //     setter(response.assets[0]);
+    //   }
+    // });
   };
+}
 
   const pickDocument = async (setter: (file: any) => void) => {
     try {
-      const res = await DocumentPicker.pickSingle({ type: [DocumentPicker.types.allFiles] });
+      const res = await DocumentPicker.pickSingle({
+        type: [DocumentPicker.types.allFiles],
+      });
       setter(res);
     } catch (err) {
       if (!DocumentPicker.isCancel(err)) {
@@ -137,7 +158,11 @@ const EditProfile = ({ navigation, route }: any) => {
 
   // --- Pickers for location ---
   const renderCountryPicker = (setFieldValue: any) => (
-    <Modal visible={showCountryPicker} transparent animationType="slide" onRequestClose={() => setShowCountryPicker(false)}>
+    <Modal
+      visible={showCountryPicker}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowCountryPicker(false)}>
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
@@ -147,15 +172,20 @@ const EditProfile = ({ navigation, route }: any) => {
             </TouchableOpacity>
           </View>
           <TextInput
+            placeholderTextColor={'black'}
             style={styles.searchInput}
             placeholder="Search countries..."
             value={countrySearch}
             onChangeText={setCountrySearch}
           />
           <FlatList
-            data={allCountries.filter(c => (c?.country_name || c?.name || '').toLowerCase().includes(countrySearch.toLowerCase()))}
+            data={allCountries.filter(c =>
+              (c?.country_name || c?.name || '')
+                .toLowerCase()
+                .includes(countrySearch.toLowerCase()),
+            )}
             keyExtractor={item => item.id.toString()}
-            renderItem={({ item }) => (
+            renderItem={({item}) => (
               <TouchableOpacity
                 style={styles.locationItem}
                 onPress={() => {
@@ -167,12 +197,20 @@ const EditProfile = ({ navigation, route }: any) => {
                   setShowCountryPicker(false);
                 }}>
                 <View style={styles.countryItemContainer}>
-                  <Text style={styles.countryName}>{item.country_name || item.name}</Text>
-                  <Text style={styles.countryCodeText}>+{item.calling_code}</Text>
+                  <Text style={styles.countryName}>
+                    {item.country_name || item.name}
+                  </Text>
+                  <Text style={styles.countryCodeText}>
+                    +{item.calling_code}
+                  </Text>
                 </View>
               </TouchableOpacity>
             )}
-            ListEmptyComponent={() => <View style={styles.emptyContainer}><Text style={styles.emptyText}>No countries found</Text></View>}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No countries found</Text>
+              </View>
+            )}
           />
         </View>
       </View>
@@ -180,7 +218,11 @@ const EditProfile = ({ navigation, route }: any) => {
   );
 
   const renderStatePicker = (setFieldValue: any, selectedCountryId: number) => (
-    <Modal visible={showStatePicker} transparent animationType="slide" onRequestClose={() => setShowStatePicker(false)}>
+    <Modal
+      visible={showStatePicker}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowStatePicker(false)}>
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
@@ -190,15 +232,18 @@ const EditProfile = ({ navigation, route }: any) => {
             </TouchableOpacity>
           </View>
           <TextInput
+            placeholderTextColor={'black'}
             style={styles.searchInput}
             placeholder="Search states..."
             value={stateSearch}
             onChangeText={setStateSearch}
           />
           <FlatList
-            data={filteredStates.filter(s => (s.name || '').toLowerCase().includes(stateSearch.toLowerCase()))}
+            data={filteredStates.filter(s =>
+              (s.name || '').toLowerCase().includes(stateSearch.toLowerCase()),
+            )}
             keyExtractor={item => item.id.toString()}
-            renderItem={({ item }) => (
+            renderItem={({item}) => (
               <TouchableOpacity
                 style={styles.locationItem}
                 onPress={() => {
@@ -213,7 +258,11 @@ const EditProfile = ({ navigation, route }: any) => {
                 <Text style={styles.locationItemText}>{item.name}</Text>
               </TouchableOpacity>
             )}
-            ListEmptyComponent={() => <View style={styles.emptyContainer}><Text style={styles.emptyText}>No states found</Text></View>}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No states found</Text>
+              </View>
+            )}
           />
         </View>
       </View>
@@ -221,7 +270,11 @@ const EditProfile = ({ navigation, route }: any) => {
   );
 
   const renderCityPicker = (setFieldValue: any) => (
-    <Modal visible={showCityPicker} transparent animationType="slide" onRequestClose={() => setShowCityPicker(false)}>
+    <Modal
+      visible={showCityPicker}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowCityPicker(false)}>
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
@@ -231,15 +284,18 @@ const EditProfile = ({ navigation, route }: any) => {
             </TouchableOpacity>
           </View>
           <TextInput
+            placeholderTextColor={'black'}
             style={styles.searchInput}
             placeholder="Search cities..."
             value={citySearch}
             onChangeText={setCitySearch}
           />
           <FlatList
-            data={filteredCities.filter(city => city.name.toLowerCase().includes(citySearch.toLowerCase()))}
+            data={filteredCities.filter(city =>
+              city.name.toLowerCase().includes(citySearch.toLowerCase()),
+            )}
             keyExtractor={item => item.id.toString()}
-            renderItem={({ item }) => (
+            renderItem={({item}) => (
               <TouchableOpacity
                 style={styles.locationItem}
                 onPress={() => {
@@ -249,7 +305,11 @@ const EditProfile = ({ navigation, route }: any) => {
                 <Text style={styles.locationItemText}>{item.name}</Text>
               </TouchableOpacity>
             )}
-            ListEmptyComponent={() => <View style={styles.emptyContainer}><Text style={styles.emptyText}>No cities found</Text></View>}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No cities found</Text>
+              </View>
+            )}
           />
         </View>
       </View>
@@ -266,8 +326,10 @@ const EditProfile = ({ navigation, route }: any) => {
     phone_no: data.profile.phone_no || '',
     business_name: data?.vendor_profile?.business_name || '',
     description: data?.vendor_profile?.description || '',
-    main_categories: data?.vendor_profile?.main_categories?.map((cat: any) => cat.id) || [],
-    selected_subcategories: data?.vendor_profile?.subcategories?.map((sub: any) => sub.id) || [],
+    main_categories:
+      data?.vendor_profile?.main_categories?.map((cat: any) => cat.id) || [],
+    selected_subcategories:
+      data?.vendor_profile?.subcategories?.map((sub: any) => sub.id) || [],
     aadhar_number: data?.vendor_profile?.aadhar_number || '',
     achievement_awards: data?.vendor_profile?.achievement_awards || '',
     business_presence: data?.vendor_profile?.business_presence || '',
@@ -279,7 +341,7 @@ const EditProfile = ({ navigation, route }: any) => {
     country: data.profile.country?.id || '',
     state: data.profile.state?.id || '',
     city: data.profile.city?.id || '',
-    role:role,
+    role: role,
   };
 
   // --- Validation schema ---
@@ -287,57 +349,65 @@ const EditProfile = ({ navigation, route }: any) => {
     first_name: Yup.string().required('First Name is required'),
     last_name: Yup.string().required('Last Name is required'),
     username: Yup.string().required('Username is required'),
-    email: Yup.string().email('Invalid email address').required('Email is required'),
+    email: Yup.string()
+      .email('Invalid email address')
+      .required('Email is required'),
     phone_no: Yup.string().required('Phone number is required'),
     business_name: Yup.string().when([], {
       is: () => role === 'vendor',
-      then: Yup.string().required('Business Name is required')
+      then: Yup.string().required('Business Name is required'),
     }),
   });
 
   // --- Submit handler (uses buildFormData) ---
- const handleSubmit = async (values: any, { setSubmitting }: any) => {
-  setSubmitting(true);
-  try {
-    // Collect files
-    const files = {
-      logo: logoFile,
-      banner: bannerFile,
-      pan: panFile,
-      aadhar: aadharFile,
-      gst: gstFile,
-      company_registration: companyRegFile,
-      msme: msmeFile,
-      profile_picture: profileImage && !profileImage.startsWith('http')
-        ? { uri: profileImage, type: 'image/jpeg', name: 'profile.jpg' }
-        : null,
-    };
+  const handleSubmit = async (values: any, {setSubmitting}: any) => {
+    setSubmitting(true);
+    try {
+      // Collect files
+      const files = {
+        logo: logoFile,
+        banner: bannerFile,
+        pan: panFile,
+        aadhar: aadharFile,
+        gst: gstFile,
+        company_registration: companyRegFile,
+        msme: msmeFile,
+        profile_picture:
+          profileImage && !profileImage.startsWith('http')
+            ? {uri: profileImage, type: 'image/jpeg', name: 'profile.jpg'}
+            : null,
+      };
 
-    const formData = buildFormData(values, files);
-    console.log("formdata  ;;;;;", formData);
+      const formData = buildFormData(values, files);
+      console.log('formdata  ;;;;;', formData);
 
-    // Do not use formData.entries() in React Native!
-    // If you want to see what's inside, you can log the keys:
-    // console.log('FormData:', formData);
+      // Do not use formData.entries() in React Native!
+      // If you want to see what's inside, you can log the keys:
+      // console.log('FormData:', formData);
 
-    const response = editProfile(userId,formData)
-    console.log("response",response);
-
-   
-  } catch (error: any) {
-    console.error('Error:', error);
-    Alert.alert('Error', error.message || 'Something went wrong.');
-  } finally {
-    setSubmitting(false);
-  }
-};
-
+      const response = await editProfile(userId, formData);
+      console.log('response', response);
+      if (response?.status) {
+        Alert.alert('Success', 'Profile updated successfully');
+        navigation.goBack();
+      } else {
+        throw new Error('Failed to update profile');
+      }
+    } catch (error: any) {
+      console.error('Error:', error);
+      Alert.alert('Error', error.message || 'Something went wrong.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // --- Main render ---
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headerContainer}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#bea063" />
         </TouchableOpacity>
         <Text style={styles.header}>Edit Profile</Text>
@@ -348,9 +418,23 @@ const EditProfile = ({ navigation, route }: any) => {
           {/* Profile Image */}
           <View style={styles.profileImageContainer}>
             {profileImage ? (
-              <Image source={{ uri: profileImage }} style={styles.profileImage} />
+              <Image source={{uri: profileImage}} style={styles.profileImage} />
             ) : (
-              <View style={styles.profileImagePlaceholder} />
+              <View
+                style={{
+                  width: 100,
+                  height: 100,
+                  borderRadius: 50,
+                  backgroundColor: '#f5f5f5',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                {React.createElement(Ionicons, {
+                  name: 'person-circle',
+                  size: 100,
+                  color: '#bea063',
+                })}
+              </View>
             )}
             <TouchableOpacity onPress={() => pickImage(setProfileImage)}>
               <Text style={styles.selectPhotoText}>Select Profile Photo</Text>
@@ -359,9 +443,17 @@ const EditProfile = ({ navigation, route }: any) => {
           <Formik
             initialValues={initialValues}
             validationSchema={validationSchema}
-            onSubmit={handleSubmit}
-          >
-            {({ handleChange, handleBlur, handleSubmit, setFieldValue, values, errors, touched, isSubmitting }) => (
+            onSubmit={handleSubmit}>
+            {({
+              handleChange,
+              handleBlur,
+              handleSubmit,
+              setFieldValue,
+              values,
+              errors,
+              touched,
+              isSubmitting,
+            }) => (
               <>
                 <Text style={styles.sectionTitle}>Personal Information</Text>
                 <View style={styles.formGroup}>
@@ -371,8 +463,11 @@ const EditProfile = ({ navigation, route }: any) => {
                     value={values.first_name}
                     onChangeText={handleChange('first_name')}
                     onBlur={handleBlur('first_name')}
+                    placeholderTextColor="#000000"
                   />
-                  {touched.first_name && errors.first_name && <Text style={styles.errorText}>{errors.first_name}</Text>}
+                  {touched.first_name && errors.first_name && (
+                    <Text style={styles.errorText}>{errors.first_name}</Text>
+                  )}
                 </View>
                 <View style={styles.formGroup}>
                   <Text style={styles.label}>Last Name</Text>
@@ -381,8 +476,12 @@ const EditProfile = ({ navigation, route }: any) => {
                     value={values.last_name}
                     onChangeText={handleChange('last_name')}
                     onBlur={handleBlur('last_name')}
+                    placeholderTextColor="#000000"
+
                   />
-                  {touched.last_name && errors.last_name && <Text style={styles.errorText}>{errors.last_name}</Text>}
+                  {touched.last_name && errors.last_name && (
+                    <Text style={styles.errorText}>{errors.last_name}</Text>
+                  )}
                 </View>
                 <View style={styles.formGroup}>
                   <Text style={styles.label}>Username</Text>
@@ -391,8 +490,12 @@ const EditProfile = ({ navigation, route }: any) => {
                     value={values.username}
                     onChangeText={handleChange('username')}
                     onBlur={handleBlur('username')}
+                    placeholderTextColor="#000000"
+
                   />
-                  {touched.username && errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
+                  {touched.username && errors.username && (
+                    <Text style={styles.errorText}>{errors.username}</Text>
+                  )}
                 </View>
                 <View style={styles.formGroup}>
                   <Text style={styles.label}>Bio</Text>
@@ -401,8 +504,12 @@ const EditProfile = ({ navigation, route }: any) => {
                     value={values.bio}
                     onChangeText={handleChange('bio')}
                     onBlur={handleBlur('bio')}
+                    placeholderTextColor="#000000"
+
                   />
-                  {touched.bio && errors.bio && <Text style={styles.errorText}>{errors.bio}</Text>}
+                  {touched.bio && errors.bio && (
+                    <Text style={styles.errorText}>{errors.bio}</Text>
+                  )}
                 </View>
                 <View style={styles.formGroup}>
                   <Text style={styles.label}>Email</Text>
@@ -412,8 +519,12 @@ const EditProfile = ({ navigation, route }: any) => {
                     editable={false}
                     onChangeText={handleChange('email')}
                     onBlur={handleBlur('email')}
+                    placeholderTextColor="#000000"
+
                   />
-                  {touched.email && errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+                  {touched.email && errors.email && (
+                    <Text style={styles.errorText}>{errors.email}</Text>
+                  )}
                 </View>
                 <View style={styles.formGroup}>
                   <Text style={styles.label}>Phone No</Text>
@@ -423,19 +534,27 @@ const EditProfile = ({ navigation, route }: any) => {
                     value={values.phone_no}
                     onChangeText={handleChange('phone_no')}
                     onBlur={handleBlur('phone_no')}
+                    placeholderTextColor="#000000"
+
                   />
-                  {touched.phone_no && errors.phone_no && <Text style={styles.errorText}>{errors.phone_no}</Text>}
+                  {touched.phone_no && errors.phone_no && (
+                    <Text style={styles.errorText}>{errors.phone_no}</Text>
+                  )}
                 </View>
                 {/* Location */}
                 <Text style={styles.sectionTitle}>Location Information</Text>
+                
                 <View style={styles.locationContainer}>
-                  <TouchableOpacity style={styles.locationField} onPress={() => setShowCountryPicker(true)}>
+                  <TouchableOpacity
+                    style={styles.locationField}
+                    onPress={() => setShowCountryPicker(true)}>
                     <Text style={styles.locationLabel}>Country</Text>
                     <Text style={styles.locationValue}>
                       {values.country
-                        ? allCountries.find(c => c.id === values.country)?.country_name ||
-                          allCountries.find(c => c.id === values.country)?.name
-                        : 'Select Country'}
+                        ? (allCountries.find(c => c.id === values.country)
+                            ?.country_name ||
+                          allCountries.find(c => c.id === values.country)?.name)
+                        :  data?.profile?.country ||  'Select Country'}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -453,7 +572,7 @@ const EditProfile = ({ navigation, route }: any) => {
                       ]}>
                       {values.state
                         ? filteredStates.find(s => s.id === values.state)?.name
-                        : 'Select State'}
+                        : data?.profile?.state ||  'Select State'}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -471,7 +590,7 @@ const EditProfile = ({ navigation, route }: any) => {
                       ]}>
                       {values.city
                         ? filteredCities.find(c => c.id === values.city)?.name
-                        : 'Select City'}
+                        :data?.profile?.city ||  'Select City'}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -497,8 +616,8 @@ const EditProfile = ({ navigation, route }: any) => {
 
 // --- Styles ---
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { padding: 20, paddingBottom: 40 },
+  container: {flex: 1, backgroundColor: '#fff'},
+  content: {padding: 20, paddingBottom: 40},
   header: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -528,7 +647,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 40,
   },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  buttonText: {color: '#fff', fontSize: 16, fontWeight: '600'},
   modalContainer: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -542,9 +661,9 @@ const styles = StyleSheet.create({
     width: '80%',
     maxHeight: '80%',
   },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  modalTitle: { flex: 1, fontSize: 18, fontWeight: 'bold' },
-  closeButton: { fontSize: 16, fontWeight: 'bold' },
+  modalHeader: {flexDirection: 'row', alignItems: 'center', marginBottom: 10},
+  modalTitle: {flex: 1, fontSize: 18, fontWeight: 'bold'},
+  closeButton: {fontSize: 16, fontWeight: 'bold'},
   searchInput: {
     backgroundColor: '#fafafa',
     borderColor: '#ccc',
@@ -552,11 +671,11 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 10,
   },
-  locationItem: { padding: 10, borderBottomWidth: 1, borderBottomColor: '#ccc' },
-  locationItemText: { fontSize: 16 },
-  emptyContainer: { padding: 20, alignItems: 'center' },
-  emptyText: { color: '#666', fontSize: 16 },
-  locationContainer: { marginBottom: 20 },
+  locationItem: {padding: 10, borderBottomWidth: 1, borderBottomColor: '#ccc'},
+  locationItemText: {fontSize: 16},
+  emptyContainer: {padding: 20, alignItems: 'center'},
+  emptyText: {color: '#666', fontSize: 16},
+  locationContainer: {marginBottom: 20},
   locationField: {
     backgroundColor: '#fafafa',
     borderColor: '#ccc',
@@ -565,19 +684,19 @@ const styles = StyleSheet.create({
     padding: 15,
     marginBottom: 10,
   },
-  locationLabel: { fontSize: 12, color: '#666', marginBottom: 5 },
-  locationValue: { fontSize: 16, color: '#000' },
-  locationValueDisabled: { color: '#999' },
-  profileImageContainer: { alignItems: 'center', marginBottom: 20 },
-  profileImage: { width: 100, height: 100, borderRadius: 50 },
+  locationLabel: {fontSize: 12, color: '#666', marginBottom: 5},
+  locationValue: {fontSize: 16, color: '#000'},
+  locationValueDisabled: {color: '#999'},
+  profileImageContainer: {alignItems: 'center', marginBottom: 20},
+  profileImage: {width: 100, height: 100, borderRadius: 50},
   profileImagePlaceholder: {
     width: 100,
     height: 100,
     borderRadius: 50,
     backgroundColor: '#ccc',
   },
-  selectPhotoText: { marginTop: 10, color: '#bea063', fontSize: 14 },
-  locationFieldDisabled: { opacity: 0.5 },
+  selectPhotoText: {marginTop: 10, color: '#bea063', fontSize: 14},
+  locationFieldDisabled: {opacity: 0.5},
   formContainer: {},
   headerContainer: {
     flexDirection: 'row',
@@ -589,10 +708,10 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e0e0e0',
     backgroundColor: '#fff',
   },
-  backButton: { padding: 8 },
-  headerSpacer: { width: 40 },
-  formGroup: { marginBottom: 20 },
-  errorText: { color: 'red', marginTop: -8, marginBottom: 10 },
+  backButton: {padding: 8},
+  headerSpacer: {width: 40},
+  formGroup: {marginBottom: 20},
+  errorText: {color: 'red', marginTop: -8, marginBottom: 10},
 });
 
 export default EditProfile;

@@ -3,6 +3,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
+
 // Types
 interface ApiResponse {
   data: any;
@@ -229,8 +230,15 @@ export const getProfile = async (): Promise<ApiResponse> => {
   }
 };
 // Fetch posts for the logged-in user
-export const getUserPosts = async (): Promise<ApiResponse> => {
-  const response = await api.get('/posts/');
+export const getUserPosts = async (page: number = 1, totalPages:any): Promise<ApiResponse> => {
+  console.log("getUserPosts called with page:",totalPages, page);
+  
+  const authToken = await AsyncStorage.getItem('accessToken');
+  const headers = {
+    Accept: 'application/json',
+    Authorization: `Bearer ${authToken}`,
+  };
+  const response = await api.get(`/posts/?page=${page}`, { headers }); // Use the page parameter
   return {
     data: response.data,
     status: response.status,
@@ -239,26 +247,26 @@ export const getUserPosts = async (): Promise<ApiResponse> => {
 };
 
 // Fetch following count for the logged-in user
-export const getFollowingCount = async (): Promise<ApiResponse> => {
-  const response = await api.get('/follower/following');
-  return {
-    data: response.data,
-    status: response.status,
-    message: 'Following count fetched successfully',
-  };
-};
+// export const getFollowingCount = async (): Promise<ApiResponse> => {
+//   const response = await api.get('/follower/following');
+//   return {
+//     data: response.data,
+//     status: response.status,
+//     message: 'Following count fetched successfully',
+//   };
+// };
 
 // Fetch followers count for the logged-in user
-export const getFollowersCount = async (): Promise<ApiResponse> => {
-  const response = await api.get('/follower/followers');
-  console.log("here ....",response?.data?.data);
+// export const getFollowersCount = async (): Promise<ApiResponse> => {
+//   const response = await api.get('/follower/followers');
+//   console.log("here ....",response?.data?.data);
   
-  return {
-    data: response.data,
-    status: response.status,
-    message: 'Followers count fetched successfully',
-  };
-};
+//   return {
+//     data: response.data,
+//     status: response.status,
+//     message: 'Followers count fetched successfully',
+//   };
+// };
 
 // Post creation API
 // export const postPosts  = async ({formData}:any): Promise<ApiResponse> => {
@@ -657,14 +665,14 @@ export const followUser = async (userId: string): Promise<ApiResponse> => {
   };
 };
 
-export const unfollowUser = async (userId: string): Promise<ApiResponse> => {
-  const response = await api.post('/follower/unfollow/', { user: userId });
-  return {
-    data: response.data,
-    status: response.status,
-    message: 'Unfollowed user successfully',
-  };
-};
+// export const unfollowUser = async (userId: string): Promise<ApiResponse> => {
+//   const response = await api.post('/follower/unfollow/', { user: userId });
+//   return {
+//     data: response.data,
+//     status: response.status,
+//     message: 'Unfollowed user successfully',
+//   };
+// };
  
 
 export const onTemporaryDeactivateAccountAPICall = async (accessToken) => {
@@ -680,4 +688,85 @@ export const onTemporaryDeactivateAccountAPICall = async (accessToken) => {
     status: response.status,
     message: response.statusText,
   };
+  
+};
+export const showSuccess = (msg: string) => {
+  console.log("showSuccess called with msg:", msg);
+  
+  // Toast.show({
+  //   type: "success",
+  //   text1: msg,
+  //   position: "bottom",
+  //   visibilityTime: 2500,
+  // });
+};
+
+export const showError = (msg: string) => {
+  // Toast.show({
+  //   type: "error",
+  //   text1: msg,
+  //   position: "bottom",
+  // });
+};
+
+// Follower and Following count APIs
+export const getFollowersCount = async (): Promise<number> => {
+  try {
+    const response = await api.get('/follower/followers/');
+    console.log("getFollowersCount response:", response.data);
+    return response.data?.data?.count || 0;
+  } catch (error) {
+    console.log("Error in getFollowersCount:", error);
+    return 0;
+  }
+};
+
+export const getFollowingCount = async (): Promise<number> => {
+  try {
+    const response = await api.get('/follower/following/');
+    console.log("getFollowingCount response:", response.data);
+    return response.data?.data?.count || 0;
+  } catch (error) {
+    console.log("Error in getFollowingCount:", error);
+    return 0;
+  }
+};
+
+// Followers and Following lists APIs
+export const getFollowersList = async (userId?: string): Promise<any[]> => {
+  try {
+    const url = userId ? `follower/followers/?user_id=${userId}` : 'follower/followers/';
+    const response = await api.get(url);
+    console.log("getFollowersList response:", response.data);
+    return response.data?.data?.results || [];
+  } catch (error) {
+    console.log("Error in getFollowersList:", error);
+    return [];
+  }
+};
+
+export const getFollowingList = async (userId?: string): Promise<any[]> => {
+  try {
+    const url = userId ? `follower/following/?user_id=${userId}` : 'follower/following/';
+    const response = await api.get(url);
+    console.log("getFollowingList response:", response.data);
+    return response.data?.data?.results || [];
+  } catch (error) {
+    console.log("Error in getFollowingList:", error);
+    return [];
+  }
+};
+
+// Unfollow API
+export const unfollowUser = async (userId: string): Promise<boolean> => {
+  try {
+    const response = await api.post('follower/unfollow/', {
+      user_id: userId
+    });
+    console.log("unfollowUser response:", response.data);
+    return true;
+  } catch (error) {
+    console.log("Error in unfollowUser:", error);
+    return false;
+  }
 };

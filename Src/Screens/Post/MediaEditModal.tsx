@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,12 @@ import {
   Dimensions,
   FlatList,
   Animated as RNAnimated,
-  PanResponder,
   Alert,
+  Platform,
 } from 'react-native';
 import { ColorMatrix, sepia, grayscale, brightness, contrast } from 'react-native-color-matrix-image-filters';
 import ViewShot, { captureRef } from 'react-native-view-shot';
+import ImageCropPicker from 'react-native-image-crop-picker';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -31,66 +32,45 @@ interface MediaEditModalProps {
 }
 
 const MediaEditModal: React.FC<MediaEditModalProps> = ({ uri, onApply, onCancel }) => {
-  const [zoom, setZoom] = useState(1);
   const [selectedFilter, setSelectedFilter] = useState('normal');
-  const scale = useRef(new RNAnimated.Value(1)).current;
-  const lastScale = useRef(1);
-  const lastDistance = useRef<number | null>(null);
+  const [imageUri, setImageUri] = useState(uri);
+  const [hasEdits, setHasEdits] = useState(false); // crop or any non-normal filter applied
   const viewShotRef = useRef(null);
-
-  // PanResponder for pinch-to-zoom
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        lastScale.current = zoom;
-        lastDistance.current = null;
-      },
-      onPanResponderMove: (evt, gestureState) => {
-        if (evt.nativeEvent.touches.length === 2) {
-          const touch1 = evt.nativeEvent.touches[0];
-          const touch2 = evt.nativeEvent.touches[1];
-          const dx = touch1.pageX - touch2.pageX;
-          const dy = touch1.pageY - touch2.pageY;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          if (lastDistance.current === null) {
-            lastDistance.current = distance;
-          } else {
-            const scaleFactor = distance / lastDistance.current;
-            let newScale = Math.max(1, Math.min(lastScale.current * scaleFactor, 3));
-            scale.setValue(newScale);
-            setZoom(newScale);
-          }
-        }
-      },
-      onPanResponderRelease: () => {
-        lastScale.current = zoom;
-        lastDistance.current = null;
-      },
-      onPanResponderTerminationRequest: () => false,
-    })
-  ).current;
-
-  const handleZoomIn = () => {
-    let newZoom = Math.min(zoom + 0.2, 3);
-    setZoom(newZoom);
-    scale.setValue(newZoom);
-    lastScale.current = newZoom;
-  };
-  const handleZoomOut = () => {
-    let newZoom = Math.max(zoom - 0.2, 1);
-    setZoom(newZoom);
-    scale.setValue(newZoom);
-    lastScale.current = newZoom;
-  };
+  
+  // Debug logging (can be removed in production)
+  console.log("MediaEditModal rendered with uri:", uri);
 
   const filterObj = FILTERS.find(f => f.key === selectedFilter);
   const FilterWrapper = filterObj && filterObj.matrix
     ? (props: { children: React.ReactNode }) => <ColorMatrix matrix={filterObj.matrix}>{props.children}</ColorMatrix>
     : React.Fragment;
 
+  const handleCrop = async () => {
+    try {
+      const result = await ImageCropPicker.openCropper({
+        path: imageUri,
+        width: 800,
+        height: 800,
+        cropping: true,
+        cropperCircleOverlay: false,
+        mediaType: 'photo',
+      });
+      if (result && result.path) {
+        setImageUri(result.path);
+        setSelectedFilter('normal');
+        setHasEdits(true);
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Failed to crop image.');
+    }
+  };
+
   const handleApply = async () => {
+    // If no edits were made (no crop and filter is normal), return original/current uri
+    if (!hasEdits && selectedFilter === 'normal' && imageUri === uri) {
+      onApply({ uri: imageUri });
+      return;
+    }
     if (viewShotRef.current) {
       try {
         const uriResult = await captureRef(viewShotRef, {
@@ -106,28 +86,30 @@ const MediaEditModal: React.FC<MediaEditModalProps> = ({ uri, onApply, onCancel 
 
   return (
     <View style={styles.modalContainer}>
+      {/* Close button */}
+      <TouchableOpacity 
+        style={styles.closeButton}
+        onPress={onCancel}
+      >
+        <Text style={styles.closeButtonText}>✕</Text>
+      </TouchableOpacity>
+      
       <View style={{ alignItems: 'center' ,justifyContent:'center',marginTop:30}}>
         <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.95 }} style={styles.animatedImage}>
-          <RNAnimated.View
-            style={[{ transform: [{ scale }] }]}
-            {...panResponder.panHandlers}
-          >
-            <FilterWrapper>
-              <Image
-                source={{ uri }}
-                style={styles.image}
-              />
-            </FilterWrapper>
-          </RNAnimated.View>
+          <FilterWrapper>
+            <Image
+              source={{ uri: imageUri }}
+              style={styles.image}
+              resizeMode="contain"
+            />
+          </FilterWrapper>
         </ViewShot>
-        <View style={styles.zoomRow}>
-          <TouchableOpacity onPress={handleZoomOut} style={styles.zoomButton}>
-            <Text style={styles.zoomText}>-</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleZoomIn} style={styles.zoomButton}>
-            <Text style={styles.zoomText}>+</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[styles.applyButton,{marginTop:10}]}
+          onPress={handleCrop}
+        >
+          <Text style={styles.cropText}>Crop</Text>
+        </TouchableOpacity>
         <FlatList
           data={FILTERS}
           horizontal
@@ -146,7 +128,7 @@ const MediaEditModal: React.FC<MediaEditModalProps> = ({ uri, onApply, onCancel 
               >
                 <ThumbWrapper>
                   <Image
-                    source={{ uri }}
+                    source={{ uri: imageUri }}
                     style={styles.filterThumb}
                   />
                 </ThumbWrapper>
@@ -175,9 +157,10 @@ const MediaEditModal: React.FC<MediaEditModalProps> = ({ uri, onApply, onCancel 
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.95)',
+    backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingTop: Platform.OS === 'ios' ? 44 : 0, // Account for iOS status bar
   },
   animatedImage: {  
     width: screenWidth * 0.9,
@@ -190,21 +173,18 @@ const styles = StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
-  zoomRow: {
-    borderWidth:0,
-    borderColor:'white',
-    flexDirection: 'row',
+  cropButton: {
     marginTop: 10,
-  },
-  zoomButton: {
-    marginHorizontal: 20,
-    backgroundColor: '#222',
+    backgroundColor: '#0095f6',
+    paddingHorizontal: 30,
+    paddingVertical: 10,
     borderRadius: 20,
-    padding: 10,
+    marginBottom: 8,
   },
-  zoomText: {
+  cropText: {
     color: '#fff',
-    fontSize: 20,
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   filterBar: {
     marginTop: 24,
@@ -245,6 +225,21 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
   },
+  closeButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : 20,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    zIndex: 10,
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
 });
 
-export default MediaEditModal; 
+export default MediaEditModal;

@@ -1,0 +1,3584 @@
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+  FlatList,
+  Dimensions,
+  ActivityIndicator,
+  Modal,
+  Alert,
+  TextInput,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+  BackHandler,
+  SectionList,
+} from 'react-native';
+const Ionicons = require('react-native-vector-icons/Ionicons').default;
+import Video from 'react-native-video';
+import Post from '../../Component/Post';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { useNavigation, useFocusEffect, useRoute, CommonActions } from '@react-navigation/native';
+import { getProfile, getUserPosts, getUserReels } from '../../Api/Api';
+import CommentModal from '../../Components/CommentModal';
+import InstagramCommentModal from '../Comment/InstagramCommentModal';
+//  import { Image as Compressor } from 'react-native-compressor';
+
+const { width } = Dimensions.get('window');
+const NUM_COLUMNS = 3;
+const ITEM_SIZE = width / NUM_COLUMNS;
+
+interface Post {
+  id: string;
+  type: 'image' | 'reel';
+  uri: string;
+  compressedUri?: string;
+  likes: number;
+  comments: number;
+  caption?: string;
+  location?: string;
+  createdAt?: string;
+  collection_id?: number;
+  mediaCount?: number; // Number of media files in this post
+  isLiked?: boolean;
+  isCollection?: boolean;
+  collectionName?: string;
+  allMedia?: string[]; // All media files for this post
+  mentioned_users?: any[]; // Mentioned users data
+  is_mention?: boolean;
+  hide_like_count?: boolean;
+  allowcomments?: boolean; // Whether this post allows comments
+}
+
+const defaultAvatar = require('../../Assets/userProfile.png');
+
+// Utility to chunk array into rows for grid
+function chunkArray<T>(array: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    result.push(array.slice(i, i + size));
+  }
+  return result;
+}
+
+const UserProfileScreen = ({ navigation }: any) => {
+  const [activeTab, setActiveTab] = useState<'posts' | 'reels' | 'tagged'>(
+    'posts',
+  );
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState({
+    username: '',
+    fullName: '',
+    bio: '',
+    profileImage: 'https://picsum.photos/200',
+    postsCount: 0,
+    followersCount: 0,
+    followingCount: 0,
+    id: ''
+  });
+  const route = useRoute<any>();
+  let { userId } = route?.params || {};
+  let { isFromSearch } = route?.params || {};
+  // console.log("isFromSearch",isFromSearch);
+
+
+  // console.log("profile s state",profile.id);
+
+  // Real data from API
+  const [data, setData] = useState('')
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [isChat, setIsChat] = useState(false);
+  const [chatId, setChatId] = useState('');
+
+  // Tagged posts state
+  const [taggedPosts, setTaggedPosts] = useState<Post[]>([]);
+  const [taggedLoading, setTaggedLoading] = useState(false);
+  const [taggedError, setTaggedError] = useState<string | null>(null);
+
+  // Highlights state
+  const [highlights, setHighlights] = useState<any[]>([]);
+  const [highlightsLoading, setHighlightsLoading] = useState(false);
+  const [highlightsError, setHighlightsError] = useState<string | null>(null);
+
+  const [fullscreenVisible, setFullscreenVisible] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [videoLoading, setVideoLoading] = useState(false);
+  const [currentFullscreenIndex, setCurrentFullscreenIndex] = useState(0);
+  const [shouldPauseAllVideos, setShouldPauseAllVideos] = useState(false);
+  const fullscreenFlatListRef = useRef<FlatList>(null);
+
+  // Individual video controls state
+  const [videoStates, setVideoStates] = useState<{
+    [key: string]: { isPlaying: boolean; isMuted: boolean };
+  }>({});
+  const [videoRefs, setVideoRefs] = useState<{ [key: string]: any }>({});
+
+  // Post functionality state
+  const [postStates, setPostStates] = useState<{
+    [key: string]: { isLiked: boolean; likesCount: number; likeLoading: boolean, showLikeCount: any };
+  }>({});
+  const [optionsVisible, setOptionsVisible] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<any>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Edit functionality state
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editCaption, setEditCaption] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+
+
+  // Fullscreen media state
+  const [postMediaIndices, setPostMediaIndices] = useState<{
+    [postId: string]: number;
+  }>({});
+  // Stories ring state
+  const [profileStories, setProfileStories] = useState<any[]>([]);
+  const [hasActiveStories, setHasActiveStories] = useState(false);
+
+  // Simple swipe-to-close using ScrollView drag
+  const dragOffsetY = useRef(0);
+  const handleScroll = (event: any) => {
+    dragOffsetY.current = event.nativeEvent.contentOffset.y;
+  };
+  const handleScrollEndDrag = () => {
+    if (dragOffsetY.current < -100) {
+      setFullscreenVisible(false);
+    }
+  };
+
+
+  useEffect(() => {
+    if (fullscreenVisible && fullscreenFlatListRef.current) {
+      setTimeout(() => {
+        fullscreenFlatListRef.current?.scrollToIndex({
+          index: selectedIndex,
+          animated: false,
+        });
+        setCurrentFullscreenIndex(selectedIndex);
+        setShouldPauseAllVideos(false);
+
+        // Fetch likes and comments for the selected item
+        const selectedItem = filteredPosts[selectedIndex];
+        if (selectedItem) {
+          setCurrentPostId(selectedItem.id);
+          const contentType = selectedItem.type === 'reel' ? 'reel' : 'post';
+
+          // Always fetch fresh data for the selected post when opening full view
+          fetchPostLikes(contentType, selectedItem.id);
+          fetchPostComments(contentType, selectedItem.id);
+
+          // Play the selected video and pause others
+          if (selectedItem.type === 'reel') {
+            // Get the current media index for this post
+            const mediaItems = selectedItem.allMedia || [selectedItem.uri];
+            const currentMediaIndex = postMediaIndices[selectedItem.id] || 0;
+            const videoId =
+              mediaItems.length > 1
+                ? `${selectedItem.id}-${currentMediaIndex}`
+                : selectedItem.id;
+
+            pauseAllVideosExcept(videoId);
+            playCurrentVideo(videoId);
+          }
+        }
+      }, 0);
+    }
+  }, [fullscreenVisible, selectedIndex]);
+
+  // Pause all videos when modal is closed
+  useEffect(() => {
+    if (!fullscreenVisible) {
+      setShouldPauseAllVideos(true);
+      setPostMediaIndices({}); // Reset all post media indices when closing fullscreen
+      // Pause all videos when modal closes
+      setVideoStates(prev => {
+        const newStates = { ...prev };
+        Object.keys(newStates).forEach(itemId => {
+          newStates[itemId] = {
+            ...newStates[itemId],
+            isPlaying: false,
+          };
+        });
+        return newStates;
+      });
+    }
+  }, [fullscreenVisible]);
+
+  // Pause all videos when switching tabs - Fixed to prevent infinite loop
+  useEffect(() => {
+    if (activeTab !== 'reels') {
+      setShouldPauseAllVideos(true);
+    }
+  }, [activeTab]);
+
+  // Reset video controls when switching to reels tab
+  useEffect(() => {
+    if (activeTab === 'reels') {
+      setShouldPauseAllVideos(false);
+    }
+  }, [activeTab]);
+
+  const handleShare = (post: any) => {
+    // Implement your share logic here
+    Alert.alert('Share', 'Share functionality coming soon!');
+  };
+
+  // Fetch likes for a post
+  const fetchPostLikes = async (contentType: string, objectId: string) => {
+    console.log(`[UserProfileScreen] Fetching likes for post ${objectId} (${contentType})`);
+    setLikesLoading(true);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+
+      const response = await axios.get(
+        `https://pashuahar.com/like/list/?content_type=${contentType}&object_id=${objectId}`,
+        { headers }
+      );
+
+      if (response.data && response.data.data) {
+        console.log(`[UserProfileScreen] Received ${response.data.data.length} likes for post ${objectId}`);
+        setPostLikesData(prev => {
+          const newData = {
+            ...prev,
+            [objectId]: response.data.data
+          };
+          // Re-initialize post states for this post
+          const affectedPosts = posts.filter(p => p.id === objectId);
+          if (affectedPosts.length > 0) {
+            initializePostStates(posts);
+          }
+          return newData;
+        });
+      } else {
+        console.log(`[UserProfileScreen] No likes data for post ${objectId}`);
+        setPostLikesData(prev => {
+          const newData = {
+            ...prev,
+            [objectId]: []
+          };
+          // Re-initialize post states for this post
+          const affectedPosts = posts.filter(p => p.id === objectId);
+          if (affectedPosts.length > 0) {
+            initializePostStates(posts);
+          }
+          return newData;
+        });
+      }
+    } catch (error) {
+      console.error(`[UserProfileScreen] Error fetching post likes for ${objectId}:`, error);
+      setPostLikesData(prev => ({
+        ...prev,
+        [objectId]: []
+      }));
+    } finally {
+      setLikesLoading(false);
+    }
+  };
+
+  // Fetch likes for all posts
+  const fetchAllPostsLikes = async (allMedia: Post[]) => {
+    console.log(`[UserProfileScreen] Fetching likes for all ${allMedia.length} posts`);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+
+      // Create promises for all posts
+      const likesPromises = allMedia.map(async (post) => {
+        const contentType = post.type === 'reel' ? 'reel' : 'post';
+        try {
+          const response = await axios.get(
+            `https://pashuahar.com/like/list/?content_type=${contentType}&object_id=${post.id}`,
+            { headers }
+          );
+          return {
+            postId: post.id,
+            likes: response.data?.data || []
+          };
+        } catch (error) {
+          console.error(`[UserProfileScreen] Error fetching likes for post ${post.id}:`, error);
+          return {
+            postId: post.id,
+            likes: []
+          };
+        }
+      });
+
+      // Wait for all requests to complete
+      const results = await Promise.all(likesPromises);
+
+      // Update postLikesData with all results
+      const newPostLikesData: { [postId: string]: any[] } = {};
+      results.forEach(result => {
+        newPostLikesData[result.postId] = result.likes;
+      });
+
+      setPostLikesData(newPostLikesData);
+      console.log(`[UserProfileScreen] Successfully fetched likes for all posts`);
+
+      // Re-initialize post states with the new likes data
+      initializePostStates(allMedia);
+    } catch (error) {
+      console.error(`[UserProfileScreen] Error fetching all posts likes:`, error);
+    }
+  };
+
+  // Fetch comments for a post
+  const fetchPostComments = async (contentType: string, objectId: string) => {
+    console.log(`[UserProfileScreen] Fetching comments for post ${objectId} (${contentType})`);
+    setCommentsLoading(true);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+
+      const response = await axios.get(
+        `https://pashuahar.com/comment/list/?content_type=${contentType}&object_id=${objectId}`,
+        { headers }
+      );
+
+      if (response.data && response.data.data) {
+        console.log(`[UserProfileScreen] Received ${response.data.data.length} comments for post ${objectId}`);
+        setPostCommentsData(prev => ({
+          ...prev,
+          [objectId]: response.data.data
+        }));
+      } else {
+        console.log(`[UserProfileScreen] No comments data for post ${objectId}`);
+        setPostCommentsData(prev => ({
+          ...prev,
+          [objectId]: []
+        }));
+      }
+    } catch (error) {
+      console.error(`[UserProfileScreen] Error fetching post comments for ${objectId}:`, error);
+      setPostCommentsData(prev => ({
+        ...prev,
+        [objectId]: []
+      }));
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
+  // Add a new comment to postCommentsData
+  const addCommentToPost = (postId: string, newComment: any) => {
+    console.log(`[UserProfileScreen] Adding comment to post ${postId}:`, newComment);
+
+    setPostCommentsData(prev => {
+      const updatedData = {
+        ...prev,
+        [postId]: [...(prev[postId] || []), newComment]
+      };
+      console.log(`[UserProfileScreen] Updated postCommentsData for ${postId}:`, updatedData[postId]);
+      return updatedData;
+    });
+
+    // Also update the comment count in posts array
+    setPosts(prevPosts =>
+      prevPosts.map(p =>
+        p.id === postId
+          ? { ...p, comments: (p.comments || 0) + 1 }
+          : p
+      )
+    );
+  };
+
+  // Remove a comment from postCommentsData
+  const removeCommentFromPost = (postId: string, commentId: string) => {
+    console.log(`[UserProfileScreen] Removing comment ${commentId} from post ${postId}`);
+
+    setPostCommentsData(prev => {
+      const updatedData = {
+        ...prev,
+        [postId]: (prev[postId] || []).filter(comment => comment.id !== parseInt(commentId))
+      };
+      console.log(`[UserProfileScreen] Updated postCommentsData for ${postId}:`, updatedData[postId]);
+      return updatedData;
+    });
+
+    // Also update the comment count in posts array
+    setPosts(prevPosts =>
+      prevPosts.map(p =>
+        p.id === postId
+          ? { ...p, comments: Math.max((p.comments || 0) - 1, 0) }
+          : p
+      )
+    );
+  };
+
+  // Force refresh comments data for a specific post
+  const refreshPostComments = async (postId: string) => {
+    const post = posts.find(p => p.id === postId);
+    if (post) {
+      const contentType = post.type === 'reel' ? 'reel' : 'post';
+      await fetchPostComments(contentType, postId);
+    }
+  };
+
+  const handleLike = async (post: any) => {
+    console.log("here comes datta....", postLikesData);
+
+    // Check if postLikesData has data for this item, if not use item.isLiked as fallback
+    let userHasLiked = false;
+    if (postLikesData[post.id] && Array.isArray(postLikesData[post.id])) {
+      userHasLiked = postLikesData[post.id].some(like => like.user_id?.toString() == userId?.toString());
+    } else {
+      // Fallback to item.isLiked if postLikesData is not available yet
+      userHasLiked = post.isLiked || false;
+    }
+
+    const postId = post.id;
+    const currentState = postStates[postId] || {
+      isLiked: userHasLiked,
+      likesCount: post.likes,
+      likeLoading: false,
+      showLikeCount: post.hide_like_count,
+    };
+
+    console.log(`[UserProfileScreen] Like operation for post ${postId}:`, {
+      currentState,
+      postHideLikeCount: post.hide_like_count,
+      showLikeCount: currentState.showLikeCount
+    });
+
+    if (currentState.likeLoading) return;
+
+    setPostStates(prev => ({
+      ...prev,
+      [postId]: { ...currentState, likeLoading: true },
+    }));
+
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+
+      await axios.post(
+        'https://pashuahar.com/like-toggle/',
+        {
+          content_type: post.type === 'reel' ? 'reel' : 'post',
+          object_id: post.id,
+        },
+        { headers },
+      );
+
+      // Update the post state
+      setPostStates(prev => ({
+        ...prev,
+        [postId]: {
+          isLiked: !currentState.isLiked,
+          likesCount: currentState.isLiked
+            ? currentState.likesCount - 1
+            : currentState.likesCount + 1,
+          likeLoading: false,
+          showLikeCount: currentState.showLikeCount, // Preserve the showLikeCount value
+        },
+      }));
+
+      // Also update the posts array
+      setPosts(prevPosts =>
+        prevPosts.map(p =>
+          p.id === postId
+            ? {
+              ...p,
+              likes: currentState.isLiked ? p.likes - 1 : p.likes + 1,
+              isLiked: !currentState.isLiked,
+            }
+            : p,
+        ),
+      );
+
+      // Update postLikesData immediately for real-time updates
+      setPostLikesData(prev => {
+        const currentLikes = prev[postId] || [];
+        const currentUserId = userId?.toString();
+
+        if (currentState.isLiked) {
+          // Remove like - filter out current user's like
+          const updatedLikes = currentLikes.filter(like => like.user_id?.toString() !== currentUserId);
+          return {
+            ...prev,
+            [postId]: updatedLikes
+          };
+        } else {
+          // Add like - add current user's like
+          const newLike = {
+            id: Date.now(), // Temporary ID
+            user_id: currentUserId,
+            user_name: profile.username,
+            full_name: profile.fullName,
+            profile_picture: profile.profileImage
+          };
+          return {
+            ...prev,
+            [postId]: [...currentLikes, newLike]
+          };
+        }
+      });
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      Alert.alert('Error', 'Failed to update like.');
+
+      // Revert the state on error
+      setPostStates(prev => ({
+        ...prev,
+        [postId]: {
+          ...currentState,
+          likeLoading: false,
+          showLikeCount: currentState.showLikeCount, // Preserve the showLikeCount value
+        },
+      }));
+    }
+  };
+
+  const handleComment = (post: any, userName: any) => {
+    // Don't close fullscreen modal, just show comment modal on top
+    setSelectedCommentPost({ ...post, userName });
+    setIsCommentModalVisible(true);
+  };
+
+  const handleLikesModal = (post: any) => {
+    setCurrentPostId(post.id);
+    const contentType = post.type === 'reel' ? 'reel' : 'post';
+    fetchPostLikes(contentType, post.id);
+    setShowLikesModal(true);
+  };
+
+  const handleOptions = (post: any) => {
+    setSelectedPost(post);
+    setOptionsVisible(true);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedPost) return;
+    setDeleteLoading(true);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+
+      const postId = selectedPost.id;
+      let deleteUrl = '';
+
+      // Use different API endpoints based on post type
+      if (selectedPost.type === 'reel') {
+        deleteUrl = `https://pashuahar.com/reels/${postId}/`;
+      } else {
+        deleteUrl = `https://pashuahar.com/posts/${postId}/`;
+      }
+
+      await axios.delete(deleteUrl, { headers });
+
+      // Remove from posts array
+      setPosts(prevPosts => prevPosts.filter(p => p.id !== postId));
+
+      // Also remove from saved posts if it's there
+      // setSavedPosts(prevSaved => prevSaved.filter(p => p.id !== postId));
+
+      setOptionsVisible(false);
+      setSelectedPost(null);
+      Alert.alert(
+        'Deleted',
+        `${selectedPost.type === 'reel' ? 'Reel' : 'Post'
+        } deleted successfully.`,
+      );
+    } catch (err) {
+      console.error('Error deleting post:', err);
+      Alert.alert(
+        'Error',
+        `Failed to delete ${selectedPost?.type === 'reel' ? 'reel' : 'post'}.`,
+      );
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleEdit = () => {
+    if (!selectedPost) return;
+
+    // Set the current caption for editing
+    setEditCaption(selectedPost.caption || '');
+    setEditModalVisible(true);
+    setOptionsVisible(false);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!selectedPost) return;
+
+    setEditLoading(true);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+
+      const postId = selectedPost.id;
+      let editUrl = '';
+
+      // Use different API endpoints based on post type
+      if (selectedPost.type === 'reel') {
+        editUrl = `https://pashuahar.com/reels/${postId}/`;
+      } else {
+        editUrl = `https://pashuahar.com/posts/${postId}/`;
+      }
+
+      await axios.patch(
+        editUrl,
+        {
+          caption: editCaption,
+        },
+        { headers },
+      );
+
+      // Update the post in the posts array
+      setPosts(prevPosts =>
+        prevPosts.map(p =>
+          p.id === postId ? { ...p, caption: editCaption } : p,
+        ),
+      );
+
+      // Also update in saved posts if it's there
+      // setSavedPosts(prevSaved =>
+      //   prevSaved.map(p =>
+      //     p.id === postId ? {...p, caption: editCaption} : p,
+      //   ),
+      // );
+
+      setEditModalVisible(false);
+      setEditCaption('');
+      setSelectedPost(null);
+      Alert.alert(
+        'Success',
+        `${selectedPost.type === 'reel' ? 'Reel' : 'Post'
+        } updated successfully.`,
+      );
+    } catch (err) {
+      console.error('Error updating post:', err);
+      Alert.alert(
+        'Error',
+        `Failed to update ${selectedPost?.type === 'reel' ? 'reel' : 'post'}.`,
+      );
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  // const navigation = useNavigation<any>();
+
+  // Video control functions
+  const toggleMute = (itemId: string) => {
+    setVideoStates(prev => ({
+      ...prev,
+      [itemId]: {
+        ...prev[itemId],
+        isMuted: !prev[itemId]?.isMuted,
+      },
+    }));
+  };
+
+  const togglePlayPause = (itemId: string) => {
+    setVideoStates(prev => ({
+      ...prev,
+      [itemId]: {
+        ...prev[itemId],
+        isPlaying: !prev[itemId]?.isPlaying,
+      },
+    }));
+  };
+
+  const handleVideoRef = (videoRef: any, itemId: string) => {
+    if (videoRef && !videoRefs[itemId]) {
+      setVideoRefs(prev => ({
+        ...prev,
+        [itemId]: videoRef,
+      }));
+
+      // Initialize video state if not exists
+      if (!videoStates[itemId]) {
+        setVideoStates(prev => ({
+          ...prev,
+          [itemId]: {
+            isPlaying: false,
+            isMuted: true,
+          },
+        }));
+      }
+    }
+  };
+
+  // Initialize video states for all videos
+  const initializeVideoStates = (mediaItems: Post[]) => {
+    const newVideoStates: {
+      [key: string]: { isPlaying: boolean; isMuted: boolean };
+    } = {};
+    mediaItems.forEach(item => {
+      if (item.type === 'reel') {
+        // Initialize for single video
+        newVideoStates[item.id] = {
+          isPlaying: false,
+          isMuted: false,
+        };
+
+        // Initialize for multiple media items if they exist
+        if (item.allMedia && item.allMedia.length > 1) {
+          item.allMedia.forEach((_, index) => {
+            const mediaId = `${item.id}-${index}`;
+            newVideoStates[mediaId] = {
+              isPlaying: false,
+              isMuted: false,
+            };
+          });
+        }
+      }
+    });
+    setVideoStates(newVideoStates);
+  };
+
+  // Pause all videos except the current one
+  const pauseAllVideosExcept = (currentItemId: string) => {
+    setVideoStates(prev => {
+      const newStates = { ...prev };
+      Object.keys(newStates).forEach(itemId => {
+        if (itemId !== currentItemId) {
+          newStates[itemId] = {
+            ...newStates[itemId],
+            isPlaying: false,
+          };
+        }
+      });
+      return newStates;
+    });
+  };
+
+  // Play only the current video in fullscreen
+  const playCurrentVideo = (itemId: string) => {
+    setVideoStates(prev => ({
+      ...prev,
+      [itemId]: {
+        ...prev[itemId],
+        isPlaying: true,
+      },
+    }));
+  };
+
+  const playVideo = (itemId: string) => {
+    const videoRef = videoRefs[itemId];
+    if (videoRef && !videoStates[itemId]?.isPlaying) {
+      videoRef.seek(0);
+      setVideoStates(prev => ({
+        ...prev,
+        [itemId]: {
+          ...prev[itemId],
+          isPlaying: true,
+        },
+      }));
+    }
+  };
+
+  const pauseVideo = (itemId: string) => {
+    if (videoStates[itemId]?.isPlaying) {
+      setVideoStates(prev => ({
+        ...prev,
+        [itemId]: {
+          ...prev[itemId],
+          isPlaying: false,
+        },
+      }));
+    }
+  };
+
+  // Compress image function
+  // const compressImage = async (imageUri: string): Promise<string> => {
+  //   try {
+  //     const result = await Compressor.compress(imageUri, {
+  //       quality: 0.8,
+  //       maxWidth: 800,
+  //       maxHeight: 800,
+  //     });
+  //     return result;
+  //   } catch (error) {
+  //     console.error('Image compression failed:', error);
+  //     return imageUri; // Return original if compression fails
+  //   }
+  // };
+
+  // Process media data with compression and multiple media detection
+  const processMediaData = async (
+    mediaData: any[],
+    type: 'image' | 'reel',
+  ): Promise<Post[]> => {
+    const processedPosts: Post[] = [];
+
+    for (const item of mediaData) {
+      console.log("item in processMediaData", item);
+
+      try {
+        let mediaFiles: string[] = [];
+
+        if (type === 'image') {
+          // For posts, check if there are multiple media files
+          if (item.media && Array.isArray(item.media)) {
+            mediaFiles = item.media
+              .map((media: any) => media.media_file)
+              .filter(Boolean);
+          } else if (item.media_file) {
+            mediaFiles = [item.media_file];
+          }
+        } else {
+          // For reels, use video_file
+          if (item.video_file) {
+            mediaFiles = [item.video_file];
+          }
+        }
+
+        if (mediaFiles.length > 0) {
+          // Compress the first image for thumbnail (only for images, not videos)
+          let compressedUri = mediaFiles[0];
+          if (type === 'image') {
+            //  compressedUri = await compressImage(mediaFiles[0]);
+          }
+          let userHasLiked = postLikesData[item.id]?.some(like => like.user_id?.toString() == userId?.toString());
+
+          const post: Post = {
+            id: item.id?.toString() || '',
+            type: type,
+            uri: mediaFiles[0], // Original URI for fullscreen
+            compressedUri: mediaFiles[0], // Compressed URI for grid
+            likes: item.like_count || 0,
+            comments: item.comment_count || 0,
+            caption: item.caption || '',
+            location: item.location || '',
+            createdAt: item.created_at || '',
+            collection_id: item.collection_id || 1,
+            mediaCount: mediaFiles.length > 1 ? mediaFiles.length : undefined,
+            allMedia: mediaFiles,
+            // Preserve mentioned_users data for tagged posts
+            mentioned_users: item.mentioned_users || [],
+            is_mention: item.is_mention || false,
+            allowcomments: item.allow_comments,
+            isLiked: userHasLiked || item.is_liked || false,
+            hide_like_count: item.hide_like_count || false,
+            isCollection: !!item.collection_id,
+            collectionName: item.collection_name || '',
+          };
+
+          processedPosts.push(post);
+        }
+      } catch (error) {
+        console.error('Error processing media item:', error);
+      }
+    }
+
+    return processedPosts;
+  };
+
+  // Fetch followers and following counts
+  const fetchFollowersCount = async () => {
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+      const res = await axios.get('https://pashuahar.com/follower/followers', {
+        headers,
+      });
+      // console.log("res",res);
+
+      // Assume response: { data: { count: number } }
+      return res.data?.data?.count || 0;
+    } catch (err) {
+      return 0;
+    }
+  };
+
+  const fetchFollowingCount = async () => {
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+      const res = await axios.get('https://pashuahar.com/follower/following', {
+        headers,
+      });
+      // Assume response: { data: { count: number } }
+      return res.data?.data?.count || 0;
+    } catch (err) {
+      return 0;
+    }
+  };
+
+  // Fetch profile and posts data every time the screen comes into focus or params change
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchData();
+      return () => {
+        // Cleanup: flush previous data
+        setProfile({
+          username: '',
+          fullName: '',
+          bio: '',
+          profileImage: 'https://picsum.photos/200',
+          postsCount: 0,
+          followersCount: 0,
+          followingCount: 0,
+          id: ''
+        });
+        setPosts([]);
+        // setSavedPosts([]);
+        // setCollections([]);
+        setLoading(true);
+      };
+    }, [route?.params?.userId, route?.params?.isFromSearch])
+  );
+
+  // Hardware back press handling
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        navigation.goBack();
+        return true;
+      };
+      BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+    }, [navigation])
+  );
+
+  const fetchData = async () => {
+    // console.log("yes called ......", userId,isFromSearch);
+
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+      let response: any;
+      if (isFromSearch && userId) {
+        try {
+          response = await axios.get(`https://pashuahar.com/user_profile/${userId}/`, { headers });
+        } catch (err) {
+          console.error('Error in user_profile API:', err);
+          throw err;
+        }
+      }
+      const data = response.data?.data;
+
+      console.log("datat......", data?.is_chat, data?.chat_id);
+      setIsChat(data?.is_chat);
+      setChatId(data?.chat_id);
+
+      setIsFollowing(data?.is_following);
+      setFollowStatus(data?.follow_status);
+      // console.log("responseresponseresponse",data?.is_followed_by , data?.follow_status);
+
+      // Fetch profile data
+      let profileResponse;
+      try {
+        profileResponse = isFromSearch
+          ? response?.data?.data?.profile
+          : await getProfile();
+      } catch (err) {
+        console.error('Error in getProfile API:', err);
+        throw err;
+      }
+      // console.log('profileResponse', profileResponse.data?.data);
+      setData(isFromSearch ? profileResponse : profileResponse.data?.data?.results)
+      let followersCount = 0;
+      let followingCount = 0;
+      // Fetch followers/following counts in parallel
+      if (isFromSearch) {
+        followersCount = response?.data?.data?.followers_count
+        followingCount = response?.data?.data?.following_count
+      }
+      else {
+        [followersCount, followingCount] = await Promise.all([
+          fetchFollowersCount(),
+          fetchFollowingCount(),
+        ]);
+      }
+
+      // console.log('followersCount', followersCount);
+
+      if (isFromSearch ? profileResponse : profileResponse.data) {
+        const profileData = isFromSearch ? profileResponse : profileResponse.data.data?.profile;
+        // console.log("profileDataprofileData",profileData);
+
+        setProfile({
+          username: profileData.username || '',
+          fullName:
+            `${profileData.first_name || ''} ${profileData.last_name || ''
+              }`.trim() || '',
+          bio: profileData.bio || '',
+          profileImage:
+            profileData.profile_picture || 'https://picsum.photos/200',
+          postsCount: isFromSearch ? response?.data?.data?.post_reels_count : profileData.posts_count || 8,
+          followersCount,
+          followingCount,
+          id: profileData.user
+        });
+        // setUserId()
+      }
+
+      // Fetch posts data
+      let postsResponse;
+      try {
+        postsResponse = isFromSearch
+          ? response?.data?.data
+          : await getUserPosts(1, 1);
+      } catch (err) {
+        console.error('Error in getUserPosts API:', err);
+        throw err;
+      }
+      // console.log("postsResponse",postsResponse);
+
+      // Fetch reels data
+      let reelsResponse;
+      try {
+        reelsResponse = isFromSearch
+          ? response?.data?.data
+          : await getUserReels();
+      } catch (err) {
+        console.error('Error in getUserReels API:', err);
+        throw err;
+      }
+      // console.log("reelsResponse",reelsResponse?.data?.data?.results);
+
+      let allMedia: Post[] = [];
+      // console.log("postsResponse.posts",postsResponse.posts);
+
+
+      // Transform posts data with compression and multiple media detection
+      // console.log("here comes postsResponse",postsResponse);
+
+      if (!isFromSearch ? postsResponse?.data : postsResponse) {
+        const postsData = isFromSearch ? postsResponse?.posts : postsResponse?.data?.data?.results;
+        // const postsData = postsResponse.data.data.results;
+        // console.log("postsDatapostsDatapostsData",postsData);
+
+        const processedPosts = await processMediaData(postsData, 'image');
+        allMedia = [...allMedia, ...processedPosts];
+      }
+
+      // Transform reels data with compression and multiple media detection
+      if (!isFromSearch ? reelsResponse.data : reelsResponse) {
+        const reelsData = isFromSearch ? reelsResponse?.reels : reelsResponse?.data?.data?.results;
+        const processedReels = await processMediaData(reelsData, 'reel');
+        allMedia = [...allMedia, ...processedReels];
+      }
+
+      // console.log('allMedia........', allMedia);
+      setPosts(allMedia);
+
+      // Initialize video states for all reels
+      initializeVideoStates(allMedia);
+
+      // Initialize post states when posts are loaded
+      initializePostStates(allMedia);
+
+      // Fetch likes data for all posts
+      await fetchAllPostsLikes(allMedia);
+
+      // Fetch highlights
+      await fetchHighlights();
+
+      // Fetch active stories for profile ring
+      try {
+        const storiesRes = await axios.get(`https://pashuahar.com/stories/`, {
+          params: { user_id: userId || (isFromSearch ? response?.data?.data?.profile?.user : profileResponse?.data?.data?.profile?.user) },
+          headers,
+        });
+        console.log("here comes data....", storiesRes);
+
+        const storiesData = storiesRes?.data?.data || [];
+        setProfileStories(storiesData);
+        setHasActiveStories(Array.isArray(storiesData) && storiesData.length > 0);
+      } catch (e) {
+        setProfileStories([]);
+        setHasActiveStories(false);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch highlights for the user
+  const fetchHighlights = async () => {
+    setHighlightsLoading(true);
+    setHighlightsError(null);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+      const res = await axios.get(`https://pashuahar.com/highlights/?user_id=${userId || profile.id}`, {
+        headers,
+      });
+      // console.log('Highlights response:', res.data);
+      setHighlights(res.data?.data || res.data || []);
+    } catch (err) {
+      console.error('Error fetching highlights:', err);
+      setHighlightsError('Failed to load highlights');
+      setHighlights([]);
+    } finally {
+      setHighlightsLoading(false);
+    }
+  };
+
+  // Fetch tagged posts where user is mentioned
+  const fetchTaggedPosts = async () => {
+    setTaggedLoading(true);
+    setTaggedError(null);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+      const res = await axios.get(`https://pashuahar.com/mentioned_user/?user_id=${userId || profile.id}`, {
+        headers,
+      });
+      console.log('Tagged posts response:', res.data);
+
+      if (res.data?.success && res.data?.data) {
+        const taggedData = res.data.data;
+        const processedTaggedPosts = await processMediaData(taggedData, 'image');
+        setTaggedPosts(processedTaggedPosts);
+      } else {
+        setTaggedPosts([]);
+      }
+    } catch (err) {
+      console.error('Error fetching tagged posts:', err);
+      setTaggedError('Failed to load tagged posts');
+      setTaggedPosts([]);
+    } finally {
+      setTaggedLoading(false);
+    }
+  };
+
+
+
+
+  // Fetch collection details
+  const fetchCollectionDetails = async (collectionId: string) => {
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+      const res = await axios.get(
+        `https://pashuahar.com/collections/${collectionId}`,
+        { headers },
+      );
+      // console.log('Collection details', res.data);
+      return res.data;
+    } catch (err) {
+      console.error('Error fetching collection details:', err);
+      Alert.alert('Error', 'Failed to load collection details');
+      throw err;
+    }
+  };
+
+
+
+  // Fetch tagged posts when switching to Tagged tab
+  useEffect(() => {
+    console.log("isFromSearchisFromSearchisFromSearch", activeTab, isFromSearch);
+
+    if (activeTab === 'tagged' && taggedPosts.length === 0 && !taggedLoading) {
+      fetchTaggedPosts();
+    }
+  }, [activeTab]);
+
+  // Reset fullscreen modal state when returning from comment screen
+  useFocusEffect(
+    React.useCallback(() => {
+      // Reset fullscreen modal state to ensure it works properly after navigation
+      if (!fullscreenVisible) {
+        setSelectedIndex(0);
+        setCurrentFullscreenIndex(0);
+        setShouldPauseAllVideos(false);
+      }
+    }, []),
+  );
+
+  // Use correct posts for the current tab
+  const filteredPosts =
+    activeTab === 'tagged'
+      ? taggedPosts
+      : posts.filter(post => {
+        if (activeTab === 'posts') return post.type === 'image';
+        if (activeTab === 'reels') return post.type === 'reel';
+        return true;
+      });
+  // For grid: chunk into rows
+  const gridRows = chunkArray(filteredPosts, NUM_COLUMNS);
+
+  const renderPostItem = ({ item, index }: { item: any; index: number }) => {
+    if (!item) {
+      // Render a blank cell for empty grid slots
+      return <View style={styles.postItem} />;
+    }
+    const isReel = item.type === 'reel';
+    const isCollection = item.isCollection;
+    const videoState = videoStates[item.id] || {
+      isPlaying: false,
+      isMuted: true,
+    };
+
+    return (
+      <TouchableOpacity
+        style={styles.postItem}
+        onPress={() => {
+          if (isCollection) {
+            navigation.navigate('CollectionDetailScreen', {
+              collectionId: item.collection_id,
+              collectionName: item.collectionName,
+            });
+          } else {
+            const filteredIndex = filteredPosts.findIndex(p => p.id === item.id);
+            setSelectedIndex(filteredIndex !== -1 ? filteredIndex : index);
+            setFullscreenVisible(true);
+          }
+        }}
+        activeOpacity={0.9}>
+        <View style={{ position: 'relative', width: '100%', height: '100%' }}>
+          {!isReel ? (
+            <Image
+              source={{ uri: item.compressedUri || item.uri }}
+              style={styles.postImage}
+            />
+          ) : (
+            <>
+              <Video
+                ref={ref => handleVideoRef(ref, item.id)}
+                source={{ uri: item.uri }}
+                style={styles.postImage}
+                muted={videoState.isMuted}
+                repeat
+                resizeMode="cover"
+                paused={!videoState.isPlaying || shouldPauseAllVideos}
+                onLoad={() => setVideoLoading(false)}
+                onError={() => setVideoLoading(false)}
+              />
+              {/* Play icon overlay for reels in grid REMOVED */}
+            </>
+          )}
+        </View>
+        {/* Collection indicator */}
+        {isCollection && (
+          <View style={styles.collectionIndicator}>
+            <Ionicons name="folder-outline" size={16} color="#fff" />
+            <Text style={styles.collectionText}>{item.collectionName}</Text>
+          </View>
+        )}
+        {/* Multiple media indicator */}
+        {item.mediaCount && item.mediaCount > 1 && (
+          <View style={styles.multipleMediaIndicator}>
+            <Ionicons name="copy-outline" size={16} color="#fff" />
+            {/* <Text style={styles.multipleMediaText}>{item.mediaCount}</Text> */}
+          </View>
+        )}
+        {/* Top-right options icon */}
+        {isFromSearch ? null : <TouchableOpacity
+          style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}
+          onPress={e => {
+            e.stopPropagation();
+            handleOptions(item);
+          }}>
+          <Ionicons name="ellipsis-vertical" size={20} color="#bea063" />
+        </TouchableOpacity>}
+
+        {/* Tag icon for tagged posts */}
+        {activeTab === 'tagged' && (
+          <TouchableOpacity
+            style={styles.tagIconContainer}
+            onPress={() => {
+              console.log("item.mentioned_users", item);
+
+              if (item.mentioned_users && item.mentioned_users.length > 0) {
+                // Show custom mentioned users modal
+                setSelectedMentionedUsers(item.mentioned_users);
+                setMentionedUsersModalVisible(true);
+              }
+            }}
+          >
+            <Ionicons name="person" size={16} color="#fff" />
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const renderStats = () => (
+    <View style={styles.statsContainer}>
+      <View style={styles.statItem}>
+        <Text style={[styles.statNumber, { color: '#bea063' }]}>{profile.postsCount}</Text>
+        <Text style={[styles.statLabel, { color: '#bea063' }]}>Posts</Text>
+      </View>
+      <TouchableOpacity
+        style={styles.statItem}
+        onPress={() =>
+          // isFromSearch ? null :
+          navigation.navigate('FollowersFollowingScreen', {
+            type: 'followers',
+            userId: userId,
+            username: profile.username,
+            isFromUUserProfile: true,
+          })
+        }>
+        <Text style={[styles.statNumber, { color: '#bea063' }]}>{profile.followersCount}</Text>
+        <Text style={[styles.statLabel, { color: '#bea063' }]}>Followers</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.statItem}
+        onPress={() =>
+          // isFromSearch ? null :
+          navigation.navigate('FollowersFollowingScreen', {
+            type: 'following',
+            userId: userId,
+            username: profile.username,
+            isFromUUserProfile: true,
+          })
+        }>
+        <Text style={[styles.statNumber, { color: '#bea063' }]}>{profile.followingCount}</Text>
+        <Text style={[styles.statLabel, { color: '#bea063' }]}>Following</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderProfileHeader = () => {
+    const showDefaultImage =
+      !profile.profileImage ||
+      profile.profileImage === '' ||
+      profile.profileImage === null ||
+      profile.profileImage === undefined ||
+      profile.profileImage.includes('picsum.photos') ||
+      profile.profileImage.includes('placeholder.com');
+    return (
+      <View style={styles.profileHeader}>
+        <TouchableOpacity
+        style={{marginRight:5}}
+       onPress={() => {
+        if (hasActiveStories && profileStories.length > 0) {
+          const storiesPayload = (profileStories || []).map((s: any) => ({
+            id: (s.id || '').toString(),
+            userId: (s.user || s.profile?.id || '').toString(),
+            username: s.profile?.username || profile.username,
+            userProfilePicture: s.profile?.profile_picture || profile.profileImage,
+            mediaUrl: s.media_file,
+            imageUrl: s.media_file,
+            type: (s.media_file?.toLowerCase?.().endsWith('.mp4') ? 'video' : 'image') as 'image' | 'video',
+            timestamp: s.created_at,
+            duration: 5000,
+            viewers: [],
+            isViewed: !!s.is_seen,
+            createdAt: s.created_at,
+            expiresAt: s.expires_at,
+            caption: s.caption || '',
+            location: '',
+            user: {
+              username: s.profile?.username || profile.username,
+              email: s.profile?.email || '',
+              isVerified: false,
+            },
+          }));
+          (navigation as any).navigate('StoryViewerScreen', {
+            stories: storiesPayload,
+            initialIndex: 0,
+            isPersonal: !isFromSearch || ((userId || profile.id)?.toString() === profile.id?.toString()),
+          });
+        }
+      }}
+        activeOpacity={0.8}>
+          <View
+            style={{
+              width: 104, // slightly larger than image
+              height: 104,
+              borderRadius: 53, // half of width/height
+              borderWidth: hasActiveStories ? 2 : 0,
+              borderColor: hasActiveStories ? '#bea063' : 'transparent',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Image
+              source={
+                showDefaultImage
+                  ? defaultAvatar
+                  : { uri: profile.profileImage }
+              }
+              style={{
+                width: 100,
+                height: 100,
+                borderRadius: 50,
+              }}
+            />
+          </View>
+        </TouchableOpacity>
+        {renderStats()}
+      </View>
+    );
+  };
+
+  const renderBio = () => (
+    <View style={styles.bioContainer}>
+      <Text style={[styles.username, { color: '#bea063' }]}>@{profile.username}</Text>
+      <Text style={[styles.fullName, { color: '#bea063' }]}>{profile.fullName}</Text>
+      <Text style={[styles.bioText, { color: '#bea063' }]}>{profile.bio}</Text>
+    </View>
+  );
+
+  const renderTabBar = () => (
+    <View style={styles.tabBar}>
+      <TouchableOpacity
+        style={[styles.tabButton, activeTab === 'posts' && styles.activeTab]}
+        onPress={() => setActiveTab('posts')}>
+        <Ionicons
+          name="grid-outline"
+          size={24}
+          color={activeTab === 'posts' ? '#bea063' : '#888'}
+        />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.tabButton, activeTab === 'reels' && styles.activeTab]}
+        onPress={() => setActiveTab('reels')}>
+        <Ionicons
+          name="play-outline"
+          size={24}
+          color={activeTab === 'reels' ? '#bea063' : '#888'}
+        />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.tabButton, activeTab === 'tagged' && styles.activeTab]}
+        onPress={() => {
+          console.log('Tagged tab pressed');
+          setActiveTab('tagged');
+        }}>
+        <Ionicons
+          name="person-outline"
+          size={24}
+          color={activeTab === 'tagged' ? '#bea063' : '#888'}
+        />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderFullscreenItem = ({ item, index }: { item: any; index: number }) => {
+    console.log("renderFullscreenItem item", item?.allowcomments, "index:", index);
+
+    if (!item) {
+      return (
+        <View style={{ height: Dimensions.get('window').height, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+          <ActivityIndicator size="large" color="#bea063" />
+        </View>
+      );
+    }
+    const windowHeight = Dimensions.get('window').height;
+    const windowWidth = Dimensions.get('window').width;
+    const isCurrentVideo = currentFullscreenIndex === index;
+    const isReel = item.type === 'reel';
+
+    // Check if postLikesData has data for this item, if not use item.isLiked as fallback
+    let userHasLiked = false;
+    if (postLikesData[item.id] && Array.isArray(postLikesData[item.id])) {
+      userHasLiked = postLikesData[item.id].some(like => like.user_id?.toString() == userId?.toString());
+    } else {
+      // Fallback to item.isLiked if postLikesData is not available yet
+      userHasLiked = item.isLiked || false;
+    }
+
+    console.log("postLikesData[item.id]", postLikesData[item.id], userHasLiked);
+
+
+    const postState = postStates[item.id] || {
+      isLiked: userHasLiked,
+      likesCount: item.likes,
+      likeLoading: false,
+      showLikeCount: item.hide_like_count,
+    };
+
+    // Use the profile data for the current user (since this is UserProfileScreen)
+    // In UserProfileScreen, all posts belong to the same user whose profile we're viewing
+    const displayProfile = profile;
+
+    // Get all media items for this post
+    const mediaItems = item.allMedia || [item.uri];
+    const currentMediaIndexForPost = postMediaIndices[item.id] || 0;
+    const currentMedia = mediaItems[currentMediaIndexForPost];
+    const isVideo =
+      currentMedia &&
+      (currentMedia.includes('.mp4') ||
+        currentMedia.includes('.mov') ||
+        currentMedia.includes('.avi'));
+
+    // Get the correct video state for the current media item
+    const videoId =
+      mediaItems.length > 1
+        ? `${item.id}-${currentMediaIndexForPost}`
+        : item.id;
+    const videoState = videoStates[videoId] || {
+      isPlaying: false,
+      isMuted: true,
+    };
+
+    return (
+      <View style={{ height: Dimensions.get('window').height, backgroundColor: '#fff' }}>
+        {/* Top bar with back button and title */}
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingTop: 10,
+          paddingBottom: 10,
+          paddingHorizontal: 16,
+          backgroundColor: '#fff',
+          // justifyContent: 'space-between',
+          borderBottomWidth: 1,
+          borderBottomColor: '#eee',
+        }}>
+          <TouchableOpacity
+            onPress={() => setFullscreenVisible(false)}
+            style={{ padding: 6, marginRight: 10 }}>
+            <Ionicons name="arrow-back" size={26} color="#bea063" />
+          </TouchableOpacity>
+          <Text style={{ color: '#bea063', fontWeight: 'bold', fontSize: 18 }}>
+            {activeTab === 'reels' ? 'Reels' : activeTab === 'tagged' ? 'Tagged' : 'Posts'}
+          </Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        {/* User info */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 14,
+            paddingBottom: 8,
+            paddingTop: 10,
+            justifyContent: 'space-between',
+          }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Image
+              source={
+                !displayProfile.profileImage || displayProfile.profileImage === '' || displayProfile.profileImage === null || displayProfile.profileImage === undefined || displayProfile.profileImage.includes('picsum.photos') || displayProfile.profileImage.includes('placeholder.com')
+                  ? defaultAvatar
+                  : { uri: displayProfile.profileImage }
+              }
+              style={[
+                { width: 36, height: 36, borderRadius: 18, marginRight: 10 },
+                (!displayProfile.profileImage || displayProfile.profileImage === '' || displayProfile.profileImage === null || displayProfile.profileImage === undefined || displayProfile.profileImage.includes('picsum.photos') || displayProfile.profileImage.includes('placeholder.com')) && { borderWidth: 2, borderColor: '#bea063' }
+              ]}
+            />
+            <View style={{}}>
+              <Text style={{ color: '#bea063', fontWeight: 'bold', fontSize: 15 }}>
+                {displayProfile.username}
+              </Text>
+              {item?.location && <Text style={{ color: '#bea063', fontSize: 12 }}>
+                {item?.location}
+              </Text>}
+            </View>
+          </View>
+
+
+          {/* Options button for fullscreen */}
+          {isFromSearch ? null : <TouchableOpacity
+            onPress={() => handleOptions(item)}
+            style={{ padding: 8 }}>
+            <Ionicons name="ellipsis-vertical" size={20} color="#bea063" />
+          </TouchableOpacity>}
+        </View>
+
+
+        {/* Main media with horizontal scroll for multiple items */}
+        <View
+          style={{
+            width: windowWidth,
+            height: windowHeight * 0.5,
+            alignSelf: 'center',
+            backgroundColor: 'black',
+            marginTop: 14,
+            // justifyContent: 'center',
+            alignItems: 'center',
+          }}>
+          {mediaItems.length > 1 ? (
+            <FlatList
+              data={mediaItems}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={event => {
+                const newIndex = Math.round(
+                  event.nativeEvent.contentOffset.x / windowWidth,
+                );
+                setPostMediaIndices(prev => ({
+                  ...prev,
+                  [item.id]: newIndex,
+                }));
+              }}
+              renderItem={({ item: mediaItem, index: mediaIndex }) => (
+                <View style={{ width: windowWidth, height: windowHeight * 0.6, backgroundColor: '#fff' }}>
+                  {mediaItem && (mediaItem.includes('.mp4') || mediaItem.includes('.mov') || mediaItem.includes('.avi')) ? (
+                    <View style={{ width: windowWidth, height: windowHeight * 0.6, backgroundColor: '#fff' }}>
+                      {videoLoading && (
+                        <ActivityIndicator
+                          size="large"
+                          color="#fff"
+                          style={{
+                            position: 'absolute',
+                            alignSelf: 'center',
+                            top: '45%',
+                          }}
+                        />
+                      )}
+                      <Video
+                        ref={ref => handleVideoRef(ref, `${item.id}-${mediaIndex}`)}
+                        source={{ uri: mediaItem }}
+                        style={{ width: '100%', height: '100%', backgroundColor: '#fff' }}
+                        muted={videoStates[`${item.id}-${mediaIndex}`]?.isMuted || true}
+                        repeat
+                        resizeMode="cover"
+                        paused={!videoStates[`${item.id}-${mediaIndex}`]?.isPlaying || !isCurrentVideo}
+                        onLoadStart={() => setVideoLoading(true)}
+                        onLoad={() => setVideoLoading(false)}
+                        onError={() => setVideoLoading(false)}
+                      />
+                      {/* Video controls for fullscreen */}
+                      <View style={styles.fullscreenVideoControls}>
+                        <TouchableOpacity
+                          style={styles.fullscreenControlButton}
+                          onPress={() => togglePlayPause(`${item.id}-${mediaIndex}`)}>
+                          <Ionicons
+                            name={videoStates[`${item.id}-${mediaIndex}`]?.isPlaying ? 'pause' : 'play'}
+                            size={24}
+                            color="#fff"
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.fullscreenControlButton}
+                          onPress={() => toggleMute(`${item.id}-${mediaIndex}`)}>
+                          <Ionicons
+                            name={videoStates[`${item.id}-${mediaIndex}`]?.isMuted ? 'volume-mute' : 'volume-high'}
+                            size={24}
+                            color="#fff"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : (
+                    <Image
+                      source={{ uri: mediaItem }}
+                      style={{
+                        width: windowWidth,
+                        height: windowHeight * 0.6,
+                        resizeMode: 'cover',
+                        backgroundColor: '#fff',
+                      }}
+                    />
+                  )}
+                </View>
+              )}
+              keyExtractor={(mediaItem, mediaIndex) => `${item.id}-${mediaIndex}`}
+            />
+          ) : // Single media item
+            isVideo ? (
+              <View style={{ width: windowWidth, height: windowHeight * 0.6, backgroundColor: '#fff' }}>
+                {videoLoading && (
+                  <ActivityIndicator
+                    size="large"
+                    color="#fff"
+                    style={{
+                      position: 'absolute',
+                      alignSelf: 'center',
+                      top: '45%',
+                    }}
+                  />
+                )}
+                <Video
+                  ref={ref => handleVideoRef(ref, item.id)}
+                  source={{ uri: currentMedia }}
+                  style={{ width: '100%', height: '100%', backgroundColor: '#fff' }}
+                  muted={videoState.isMuted}
+                  repeat
+                  resizeMode="cover"
+                  paused={!videoState.isPlaying || !isCurrentVideo}
+                  onLoadStart={() => setVideoLoading(true)}
+                  onLoad={() => setVideoLoading(false)}
+                  onError={() => setVideoLoading(false)}
+                />
+
+                {/* Video controls for fullscreen single video */}
+                <View style={styles.fullscreenVideoControls}>
+                  <TouchableOpacity
+                    style={styles.fullscreenControlButton}
+                    onPress={() => togglePlayPause(item.id)}>
+                    <Ionicons
+                      name={videoState.isPlaying ? 'pause' : 'play'}
+                      size={24}
+                      color="#fff"
+                    />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.fullscreenControlButton}
+                    onPress={() => toggleMute(item.id)}>
+                    <Ionicons
+                      name={videoState.isMuted ? 'volume-mute' : 'volume-high'}
+                      size={24}
+                      color="#fff"
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <Image
+                source={{ uri: currentMedia }}
+                style={{
+                  width: windowWidth,
+                  height: windowHeight * 0.5,
+                  resizeMode: 'cover',
+                  backgroundColor: '#fff',
+                }}
+              />
+            )}
+
+          {/* Media indicator dots for multiple items */}
+          {mediaItems.length > 1 && (
+            <View
+              style={{
+                position: 'absolute',
+                bottom: 20,
+                left: 0,
+                right: 0,
+                flexDirection: 'row',
+                justifyContent: 'center',
+              }}>
+              {mediaItems.map((_: string, dotIndex: number) => (
+                <View
+                  key={dotIndex}
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor:
+                      dotIndex === currentMediaIndexForPost
+                        ? '#fff'
+                        : 'rgba(255,255,255,0.5)',
+                    marginHorizontal: 4,
+                  }}
+                />
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* Like/comment counts row (interactive) */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 14,
+            marginTop: 12,
+            marginBottom: 2,
+          }}>
+          <TouchableOpacity
+            onPress={() => handleLike(item)}
+            disabled={postState.likeLoading}
+            style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {postState.likeLoading ? (
+              <ActivityIndicator size={20} color="#bea063" />
+            ) : (
+              <Ionicons
+                name={postState.isLiked ? 'heart' : 'heart-outline'}
+                size={22}
+                style={{ marginRight: postState.likesCount || item.likes ? 4 : 4 }}
+                color={postState.isLiked ? '#bea063' : '#bea063'}
+              />
+            )}
+            {!postState.showLikeCount && (postState.likesCount || item.likes && postState.likesCount || item.likes) && <Text
+              style={{
+                color: '#bea063',
+                fontSize: 15,
+                marginLeft: 6,
+                marginRight: 18,
+              }}>
+              {postState.likesCount || item.likes && postState.likesCount || item.likes}
+            </Text>}
+          </TouchableOpacity>
+          {!item.allowcomments && <TouchableOpacity
+            onPress={() => handleComment(item, displayProfile?.username)}
+            style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="chatbubble-outline" size={20} color="#bea063" />
+            {(item?.comments || postCommentsData[item.id]?.length) && <Text style={{ color: '#bea063', fontSize: 15, marginLeft: 6 }}>
+              {postCommentsData[item.id]?.length || item?.comments}
+            </Text>}
+          </TouchableOpacity>}
+        </View>
+
+        {/* Likes and Comments Info */}
+        <View style={{ paddingHorizontal: 13, marginBottom: 8, marginTop: 7 }}>
+          {/* Profile Picture and Likes Info - Same Line */}
+          {postLikesData[item.id] && postLikesData[item.id].length > 0 && !postState.showLikeCount && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              {/* Profile Picture */}
+              <View style={{
+                width: 30,
+                height: 30,
+                borderRadius: 15,
+                backgroundColor: '#f5f5f5',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginRight: 8,
+                borderWidth: 1,
+                borderColor: '#bea063',
+              }}>
+                <Ionicons name="person-circle" size={26} color="#bea063" />
+              </View>
+
+              {/* Likes Info */}
+              <TouchableOpacity
+                onPress={() => handleLikesModal(item)}
+                style={{ flex: 1 }}>
+                <Text style={{ color: '#bea063', fontSize: 14, fontWeight: '600' }}>
+                  Liked by{' '}
+                  <Text style={{ fontWeight: 'bold' }}>
+                    {postLikesData[item.id][0]?.full_name || postLikesData[item.id][0]?.user_name}
+                  </Text>
+                  {postLikesData[item.id].length > 1 && (
+                    <Text style={{ fontWeight: 'normal' }}>
+                      {' '}and{' '}
+                      <Text style={{ fontWeight: 'bold' }}>
+                        {postLikesData[item.id].length - 1} others
+                      </Text>
+                    </Text>
+                  )}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Caption */}
+          {item?.caption && (
+            <Text style={{ color: '#bea063', fontSize: 14, lineHeight: 18, marginBottom: 6 }}>
+              {displayProfile?.username} {item?.caption}
+            </Text>
+          )}
+          {/* First Comment */}
+          {(() => {
+            const comments = postCommentsData[item.id];
+            console.log(`[UserProfileScreen] Rendering comments for post ${item.id}:`, comments);
+            return comments && comments.length > 0 && !item.allowcomments && (
+              <View style={{ marginBottom: 6, marginLeft: 4 }}>
+                <Text style={{ color: '#bea063', fontSize: 14, lineHeight: 18 }}>
+                  <Text style={{ fontWeight: 'bold' }}>
+                    {comments[0]?.full_name || comments[0]?.user_name}
+                  </Text>
+                  {' '}
+                  <Text style={{ fontWeight: 'normal' }}>
+                    {comments[0]?.text}
+                  </Text>
+                </Text>
+                {comments.length > 1 && (
+                  <TouchableOpacity
+                    onPress={() => handleComment(item, displayProfile.username)}
+                    style={{ marginTop: 4 }}>
+                    <Text style={{ color: '#bea063', fontSize: 13, fontWeight: '500' }}>
+                      View all {comments.length} comments
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })()}
+        </View>
+
+        {/* Username, caption, emojis */}
+        {/* <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            paddingHorizontal: 14,
+            marginBottom: 2,
+            flexWrap: 'wrap',
+            flex: 1,
+          }}> */}
+        {/* {item.caption ? (
+            <>
+              {expandedCaptions[item.id] ? (
+                  <Text
+                    style={{color: 'gray', fontSize: 14, flex: 1}}
+                    numberOfLines={undefined}
+                    ellipsizeMode="tail"
+                  >
+                    <Text style={{color: '#bea063', fontWeight: 'bold', fontSize: 14}}>{displayProfile.username} </Text>
+                    {item.caption}
+                    <Text
+                      onPress={() => setExpandedCaptions(prev => ({ ...prev, [item.id]: false }))}
+                      style={{color: '#bea063', fontSize: 14, fontWeight: 'bold'}}>
+                      {' '}See less
+                    </Text>
+                  </Text>
+              ) : (
+                <>
+                  <Text
+                    style={{color: 'gray', fontSize: 14, flex: 1}}
+                    numberOfLines={2}
+                    ellipsizeMode="tail"
+                    onTextLayout={e => {
+                      if (e.nativeEvent.lines.length > 2 && !captionTruncated[item.id]) {
+                        setCaptionTruncated(prev => ({ ...prev, [item.id]: true }));
+                      }
+                    }}
+                  >
+                    <Text style={{color: '#bea063', fontWeight: 'bold', fontSize: 14}}>{displayProfile.username} </Text>
+                    {item.caption}
+                  </Text>
+                  {captionTruncated[item.id] && (
+                    <TouchableOpacity onPress={() => setExpandedCaptions(prev => ({ ...prev, [item.id]: true }))}>
+                      <Text style={{color: '#bea063', fontSize: 14, marginLeft: 4, fontWeight: 'bold'}}> See more</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
+            </>
+          ) : (
+            <Text style={{color: '#bea063', fontWeight: 'bold', fontSize: 14}}>{displayProfile.username}</Text>
+          )} */}
+        {/* </View> */}
+
+        {/* Date */}
+        {item.createdAt && (
+          <Text
+            style={{
+              color: '#aaa',
+              fontSize: 13,
+              paddingHorizontal: 14,
+              marginTop: 2,
+            }}>
+            {new Date(item.createdAt).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+            })}
+          </Text>
+        )}
+      </View>
+    );
+  };
+
+  // Initialize post states when posts are loaded
+  // const initializePostStates = (mediaItems: Post[]) => {
+  //   console.log("initializePostStatesmediaItems",mediaItems);
+
+  //   const newPostStates: {
+  //     [key: string]: {
+  //       isLiked: boolean;
+  //       likesCount: number;
+  //       likeLoading: boolean;
+  //       showLikeCount: any;
+  //     };
+  //   } = {};
+  //   mediaItems.forEach(item => {
+  //     newPostStates[item.id] = {
+  //       isLiked: item.isLiked || false,
+  //       likesCount: item.likes,
+  //       likeLoading: false,
+  //       showLikeCount: item.hide_like_count,
+  //     };
+  //   });
+  //   setPostStates(newPostStates);
+  // };
+  const initializePostStates = (mediaItems: Post[]) => {
+    console.log("initializePostStatesmediaItems", mediaItems);
+
+    const newPostStates: {
+      [key: string]: {
+        isLiked: boolean;
+        likesCount: number;
+        likeLoading: boolean;
+        showLikeCount: any;
+      };
+    } = {};
+    mediaItems.forEach(item => {
+      console.log("here omes fadta...", postLikesData[item.id]);
+
+      // Check if postLikesData has data for this item, if not use item.isLiked as fallback
+      let userHasLiked = false;
+      if (postLikesData[item.id] && Array.isArray(postLikesData[item.id])) {
+        userHasLiked = postLikesData[item.id].some(like => like.user_id?.toString() == userId?.toString());
+      } else {
+        // Fallback to item.isLiked if postLikesData is not available yet
+        userHasLiked = item.isLiked || false;
+      }
+
+      console.log("userHasLikeduserHasLiked", userHasLiked);
+      newPostStates[item.id] = {
+        isLiked: userHasLiked,
+        likesCount: item.likes,
+        likeLoading: false,
+        showLikeCount: item.hide_like_count,
+      };
+    });
+    setPostStates(newPostStates);
+  };
+
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followStatus, setFollowStatus] = useState('');
+  const [followLoading, setFollowLoading] = useState(false);
+
+  const handleBack = () => {
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'MainTab', params: { screen: 'HomeTab' } }],
+    });
+  };
+
+  // Before the FlatList in the fullscreen modal, define itemHeight
+  const mediaHeight = Dimensions.get('window').height * 0.5;
+  const contentHeight = 150; // Approximate height for user info, likes, comments, caption
+  const itemHeight = mediaHeight + contentHeight;
+
+  // Add the handler above the FlatList
+  const handleMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const index = Math.round(offsetY / itemHeight);
+    // FlatList has scrollToIndex method
+    fullscreenFlatListRef.current?.scrollToIndex({
+      index: index,
+      animated: true
+    });
+  };
+
+  // Add this state near the top, after other useState hooks
+  const [expandedCaptions, setExpandedCaptions] = useState<{ [postId: string]: boolean }>({});
+  const [captionTruncated, setCaptionTruncated] = useState<{ [postId: string]: boolean }>({});
+
+  // Add this state near the top, after other useState hooks
+  const [optionsModalVisible, setOptionsModalVisible] = useState(false);
+
+  // Mentioned users modal state
+  const [mentionedUsersModalVisible, setMentionedUsersModalVisible] = useState(false);
+  const [selectedMentionedUsers, setSelectedMentionedUsers] = useState<any[]>([]);
+
+  const [isCommentModalVisible, setIsCommentModalVisible] = useState(false);
+  const [selectedCommentPost, setSelectedCommentPost] = useState<any>(null);
+
+  // Add state for likes and comments - per post data
+  const [postLikesData, setPostLikesData] = useState<{ [postId: string]: any[] }>({});
+  const [postCommentsData, setPostCommentsData] = useState<{ [postId: string]: any[] }>({});
+  const [likesLoading, setLikesLoading] = useState(false);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [showLikesModal, setShowLikesModal] = useState(false);
+  const [currentPostId, setCurrentPostId] = useState<string | null>(null);
+  const [messageLoading, setMessageLoading] = useState(false);
+
+  // Function to handle message button press
+  const handleMessagePress = async () => {
+    if (messageLoading) return;
+
+    setMessageLoading(true);
+    try {
+      let newuserId = null;
+      console.log("data?.is_chat", isChat, chatId);
+      await AsyncStorage.getItem('userData').then((value) => {
+        console.log("value from async storage", value);
+        const userData = value ? JSON.parse(value) : {};
+        console.log("userDatauserDatauserData", userData.id);
+        newuserId = userData.id;
+
+        // setCurrentUserId(userData.id);
+      });
+      // return
+      // Check if chat already exists
+      if (isChat && chatId) {
+        console.log('Chat exists, verifying chat type...', chatId);
+
+        // Verify chat type by calling the API in background
+        const authToken = await AsyncStorage.getItem('accessToken');
+        const headers = {
+          Accept: 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        };
+
+        const response = await axios.get('https://pashuahar.com/chat_app/chats/', {
+          headers,
+        });
+
+        // Find the specific chat
+        const chat = response.data.groups.find((group: any) => group.chat_id === chatId);
+
+        if (chat) {
+          console.log('Found chat:', chat);
+          console.log("userId || profile.id", userId, profile.id);
+
+          // Navigate directly to ChatScreen with verified data
+          navigation.navigate('ChatScreen', {
+            chatId: chat.chat_id,
+            chat: chat,
+            is_single_chat: chat.is_single_chat,
+            chat_name: chat.group_name || chat.chat_name, // Use group_name like ChatListScreen
+            group_icon: chat.group_icon,
+            group_members: chat.group_members,
+            userid: newuserId, // Current logged-in user ID (same as ChatListScreen)
+          } as any);
+        } else {
+          // Chat not found, create new one
+          await createNewChat();
+        }
+      } else {
+        // No existing chat, create new one
+        await createNewChat();
+      }
+    } catch (error) {
+      console.error('Error handling message:', error);
+      Alert.alert('Error', 'Failed to start conversation. Please try again.');
+    } finally {
+      setMessageLoading(false);
+    }
+  };
+
+  // Function to create new chat
+  const createNewChat = async () => {
+    try {
+      let newuserId = null;
+      console.log("data?.is_chat", isChat, chatId);
+      await AsyncStorage.getItem('userData').then((value) => {
+        console.log("value from async storage", value);
+        const userData = value ? JSON.parse(value) : {};
+        console.log("userDatauserDatauserData", userData.id);
+        newuserId = userData.id;
+
+        // setCurrentUserId(userData.id);
+      });
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        Accept: 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      };
+      console.log("userId", [parseInt(userId || profile.id)]);
+      // return
+
+      // Create new chat with the user
+      const response = await axios.post('https://pashuahar.com/chat_app/chats/', {
+        members: [userId || profile.id],
+        // group_name: 'Chat', // Will be updated to user's name
+      }, {
+        headers,
+      });
+
+      console.log('New chat created:', response.data);
+
+      // Navigate to the new chat
+      navigation.navigate('ChatScreen', {
+        chatId: response.data.chat_id,
+        chat: response.data,
+        is_single_chat: response.data.is_single_chat,
+        chat_name: response.data.group_name || response.data.chat_name,
+        group_icon: response.data.group_icon,
+        group_members: response.data.group_members,
+        userid: newuserId, // Current logged-in user ID (same as ChatListScreen)
+      } as any);
+
+    } catch (error) {
+      console.error('Error creating new chat:', error);
+      Alert.alert('Error', 'Failed to create conversation. Please try again.');
+    }
+  };
+
+  useEffect(() => {
+    if (route?.params?.showOptionsModal) {
+      setOptionsModalVisible(true);
+      // Optionally reset the param so it doesn't show again on back navigation
+      navigation.setParams({ showOptionsModal: false });
+    }
+  }, [route?.params?.showOptionsModal]);
+
+  // Refresh comments data when comment modal closes
+  useEffect(() => {
+    if (!isCommentModalVisible && selectedCommentPost) {
+      // Small delay to ensure the modal has fully closed
+      setTimeout(() => {
+        refreshPostComments(selectedCommentPost.id);
+      }, 100);
+    }
+  }, [isCommentModalVisible, selectedCommentPost]);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* <View style={styles.header}>
+      <TouchableOpacity onPress={() => navigation.navigate('Menu')}>
+        <Ionicons name="menu-outline" size={24} color="#bea063" />
+      </TouchableOpacity>
+      <Text style={styles.headerTitle}>{profile?.username}</Text>
+      <View style={{width: 24}} />
+    </View> */}
+      {/* Fullscreen Modal */}
+      <Modal
+        visible={fullscreenVisible}
+        animationType="slide"
+        onRequestClose={() => setFullscreenVisible(false)}
+        transparent={false}>
+        {/* Fullscreen white background to prevent underlying content from showing */}
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: '#fff',
+          zIndex: 0,
+        }} />
+
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+          {filteredPosts.length === 0 ? (
+            <View
+              style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <Text style={{ color: '#fff', fontSize: 18 }}>
+                No posts to display
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              ref={fullscreenFlatListRef}
+              data={filteredPosts}
+              renderItem={renderFullscreenItem}
+              keyExtractor={item => item.id}
+              initialScrollIndex={selectedIndex}
+              getItemLayout={(data, index) => ({
+                length: Dimensions.get('window').height,
+                offset: Dimensions.get('window').height * index,
+                index,
+              })}
+              showsVerticalScrollIndicator={false}
+              initialNumToRender={1}
+              windowSize={1}
+              maxToRenderPerBatch={1}
+              removeClippedSubviews={true}
+              pagingEnabled={true}
+              snapToInterval={Dimensions.get('window').height}
+              snapToAlignment="start"
+              decelerationRate="fast"
+              scrollEventThrottle={16}
+              onScroll={(event) => {
+                const currentIndex = Math.round(event.nativeEvent.contentOffset.y / Dimensions.get('window').height);
+                if (currentIndex !== currentFullscreenIndex) {
+                  console.log(`[UserProfileScreen] onScroll - Index changed from ${currentFullscreenIndex} to ${currentIndex}`);
+                  setCurrentFullscreenIndex(currentIndex);
+                }
+              }}
+              onMomentumScrollEnd={(event) => {
+                const index = Math.round(event.nativeEvent.contentOffset.y / Dimensions.get('window').height);
+                setSelectedIndex(index);
+
+                // Fetch likes and comments for the current post when scrolling stops
+                const currentItem = filteredPosts[index];
+                if (currentItem) {
+                  console.log(`[UserProfileScreen] onMomentumScrollEnd - Scrolling to post ${currentItem.id} at index ${index}`);
+                  setCurrentPostId(currentItem.id);
+                  const contentType = currentItem.type === 'reel' ? 'reel' : 'post';
+                  fetchPostLikes(contentType, currentItem.id);
+                  fetchPostComments(contentType, currentItem.id);
+                }
+              }}
+              contentContainerStyle={{ backgroundColor: '#fff' }}
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
+      {/* Main Profile Content */}
+      <ScrollView>
+        {loading && (
+          <View style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 100,
+            backgroundColor: 'rgba(255,255,255,0.8)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}>
+            <ActivityIndicator size="large" color="#bea063" />
+          </View>
+        )}
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, marginTop: 5 }}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: 16 }}>
+              <Ionicons name="arrow-back" size={28} color="#bea063" />
+            </TouchableOpacity>
+            <Text style={[styles.username, { color: '#bea063', alignSelf: 'center' }]}>@{profile.username}</Text>
+            {/* Message button - only show for other users, not own profile */}
+            {/* {isFromSearch && userId && (
+              <TouchableOpacity
+                onPress={handleMessagePress}
+                disabled={messageLoading}
+                style={{
+                  padding: 8,
+                  borderRadius: 20,
+                  backgroundColor: '#f0f0f0',
+                  opacity: messageLoading ? 0.6 : 1
+                }}
+              >
+                {messageLoading ? (
+                  <ActivityIndicator size="small" color="#bea063" />
+                ) : (
+                  <Ionicons name="chatbubble-outline" size={24} color="#bea063" />
+                )}
+              </TouchableOpacity>
+            )} */}
+          </View>
+        </SafeAreaView>
+        {renderProfileHeader()}
+        {renderBio()}
+
+        {/* Highlights Section */}
+        {highlights.length > 0 && (
+          <View style={styles.highlightsContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.highlightsScrollContainer}>
+              {highlights.map((highlight, index) => (
+                <TouchableOpacity
+                  key={highlight.id || index}
+                  style={styles.highlightItem}
+                  onPress={() => {
+                    // Navigate to highlight viewer
+                    navigation.navigate('HighlightViewer', {
+                      highlightId: highlight.id,
+                      userId: userId || profile.id,
+                    });
+                  }}>
+                  <View style={styles.highlightCircle}>
+                    {highlight.cover_image ? (
+                      <Image
+                        source={{ uri: highlight.cover_image }}
+                        style={styles.highlightImage}
+                      />
+                    ) : (
+                      <View style={styles.highlightPlaceholder}>
+                        <View style={styles.highlightPlaceholderRing}>
+                          <View style={styles.highlightInitialCircle}>
+                            <Text style={styles.highlightInitialText}>
+                              {((highlight.title || '').toString().trim().charAt(0) || profile.username?.charAt?.(0) || ' ').toUpperCase()}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.highlightTitle} numberOfLines={1}>
+                    {highlight.title || 'Highlight'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {highlightsLoading && (
+          <View style={styles.highlightsLoadingContainer}>
+            <ActivityIndicator size="small" color="#bea063" />
+            <Text style={styles.highlightsLoadingText}>Loading highlights...</Text>
+          </View>
+        )}
+
+        {highlightsError && (
+          <View style={styles.highlightsErrorContainer}>
+            <Text style={styles.highlightsErrorText}>{highlightsError}</Text>
+          </View>
+        )}
+
+        {userId && (
+          <View style={{ alignItems: 'center', marginTop: 0, flexDirection: 'row', paddingHorizontal: 5 }}>
+            <TouchableOpacity
+              style={[
+                styles.followButton,
+                { backgroundColor: '#bea063', borderColor: '#bea063' },
+                isFollowing && followStatus !== 'pending' ? { backgroundColor: '#fff', borderColor: '#bea063', borderWidth: 1 } : null,
+                followStatus === 'pending' ? { backgroundColor: '#fff', borderColor: '#bea063', borderWidth: 1 } : null,
+              ]}
+              disabled={followLoading || followStatus === 'pending'}
+              onPress={async () => {
+                if (followLoading || followStatus === 'pending') return;
+                try {
+                  setFollowLoading(true);
+                  const authToken = await AsyncStorage.getItem('accessToken');
+                  const headers = {
+                    Accept: 'application/json',
+                    Authorization: `Bearer ${authToken}`,
+                  };
+                  if (isFollowing) {
+                    // Unfollow
+                    const res = await axios.post(
+                      'https://pashuahar.com/follower/unfollow/',
+                      { user_id: userId || profile.id },
+                      { headers }
+                    );
+                    if (res.data && (res.data.status || res.data.success)) {
+                      await fetchData();
+                    }
+                  } else {
+                    // Follow
+                    const res = await axios.post(
+                      'https://pashuahar.com/follower/follow/',
+                      { user_id: userId || profile.id },
+                      { headers }
+                    );
+                    if (res.data && (res.data.status || res.data.success)) {
+                      await fetchData();
+                    }
+                  }
+                } catch (e) {
+                  // handle error
+                } finally {
+                  setFollowLoading(false);
+                }
+              }}
+            >
+              <Text style={{
+                color: isFollowing || followStatus === 'pending' ? '#bea063' : '#fff',
+                fontWeight: 'bold',
+                fontSize: 16,
+                letterSpacing: 0.5,
+              }}>
+                {followStatus === 'pending'
+                  ? 'Requested'
+                  : isFollowing
+                    ? 'Unfollow'
+                    : 'Follow'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={{
+              backgroundColor: '#bea063',
+              borderColor: '#bea063',
+              marginRight: 8,
+              minWidth: 140,
+              paddingHorizontal: 28,
+              paddingVertical: 12,
+              borderRadius: 24,
+              // backgroundColor: '#bea063',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginTop: 20,
+              marginBottom: 20,
+              marginHorizontal: 5,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.10,
+              shadowRadius: 6,
+              elevation: 4,
+            }} onPress={handleMessagePress}>
+              <Text style={{
+                color: "#ffffff",
+                fontWeight: "600",
+              }}>Message</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {isFromSearch ? null : <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => navigation.navigate('EditProfile', { data: data })}>
+            <Text style={styles.editButtonText}>Edit Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.shareButton}>
+            <Ionicons name="share-outline" size={20} color="#000" />
+          </TouchableOpacity>
+        </View>}
+
+        {renderTabBar()}
+
+        {activeTab === 'tagged' && taggedLoading ? (
+          <View style={styles.emptyStateContainer}>
+            <ActivityIndicator size="large" color="#666" />
+            <Text style={styles.emptyStateText}>Loading tagged posts...</Text>
+          </View>
+        ) : activeTab === 'tagged' && taggedError ? (
+          <View style={styles.emptyStateContainer}>
+            <Ionicons name="alert-circle-outline" size={48} color="#666" />
+            <Text style={styles.emptyStateText}>{taggedError}</Text>
+          </View>
+        ) : activeTab === 'tagged' && filteredPosts.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
+            <Ionicons name="person-outline" size={48} color="#666" />
+            <Text style={styles.emptyStateText}>No tagged posts yet</Text>
+            <Text style={styles.emptyStateSubtext}>
+              Posts where you're mentioned will appear here
+            </Text>
+          </View>
+        ) : (
+          <SectionList
+            sections={[{ title: '', data: gridRows }]}
+            renderItem={({ item: row, index: rowIndex }: { item: Post[]; index: number }) => (
+              <View style={{ flexDirection: 'row' }}>
+                {row.map((post: Post, colIndex: number) => (
+                  <React.Fragment key={post.id}>
+                    {renderPostItem({ item: post, index: rowIndex * NUM_COLUMNS + colIndex })}
+                  </React.Fragment>
+                ))}
+                {/* Fill empty slots if needed */}
+                {row.length < NUM_COLUMNS &&
+                  Array(NUM_COLUMNS - row.length).fill(null).map((_, i) => (
+                    <View key={`empty-${i}`} style={styles.postItem} />
+                  ))}
+              </View>
+            )}
+            keyExtractor={(row: Post[], idx: number) => row.map((p: Post) => p.id).join('-') + '-' + idx}
+            scrollEnabled={false}
+            contentContainerStyle={styles.postsGrid}
+            renderSectionHeader={() => null}
+          />
+        )}
+
+      </ScrollView>
+
+      <Modal
+        visible={optionsVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOptionsVisible(false)}>
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          activeOpacity={1}
+          onPressOut={() => setOptionsVisible(false)}>
+          {isFromSearch ? null : <View
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 10,
+              padding: 20,
+              minWidth: 180,
+            }}>
+            <TouchableOpacity
+              onPress={handleEdit}
+              style={{ paddingVertical: 10 }}>
+              <Text style={{ fontSize: 16 }}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleDelete}
+              style={{
+                paddingVertical: 10,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}>
+              {deleteLoading ? (
+                <ActivityIndicator
+                  size={18}
+                  color="#bea063"
+                  style={{ marginRight: 8 }}
+                />
+              ) : null}
+              <Text style={{ fontSize: 16, color: '#E74C3C' }}>Delete</Text>
+            </TouchableOpacity>
+          </View>}
+        </TouchableOpacity>
+      </Modal>
+
+
+      {/* Edit Post/Reel Modal */}
+      <Modal
+        visible={editModalVisible && !isFromSearch}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditModalVisible(false)}>
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          activeOpacity={1}
+          onPressOut={() => setEditModalVisible(false)}>
+          <View
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 10,
+              padding: 20,
+              minWidth: 300,
+            }}>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: 'bold',
+                marginBottom: 20,
+                textAlign: 'center',
+              }}>
+              Edit {selectedPost?.type === 'reel' ? 'Reel' : 'Post'}
+            </Text>
+
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: '#ddd',
+                borderRadius: 5,
+                padding: 12,
+                marginBottom: 20,
+                fontSize: 16,
+                minHeight: 100,
+                textAlignVertical: 'top',
+              }}
+              placeholder="Enter caption..."
+              value={editCaption}
+              onChangeText={setEditCaption}
+              multiline
+              autoFocus
+            />
+
+            <View
+              style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  marginRight: 10,
+                  borderWidth: 1,
+                  borderColor: '#ddd',
+                  borderRadius: 5,
+                  alignItems: 'center',
+                }}
+                onPress={() => {
+                  setEditModalVisible(false);
+                  setEditCaption('');
+                  setSelectedPost(null);
+                }}>
+                <Text style={{ fontSize: 16 }}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  backgroundColor: '#000',
+                  borderRadius: 5,
+                  alignItems: 'center',
+                }}
+                onPress={handleEditSubmit}
+                disabled={editLoading}>
+                {editLoading ? (
+                  <ActivityIndicator size={20} color="#fff" />
+                ) : (
+                  <Text style={{ fontSize: 16, color: '#fff' }}>Update</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Place the modal at the end so it overlays everything */}
+      {optionsModalVisible && (
+        <View style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 100
+        }}>
+          <View style={{
+            backgroundColor: '#fff', borderRadius: 16, padding: 24, width: 300, alignItems: 'center'
+          }}>
+            <TouchableOpacity onPress={() => {
+              setOptionsModalVisible(false);
+              navigation.navigate('ContactUs');
+            }}>
+              <Text style={{ color: '#ed4956', fontWeight: 'bold', fontSize: 16, marginBottom: 16 }}>Report</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => {
+              setOptionsModalVisible(false);
+              navigation.navigate('UserProfile', { userId: userId?.toString(), isFromSearch: true, isFromHome: true });
+            }}>
+              <Text style={{ fontSize: 16, marginBottom: 16, color: '#222' }}>About this account</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setOptionsModalVisible(false)}>
+              <Text style={{ fontSize: 16, color: '#888', marginTop: 8 }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {selectedCommentPost && (
+        // <CommentModal
+        //   visible={isCommentModalVisible}
+        //   onClose={() => {
+        //     setIsCommentModalVisible(false);
+        //     setSelectedCommentPost(null);
+        //   }}
+        //   content_type={selectedCommentPost.type === 'reel' ? 'reel' : 'post'}
+        //   object_id={parseInt(selectedCommentPost.id)}
+        //   media_url={selectedCommentPost.media?.[0]?.media_file}
+        //   username={selectedCommentPost.username}
+        //   profile_picture={selectedCommentPost.userAvatar}
+        //   caption={selectedCommentPost.caption}
+        // />
+
+
+        <InstagramCommentModal
+          visible={isCommentModalVisible}
+          onClose={() => {
+            setIsCommentModalVisible(false);
+            // Refresh comments data when modal closes to ensure we have latest data
+            if (selectedCommentPost) {
+              const contentType = selectedCommentPost.type === 'reel' ? 'reel' : 'post';
+              fetchPostComments(contentType, selectedCommentPost.id);
+            }
+          }}
+          postId={selectedCommentPost.id}
+          mediaUrl={selectedCommentPost.media?.[0]?.media_file}
+          username={selectedCommentPost.userName}
+          userAvatar={selectedCommentPost.userAvatar}
+          content_type={selectedCommentPost.type === 'reel' ? 'reel' : 'post'}
+          caption={selectedCommentPost.caption}
+          onCommentAdded={(newComment) => {
+            addCommentToPost(selectedCommentPost.id, newComment);
+          }}
+          onCommentDeleted={(commentId) => {
+            removeCommentFromPost(selectedCommentPost.id, commentId);
+          }}
+        />
+      )}
+
+      {/* Custom Mentioned Users Modal */}
+      <Modal
+        visible={mentionedUsersModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMentionedUsersModalVisible(false)}>
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          activeOpacity={1}
+          onPress={() => setMentionedUsersModalVisible(false)}>
+          <View
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 16,
+              padding: 20,
+              width: '90%',
+              maxHeight: '70%',
+            }}
+            onStartShouldSetResponder={() => true}>
+            {/* Header */}
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 20,
+              paddingBottom: 15,
+              borderBottomWidth: 1,
+              borderBottomColor: '#eee',
+            }}>
+              <Text style={{
+                fontSize: 18,
+                fontWeight: 'bold',
+                color: '#333',
+              }}>
+                Mentioned Users
+              </Text>
+              <TouchableOpacity
+                onPress={() => setMentionedUsersModalVisible(false)}
+                style={{ padding: 5 }}>
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Users List */}
+            <ScrollView style={{ maxHeight: 400 }}>
+              {selectedMentionedUsers.map((user: any, index: number) => (
+                <TouchableOpacity
+                  key={user.id}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingVertical: 12,
+                    paddingHorizontal: 8,
+                    borderBottomWidth: index < selectedMentionedUsers.length - 1 ? 1 : 0,
+                    borderBottomColor: '#f0f0f0',
+                  }}
+                  onPress={() => {
+                    setMentionedUsersModalVisible(false);
+                    navigation.navigate('UserProfile', {
+                      userId: user.id.toString(),
+                      isFromSearch: true,
+                    });
+                  }}>
+                  {/* Profile Picture */}
+                  <View style={{
+                    width: 50,
+                    height: 50,
+                    borderRadius: 25,
+                    borderWidth: 2,
+                    borderColor: '#bea063',
+                    backgroundColor: '#f5f5f5',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginRight: 12,
+                  }}>
+                    <Ionicons name="person" size={24} color="#bea063" />
+                  </View>
+
+                  {/* User Info */}
+                  <View style={{ flex: 1 }}>
+                    <Text style={{
+                      fontSize: 16,
+                      fontWeight: '600',
+                      color: '#bea063',
+                      marginBottom: 2,
+                    }}>
+                      @{user.username}
+                    </Text>
+                    <Text style={{
+                      fontSize: 14,
+                      color: '#666',
+                    }}>
+                      Tap to view profile
+                    </Text>
+                  </View>
+
+                  {/* Arrow Icon */}
+                  <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Footer */}
+            <View style={{
+              marginTop: 20,
+              paddingTop: 15,
+              borderTopWidth: 1,
+              borderTopColor: '#eee',
+            }}>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#bea063',
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                }}
+                onPress={() => setMentionedUsersModalVisible(false)}>
+                <Text style={{
+                  color: '#fff',
+                  fontSize: 16,
+                  fontWeight: '600',
+                }}>
+                  Close
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Likes Modal */}
+      <Modal
+        visible={showLikesModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLikesModal(false)}>
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          activeOpacity={1}
+          onPress={() => setShowLikesModal(false)}>
+          <View
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 16,
+              padding: 20,
+              width: '90%',
+              maxHeight: '70%',
+            }}
+            onStartShouldSetResponder={() => true}>
+            {/* Header */}
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 20,
+              paddingBottom: 15,
+              borderBottomWidth: 1,
+              borderBottomColor: '#eee',
+            }}>
+              <Text style={{
+                fontSize: 18,
+                fontWeight: 'bold',
+                color: '#333',
+              }}>
+                Liked by
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowLikesModal(false)}
+                style={{ padding: 5 }}>
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Users List */}
+            <ScrollView style={{ maxHeight: 400 }}>
+              {likesLoading ? (
+                <ActivityIndicator size="large" color="#bea063" style={{ marginTop: 20 }} />
+              ) : !currentPostId || !postLikesData[currentPostId] || postLikesData[currentPostId].length === 0 ? (
+                <Text style={{ textAlign: 'center', color: '#666', marginTop: 20 }}>
+                  No likes yet
+                </Text>
+              ) : (
+                postLikesData[currentPostId].map((like: any, index: number) => (
+                  <TouchableOpacity
+                    key={like.id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingVertical: 12,
+                      paddingHorizontal: 8,
+                      borderBottomWidth: index < postLikesData[currentPostId].length - 1 ? 1 : 0,
+                      borderBottomColor: '#f0f0f0',
+                    }}
+                    onPress={() => {
+                      setShowLikesModal(false);
+                      navigation.navigate('UserProfile', {
+                        userId: like.user_id.toString(),
+                        isFromSearch: true,
+                      });
+                    }}>
+                    {/* Profile Picture */}
+                    <View style={{
+                      width: 50,
+                      height: 50,
+                      borderRadius: 25,
+                      borderWidth: 2,
+                      borderColor: '#bea063',
+                      backgroundColor: '#f5f5f5',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 12,
+                    }}>
+                      {like.profile_picture ? (
+                        <Image
+                          source={{ uri: like.profile_picture }}
+                          style={{
+                            width: 46,
+                            height: 46,
+                            borderRadius: 23,
+                          }}
+                        />
+                      ) : (
+                        <Ionicons name="person" size={24} color="#bea063" />
+                      )}
+                    </View>
+
+                    {/* User Info */}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{
+                        fontSize: 16,
+                        fontWeight: '600',
+                        color: '#bea063',
+                        marginBottom: 2,
+                      }}>
+                        {like.full_name || like.user_name}
+                      </Text>
+                      <Text style={{
+                        fontSize: 14,
+                        color: '#666',
+                      }}>
+                        @{like.user_name}
+                      </Text>
+                    </View>
+                    {
+                      React.createElement(Ionicons, { name: 'heart', size: 22, color: '#ff6b6b' })
+                    }
+
+                    {/* Arrow Icon */}
+
+                    {/* <Ionicons name="chevron-forward" size={20} color="#ccc" /> */}
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+
+            {/* Footer */}
+            <View style={{
+              marginTop: 20,
+              paddingTop: 15,
+              borderTopWidth: 1,
+              borderTopColor: '#eee',
+            }}>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#bea063',
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                }}
+                onPress={() => setShowLikesModal(false)}>
+                <Text style={{
+                  color: '#fff',
+                  fontSize: 16,
+                  fontWeight: '600',
+                }}>
+                  Close
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#bea063',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#bea063',
+    textAlign: 'center',
+    flex: 1,
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+  },
+  profileImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginRight: 20,
+  },
+  statsContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  bioContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+  },
+  username: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  fullName: {
+    fontSize: 16,
+    marginTop: 2,
+  },
+  bioText: {
+    fontSize: 14,
+    color: '#333',
+    marginTop: 5,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    marginBottom: 15,
+  },
+  editButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    padding: 8,
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  editButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  shareButton: {
+    width: 40,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBar: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    minHeight: 44, // Minimum touch target for Android
+    justifyContent: 'center',
+  },
+  activeTab: {
+    borderBottomWidth: 2,
+    borderBottomColor: '#bea063',
+  },
+  postsGrid: {
+    padding: 1,
+  },
+  postItem: {
+    width: ITEM_SIZE,
+    height: ITEM_SIZE,
+    margin: 0.5,
+  },
+  postImage: {
+    width: '100%',
+    height: '100%',
+  },
+  multipleMediaIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 3,
+  },
+  multipleMediaText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 2,
+  },
+  reelIndicator: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderRadius: 16,
+    padding: 2,
+    zIndex: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  postOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 5,
+  },
+  postStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  postStatText: {
+    color: '#fff',
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  videoContainer: {
+    position: 'relative',
+  },
+  videoControls: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 10,
+  },
+  videoControlButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenVideoControls: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+  },
+  fullscreenControlRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 20,
+  },
+  fullscreenControlButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  fullscreenProfileImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 10,
+  },
+  fullscreenUsername: {
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  fullscreenPostActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 10,
+  },
+  fullscreenActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  fullscreenActionButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenLikesContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    padding: 10,
+  },
+  fullscreenLikesText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  fullscreenCaptionContainer: {
+    flexDirection: 'row',
+    marginBottom: 10,
+  },
+  fullscreenCaptionUsername: {
+    fontWeight: 'bold',
+    fontSize: 14,
+    color: '#fff',
+    marginRight: 5,
+  },
+  fullscreenCaptionText: {
+    fontSize: 14,
+    color: '#fff',
+    flex: 1,
+  },
+  fullscreenCommentsButton: {
+    padding: 10,
+  },
+  fullscreenCommentsText: {
+    fontSize: 14,
+    color: '#ccc',
+  },
+  fullscreenDateText: {
+    fontSize: 12,
+    color: '#999',
+    paddingHorizontal: 10,
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyStateText: {
+    color: '#666',
+    fontSize: 18,
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  emptyStateSubtext: {
+    color: '#999',
+    fontSize: 14,
+    marginTop: 5,
+    textAlign: 'center',
+  },
+  collectionIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 3,
+  },
+  collectionText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 2,
+  },
+  createCollectionButton: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  createCollectionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  floatingCreateButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  followButton: {
+    minWidth: 140,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: '#bea063',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    marginBottom: 20,
+    marginHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  unfollowButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#bea063',
+  },
+  pendingButton: {
+    backgroundColor: '#eee',
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  followButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+    letterSpacing: 0.5,
+  },
+  unfollowButtonText: {
+    color: '#bea063',
+    fontWeight: 'bold',
+    fontSize: 16,
+    letterSpacing: 0.5,
+  },
+  pendingButtonText: {
+    color: '#888',
+    fontWeight: 'bold',
+    fontSize: 16,
+    letterSpacing: 0.5,
+  },
+  // Highlights styles
+  highlightsContainer: {
+    marginVertical: 15,
+    paddingHorizontal: 20,
+  },
+  highlightsScrollContainer: {
+    paddingRight: 20,
+  },
+  highlightItem: {
+    alignItems: 'center',
+    marginRight: 20,
+    width: 80,
+  },
+  highlightCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: '#bea063',
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  highlightImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 38,
+  },
+  highlightPlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  highlightPlaceholderRing: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 2,
+    borderColor: '#bea063',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  highlightPlaceholderInner: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#faf7ef',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  highlightInitialCircle: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  highlightInitialText: {
+    fontSize: 30,
+    fontWeight: '800',
+    color: '#bea063',
+  },
+  highlightIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#f0e4c8',
+  },
+  highlightBadge: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#f0e4c8',
+  },
+  highlightTitle: {
+    fontSize: 12,
+    color: '#333',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  highlightsLoadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  highlightsLoadingText: {
+    color: '#666',
+    fontSize: 14,
+    marginTop: 8,
+  },
+  highlightsErrorContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  highlightsErrorText: {
+    color: '#E74C3C',
+    fontSize: 14,
+  },
+  tagIconContainer: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 12,
+    padding: 4,
+    zIndex: 3,
+  },
+});
+
+export default UserProfileScreen;

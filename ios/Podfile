@@ -16,9 +16,19 @@ end
 target 'Yogiverse' do
   config = use_native_modules!
   
+  # Firebase Core
   pod 'Firebase', :modular_headers => true
   pod 'FirebaseCore', :modular_headers => true
+  pod 'FirebaseCoreInternal', :modular_headers => true
   pod 'GoogleUtilities', :modular_headers => true
+  
+  # Firebase Messaging for Push Notifications
+  pod 'FirebaseMessaging', :modular_headers => true
+  pod 'FirebaseInstallations', :modular_headers => true
+  
+  # Firebase Analytics (optional but recommended)
+  pod 'FirebaseAnalytics', :modular_headers => true
+  pod 'GoogleAppMeasurement', :modular_headers => true
   
   use_react_native!(
     :path => config[:reactNativePath],
@@ -58,5 +68,26 @@ target 'Yogiverse' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+    
+    # Fix for NVM Node.js path issue with Hermes
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        # Set the correct Node.js path for Hermes
+        if target.name == 'hermes-engine'
+          # Try multiple Node.js paths
+          node_paths = [
+            '/Users/gopeshsutariya/.nvm/versions/node/v20.19.4/bin/node',
+            '/opt/homebrew/bin/node',
+            '/usr/local/bin/node',
+            `which node`.strip
+          ].select { |path| File.exist?(path) }
+          
+          if node_paths.any?
+            config.build_settings['NODE_BINARY'] = node_paths.first
+            puts "Setting NODE_BINARY to: #{node_paths.first}"
+          end
+        end
+      end
+    end
   end
 end

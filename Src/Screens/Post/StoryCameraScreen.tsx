@@ -28,6 +28,8 @@ const StoryCameraScreen = () => {
       if (Platform.OS === 'ios') {
         const cameraPermission = await request(PERMISSIONS.IOS.CAMERA);
         const microphonePermission = await request(PERMISSIONS.IOS.MICROPHONE);
+        console.log("cameraPermission",cameraPermission);
+        console.log("microphonePermission",microphonePermission);
         
         if (cameraPermission === RESULTS.GRANTED && microphonePermission === RESULTS.GRANTED) {
           setHasPermission(true);

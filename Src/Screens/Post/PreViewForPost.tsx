@@ -285,6 +285,8 @@ const PreViewForPost = () => {
           value={caption}
           onChangeText={setCaption}
           multiline
+          placeholderTextColor="#000000"
+
         />
       </View>
       <View style={styles.buttonContainer}>

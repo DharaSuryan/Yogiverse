@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Image,
@@ -11,6 +11,11 @@ import {
   FlatList,
   Modal,
   SectionList,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -69,6 +74,10 @@ interface PostProps {
   isMuted?: boolean;
   onRemovedFromCollection?: () => void;
   onOptions?: () => void;
+  iSfromTrendings?: boolean;
+  onCommentAdded?: (newComment: any) => void;
+  onCommentDeleted?: (commentId: string) => void;
+  onActionComplete?: (updated?: any) => void;
 }
 
 const fallbackAvatar = require('../Assets/yoga.jpg');
@@ -130,14 +139,22 @@ const Post: React.FC<PostProps> = (props) => {
     isMuted,
     onRemovedFromCollection,
     onOptions,
+    iSfromTrendings = false,
+    onCommentAdded,
+    onCommentDeleted,
   } = props;
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [likesCount, setLikesCount] = useState(likes);
   const [likeLoading, setLikeLoading] = useState(false);
+  const [commentsList, setCommentsList] = useState<any[]>([]);
+  const [isCommented, setIsCommented] = useState(false);
+  const [isLikedByUser, setIsLikedByUser] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [showFallbackAvatar, setShowFallbackAvatar] = useState(false);
   const [showFallbackPostImage, setShowFallbackPostImage] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [videoStates, setVideoStates] = useState<{ [index: number]: { paused: boolean; muted: boolean } }>({});
+  const [mediaHeightsByIndex, setMediaHeightsByIndex] = useState<{ [index: number]: number }>({});
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [saveModalVisible, setSaveModalVisible] = useState(false);
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -150,39 +167,229 @@ const Post: React.FC<PostProps> = (props) => {
   const [saveCollectionLoading, setSaveCollectionLoading] = useState(false);
   const [isCommentModalVisible, setIsCommentModalVisible] = useState(false);
   const [isInstagramCommentModalVisible, setInstagramCommentModalVisible] = useState(false);
+  const [optionsModalVisible, setOptionsModalVisible] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followStatus, setFollowStatus] = useState('');
+  const [followLoading, setFollowLoading] = useState(false);
+  const [showCreateCollectionInput, setShowCreateCollectionInput] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState('');
+  const [createCollectionLoading, setCreateCollectionLoading] = useState(false);
+  const [likesModalVisible, setLikesModalVisible] = useState(false);
+  const [likesUsers, setLikesUsers] = useState<any[]>([]);
+  const [likesLoading, setLikesLoading] = useState(false);
+  const [tagsModalVisible, setTagsModalVisible] = useState(false);
+  const [mentionedUsers, setMentionedUsers] = useState<any[]>([]);
+  const [tagsLoading, setTagsLoading] = useState(false);
+  // console.log("isLiked from props", isLiked);
+
+  // Fetch follow status for the user
+  const fetchFollowStatus = async (userId: string) => {
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      };
+      const response = await axios.get(`https://pashuahar.com/user_profile/${userId}/`, { headers });
+
+      const data = response?.data?.data;
+      // console.log("Follow status data:", data);
+
+      setIsFollowing(data?.is_following);
+      setFollowStatus(data?.follow_status);
+    } catch (err) {
+      // console.log("here comes error", err);
+
+      setIsFollowing(false);
+      setFollowStatus('');
+    }
+  };
+
+  React.useEffect(() => {
+    // console.log("here comes use effect", profile.id , profile.user, item?.profile?.id);
+    
+    const userId = profile.user || profile?.id || item?.profile?.id;
+    if (userId) {
+      fetchFollowStatus(userId.toString());
+    }
+  }, [profile, item]);
 
   const getMediaUri = (item: any) => {
     if (item.media_file) return item.media_file.startsWith('http') ? item.media_file : `http://192.168.1.160:9001${item.media_file}`;
     if (item.file) return item.file.startsWith('http') ? item.file : `http://192.168.1.160:9001${item.file}`;
     return null;
   };
-// console.log("id.....", item?.profile?.id , id);
+  // console.log("id.....", item?.profile?.id , id);
 
-  const handleLike = async () => {
-    const authToken = await AsyncStorage.getItem('accessToken');
-    // console.log("isdrmoDetails",isdrmoDetails);
-    
+  // Fetch current user id on mount
+  useEffect(() => {
+    const fetchUserId = async () => {
+      try {
+        const authToken = await AsyncStorage.getItem('accessToken');
+        const headers = {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        };
+        // const res = await axios.get('https://pashuahar.com/profile/', { headers });
+        // const id = res?.data?.data?.profile?.user;
+        await AsyncStorage.getItem('userData').then((value) => {
+          console.log("value from async storage", value);
+          const userData = value ? JSON.parse(value) : {};
+          setCurrentUserId(userData.id);
+        });
+
+        console.log("Current user ID:", id);
+        
+        // setCurrentUserId(id);
+      } catch (e) {
+        setCurrentUserId(null);
+      }
+    };
+    fetchUserId();
+  }, []);
+
+  // Keep local isLiked/likesCount in sync with incoming props to avoid stale state when list reuses rows
+  useEffect(() => {
+    setIsLiked(initialIsLiked);
+  }, [initialIsLiked, id]);
+
+  useEffect(() => {
+    setLikesCount(likes);
+  }, [likes, id]);
+
+  // Refresh like/comment status after like/comment actions
+  const refreshLikeAndCommentStatus = async () => {
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
       const headers = {
         'Accept': 'application/json',
         'Authorization': `Bearer ${authToken}`
       };
+      // Like status
+      const likeRes = await axios.get(`https://pashuahar.com/like/list/`, {
+        params: { content_type: contentType, object_id: id },
+        headers,
+      });
+      const likeData = likeRes?.data?.data || [];
+      const userId = currentUserId || profile.user || profile?.id || item?.profile?.id;
+      const liked = likeData.some((l: any) => l.user_id == userId);
+      setIsLikedByUser(liked);
+      setIsLiked(liked);
+      setLikesCount(likeData.length);
+
+      // Comment status
+      const commentRes = await axios.get(`https://pashuahar.com/comment/list/`, {
+        params: { content_type: contentType, object_id: id },
+        headers,
+      });
+      const commentData = commentRes?.data?.data || [];
+      setCommentsList(commentData);
+      const commented = commentData.some((c: any) => c.user_id == userId);
+      setIsCommented(commented);
+    } catch (e) {
+      setIsLikedByUser(false);
+      setIsCommented(false);
+    }
+  };
+
+  const fetchLikesUsers = async () => {
+    try {
+      setLikesLoading(true);
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      };
+      const likeRes = await axios.get(`https://pashuahar.com/like/list/`, {
+        params: { content_type: contentType, object_id: id },
+        headers,
+      });
+      const likeData = likeRes?.data?.data || [];
+      setLikesUsers(likeData);
+    } catch (e) {
+      setLikesUsers([]);
+    } finally {
+      setLikesLoading(false);
+    }
+  };
+
+  const openLikesModal = async () => {
+    setLikesModalVisible(true);
+    await fetchLikesUsers();
+  };
+
+  const fetchMentionedUsers = async () => {
+    try {
+      setTagsLoading(true);
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      };
+      console.log("fetching mentioned users",id);
+      
+      
+      // Fetch post details to get mentioned users
+      const response = await axios.get(`https://pashuahar.com/posts/${id}/`, { headers });
+      const postData = response?.data?.data;
+      
+      if (postData?.mentioned_users && Array.isArray(postData.mentioned_users)) {
+        setMentionedUsers(postData.mentioned_users);
+      } else {
+        setMentionedUsers([]);
+      }
+    } catch (e) {
+      console.error('Error fetching mentioned users:', e);
+      setMentionedUsers([]);
+    } finally {
+      setTagsLoading(false);
+    }
+  };
+
+  const openTagsModal = async () => {
+    setTagsModalVisible(true);
+    await fetchMentionedUsers();
+  };
+
+  // Prefetch likers once when there are likes so the inline text can show a name smoothly
+  useEffect(() => {
+    if (likesCount > 0 && likesUsers.length === 0) {
+      fetchLikesUsers();
+    }
+  }, [likesCount, id]);
+
+  const handleLike = async () => {
+    const authToken = await AsyncStorage.getItem('accessToken');
+    // console.log("isdrmoDetails",isdrmoDetails);
+
+    const headers = {
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${authToken}`
+    };
     if (likeLoading) return;
     setLikeLoading(true);
     setIsLiked(!isLiked);
     setLikesCount(isLiked ? likesCount - 1 : likesCount + 1);
     try {
-      console.log("contentType .....",item?.profile,contentType,id);
-      
+      console.log("contentType .....", item?.profile, contentType, id);
+
       let like = await axios.post('https://pashuahar.com/like-toggle/', {
         content_type: contentType == "reel" ? "reel" : "post",
-        object_id:  id,
-      },{headers});
-      console.log("like .....",like);
-      // After like API call
-      props.onActionComplete?.();
+        object_id: id,
+      }, { headers });
+      console.log("like .....", like);
+      // After like API call, inform parent to update its source of truth instead of refetching lists here
+      props.onActionComplete?.({
+        id,
+        is_like: !isLiked,
+        data: {
+          id,
+          like_count: isLiked ? Math.max(0, likesCount - 1) : likesCount + 1,
+        },
+      });
     } catch (err) {
-      console.log("error .....",err);
-      
+      console.log("error .....", err);
+
       // Revert UI if failed
       setIsLiked(isLiked);
       setLikesCount(likesCount);
@@ -206,17 +413,17 @@ const Post: React.FC<PostProps> = (props) => {
     try {
       const authToken = await AsyncStorage.getItem('accessToken');
       console.log('Auth token:', authToken ? 'Present' : 'Missing');
-      
+
       const headers = {
         'Accept': 'application/json',
         'Authorization': `Bearer ${authToken}`
       };
-      
+
       console.log('Fetching collections from: https://pashuahar.com/collections/');
       const response = await axios.get('https://pashuahar.com/collections/', { headers });
       console.log('Collections API response status:', response.status);
       console.log('Collections API response data:', JSON.stringify(response.data, null, 2));
-      
+
       if (response.data?.data?.results) {
         console.log('Found collections:', response.data.data.results.length);
         setCollections(response.data.data.results);
@@ -253,14 +460,14 @@ const Post: React.FC<PostProps> = (props) => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`
       };
-      console.log("here comes .....", item.profile.id, id,item);
+      console.log("here comes .....", item.profile.id, id, item);
       // return
       const payload = {
         collection: collection.id,
         content_type: contentType === 'reel' ? 'reel' : 'post',
-        object_id:  id,
+        object_id: id,
       };
-      
+
       console.log('Saving post to collection. Payload:', payload);
       const response = await axios.post(
         'https://pashuahar.com/collections/items/',
@@ -268,7 +475,7 @@ const Post: React.FC<PostProps> = (props) => {
         { headers }
       );
       console.log('API response from collections/items:', response && typeof response === 'object' ? JSON.stringify(response, null, 2) : response);
-      
+
       Alert.alert('Success', 'Post saved to collection!');
       setSaveModalVisible(false);
       props.onActionComplete?.();
@@ -282,9 +489,31 @@ const Post: React.FC<PostProps> = (props) => {
     }
   };
 
-  const handleCreateCollection = () => {
-    setSaveModalVisible(false);
-    navigations.navigate('CreateCollectionScreen');
+  const handleCreateCollection = async () => {
+    if (!newCollectionName.trim()) {
+      Alert.alert('Error', 'Please enter a collection name');
+      return;
+    }
+    setCreateCollectionLoading(true);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      };
+      const payload = { name: newCollectionName.trim() };
+      await axios.post('https://pashuahar.com/collections/', payload, { headers });
+      setShowCreateCollectionInput(false);
+      setNewCollectionName('');
+      await fetchCollections();
+      Alert.alert('Success', 'Collection created successfully!');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Failed to create collection';
+      Alert.alert('Alert', errorMessage);
+    } finally {
+      setCreateCollectionLoading(false);
+    }
   };
 
   const sections = [
@@ -359,15 +588,15 @@ const Post: React.FC<PostProps> = (props) => {
   };
 
   const renderCollectionItem = ({ item }: { item: Collection }) => (
-    <TouchableOpacity 
-      style={styles.collectionItem} 
+    <TouchableOpacity
+      style={styles.collectionItem}
       onPress={() => handleCollectionPress(item)}
       disabled={saveLoading}
     >
       <View style={styles.collectionImageContainer}>
         {item.cover_image ? (
-          <Image 
-            source={{ uri: item.cover_image }} 
+          <Image
+            source={{ uri: item.cover_image }}
             style={styles.collectionImage}
             resizeMode="cover"
           />
@@ -401,12 +630,96 @@ const Post: React.FC<PostProps> = (props) => {
 
   const getSectionData = (): SectionData[] => {
     if (collections.length === 0) return [];
-    
+
     return [{
       title: 'Choose Collection',
       data: collections
     }];
   };
+
+  <OptionsBottomSheet
+    visible={optionsModalVisible}
+    onClose={() => setOptionsModalVisible(false)}
+    navigation={navigation}
+    aboutStatusText={
+      followStatus === 'pending'
+        ? 'Requested'
+        : isFollowing
+          ? 'Unfollow'
+          : 'Follow'
+    }
+    onUnfollow={async () => {
+      setOptionsModalVisible(false);
+      if (followLoading || followStatus === 'pending') return;
+      const userId = profile.user || profile?.id || item?.profile?.id;
+      try {
+        const authToken = await AsyncStorage.getItem('accessToken');
+        const headers = {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        };
+        if (isFollowing) {
+          // Unfollow
+          const res = await axios.post(
+            'https://pashuahar.com/follower/unfollow/',
+            { user_id: userId || profile.id },
+            { headers }
+          );
+          if (res.data && (res.data.status || res.data.success)) {
+            await fetchFollowStatus(userId.toString());
+          }
+        } else {
+          // Follow
+          const res = await axios.post(
+            'https://pashuahar.com/follower/follow/',
+            { user_id: userId || profile.id },
+            { headers }
+          );
+          if (res.data && (res.data.status || res.data.success)) {
+            await fetchFollowStatus(userId.toString());
+          }
+        }
+      } catch (e) {
+        Alert.alert('Error', 'Failed to update follow status.');
+      }
+    }}
+    onReport={() => {
+      setOptionsModalVisible(false);
+      navigation.navigate('ContactUs');
+    }}
+    onSave={() => {
+      setOptionsModalVisible(false);
+      handleSave();
+    }}
+    onRemix={() => {
+      setOptionsModalVisible(false);
+      Alert.alert('Remix', 'Remix functionality coming soon!');
+    }}
+    onCutout={() => {
+      setOptionsModalVisible(false);
+      Alert.alert('Cutout', 'Cutout sticker functionality coming soon!');
+    }}
+    onFavourite={() => {
+      setOptionsModalVisible(false);
+      Alert.alert('Favourites', 'Add to Favourites coming soon!');
+    }}
+    onAbout={() => {
+      setOptionsModalVisible(false);
+      const userId = profile.user || profile?.id || item?.profile?.id;
+      if (userId) {
+        navigation.navigate('UserProfile', { userId: userId.toString(), isFromSearch: true, isFromHome: true });
+      }
+    }}
+    onQRCode={() => {
+      Alert.alert('QR Code', 'QR code functionality coming soon!');
+    }}
+    onWhy={() => {
+      Alert.alert('Why', 'Why you\'re seeing this post coming soon!');
+    }}
+    onHide={() => {
+      Alert.alert('Hide', 'Hide functionality coming soon!');
+    }}
+  />
 
   const renderMedia = () => (
     <SectionList
@@ -477,13 +790,40 @@ const Post: React.FC<PostProps> = (props) => {
             </View>
           );
         }
-    
+
+        // Dynamically size image container using intrinsic aspect ratio
+        const screenWidth = Dimensions.get('window').width;
+        let containerHeight = mediaHeightsByIndex[index];
+        if (!containerHeight && uri) {
+          Image.getSize(
+            uri,
+            (naturalWidth, naturalHeight) => {
+              if (!naturalWidth || !naturalHeight) return;
+              const aspect = naturalWidth / naturalHeight; // width / height
+              const minHeight = screenWidth / 1.91; // min aspect 1.91:1 (landscape)
+              const maxHeight = screenWidth / 0.8;  // max aspect 4:5 (portrait)
+              const naturalContainerHeight = screenWidth / aspect; // contain height
+              const targetHeight = Math.max(minHeight, Math.min(naturalContainerHeight, maxHeight));
+              setMediaHeightsByIndex(prev => (
+                prev[index] === targetHeight ? prev : { ...prev, [index]: targetHeight }
+              ));
+            },
+            () => {
+              setMediaHeightsByIndex(prev => ({ ...prev, [index]: screenWidth + 120 }));
+            }
+          );
+        }
+
+        const resolvedHeight = containerHeight || Dimensions.get('window').width + 120;
         return (
-          <Image
-            source={uri ? { uri } : fallbackPostImage}
-            style={styles.postImage}
-            onError={() => setShowFallbackPostImage(true)}
-          />
+          <View style={{ width: screenWidth, height: resolvedHeight, backgroundColor: '#fff' }}>
+            <Image
+              source={uri ? { uri } : fallbackPostImage}
+              style={{ width: '100%', height: '100%' }}
+              resizeMode="contain"
+              onError={() => setShowFallbackPostImage(true)}
+            />
+          </View>
         );
       }}
       renderSectionHeader={() => null}
@@ -499,7 +839,7 @@ const Post: React.FC<PostProps> = (props) => {
       </View>
     );
   }
-  
+
   return (
     <View style={styles.container}>
       {!hideHeaderAndControls && (
@@ -509,7 +849,7 @@ const Post: React.FC<PostProps> = (props) => {
             onPress={() => {
               const userId = profile.user || profile?.id || item?.profile?.id;
               if (userId) {
-                navigation.navigate('UserProfile', { userId: userId.toString(), isFromSearch: true,isFromHome:true });
+                navigation.navigate('UserProfile', { userId: userId.toString(), isFromSearch: true, isFromHome: true });
               }
             }}
             activeOpacity={0.7}
@@ -541,9 +881,11 @@ const Post: React.FC<PostProps> = (props) => {
               {!!location && <Text style={styles.location}>{location}</Text>}
             </View>
           </TouchableOpacity>
-          {/* <TouchableOpacity onPress={onOptions}>
+          <TouchableOpacity
+            onPress={() => { setOptionsModalVisible(true) }}
+          >
             {React.createElement(Ionicons, { name: "ellipsis-vertical", size: 20, color: "#bea063" })}
-          </TouchableOpacity> */}
+          </TouchableOpacity>
         </View>
       )}
 
@@ -571,29 +913,49 @@ const Post: React.FC<PostProps> = (props) => {
       {/* Only show actions if hideActions is false */}
       {(
         <View style={styles.actions}>
+          
           {/* Like button and count */}
-          { (
+          {(
             <>
               <TouchableOpacity onPress={handleLike} disabled={likeLoading}>
                 {likeLoading ? (
                   <ActivityIndicator size={20} color="#bea063" />
                 ) : (
-                  React.createElement(Ionicons, { name: isLiked ? 'heart' : 'heart-outline', size: 26, color: isLiked ? '#bea063' : '#bea063' })
+                  React.createElement(
+                    Ionicons,
+                    {
+                      name: (isLiked ? 'heart' : 'heart-outline'),
+                      size: 26,
+                      color: '#bea063'
+                    }
+                  )
                 )}
               </TouchableOpacity>
               {
-                
-                !hideLikeCount && <Text style={{ color: '#bea063', fontWeight: '600', marginLeft: 4, marginRight: 0 }}>{likesCount}</Text>}
+                !hideLikeCount && likesCount && <Text style={{ color: '#bea063', fontWeight: '600', marginLeft: 4, marginRight: 0 }}>{likesCount}</Text>
+              }
             </>
           )}
 
           {/* Comment button and count */}
-          {!allowComments && (
+          {allowComments &&(
             <>
               <TouchableOpacity style={styles.actionButton} onPress={handleComment}>
-                {React.createElement(Ionicons, { name: "chatbubble-outline", size: 24, color: "#bea063" })}
+                {React.createElement(
+                  Ionicons,
+                  {
+                    name:'chatbubble-outline',
+                    size: 24,
+                    color: '#bea063'
+                  }
+                )}
               </TouchableOpacity>
-              <Text style={{ color: '#bea063', fontWeight: '600', marginLeft: 4 }}>{commentCount}</Text>
+              {(() => {
+                const effectiveCommentCount = commentsList.length || commentCount || 0;
+                return effectiveCommentCount > 0 ? (
+                  <Text style={{ color: '#bea063', fontWeight: '600', marginLeft: 4 }}>{effectiveCommentCount}</Text>
+                ) : null;
+              })()}
             </>
           )}
 
@@ -602,10 +964,15 @@ const Post: React.FC<PostProps> = (props) => {
             {React.createElement(Ionicons, { name: "share-social-outline", size: 24, color: "#bea063" })}
           </TouchableOpacity>
 
+          {/* Tags button */}
+          <TouchableOpacity style={styles.actionButton} onPress={openTagsModal}>
+            {React.createElement(Ionicons, { name: "pricetag-outline", size: 24, color: "#bea063" })}
+          </TouchableOpacity>
+
           {/* Save icon on the right */}
           {!isdrmoDetails ? (
             item?.is_collection ? (
-              <TouchableOpacity style={{position:'absolute',right:10}} onPress={handleRemoveFromCollection} disabled={saveCollectionLoading}>
+              <TouchableOpacity style={{ position: 'absolute', right: 10 }} onPress={handleRemoveFromCollection} disabled={saveCollectionLoading}>
                 {saveCollectionLoading ? (
                   <ActivityIndicator size={20} color="#bea063" />
                 ) : (
@@ -613,7 +980,7 @@ const Post: React.FC<PostProps> = (props) => {
                 )}
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity style={{position:'absolute',right:10}} onPress={handleSave}>
+              <TouchableOpacity style={{ position: 'absolute', right: 10 }} onPress={handleSave}>
                 {React.createElement(Ionicons, { name: "bookmark-outline", size: 24, color: "#bea063" })}
               </TouchableOpacity>
             )
@@ -632,16 +999,43 @@ const Post: React.FC<PostProps> = (props) => {
         </View>
       )}
 
+      {/* Likes summary - shows first liker and others count; opens likes list */}
+      {likesCount > 0 && (
+        <TouchableOpacity onPress={openLikesModal} style={{ paddingHorizontal: 10, marginBottom: 6, marginTop: 4 }}>
+          <Text style={{ color: '#bea063', fontSize: 14, fontWeight: '600' }}>
+            {(() => {
+              const firstLiker = likesUsers && likesUsers[0];
+              const firstName = firstLiker?.full_name || firstLiker?.user_name || firstLiker?.username;
+              const others = Math.max(0, likesCount - 1);
+              if (firstName) {
+                return (
+                  <>Liked by <Text style={{ fontWeight: 'bold' }}>{firstName}</Text>{others > 0 && (
+                    <Text style={{ fontWeight: 'normal' }}>{' '}and{' '}<Text style={{ fontWeight: 'bold' }}>{others} others</Text></Text>
+                  )}</>
+                ) as any;
+              }
+              return `${likesCount} ${likesCount === 1 ? 'like' : 'likes'}`;
+            })()}
+          </Text>
+        </TouchableOpacity>
+      )}
+
       {/* Save to Collection Modal */}
       <Modal
-      onTouchCancel={() =>setSaveModalVisible(false)}
+        onTouchCancel={() => setSaveModalVisible(false)}
         visible={saveModalVisible}
         transparent
         animationType="slide"
         onRequestClose={() => setSaveModalVisible(false)}
       >
-        <View style={styles.saveModalOverlay}>
-          <View style={styles.instagramSaveModalContent}>
+        <TouchableWithoutFeedback onPress={() => setSaveModalVisible(false)}>
+          <View style={styles.saveModalOverlay}>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            >
+              <TouchableWithoutFeedback onPress={() => {}}>
+                <View style={styles.instagramSaveModalContent} onStartShouldSetResponder={() => true}>
             {/* Drag handle */}
             <View style={{ alignItems: 'center', marginTop: 8, marginBottom: 12 }}>
               <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#eee' }} />
@@ -664,99 +1058,241 @@ const Post: React.FC<PostProps> = (props) => {
             {/* Collections Header */}
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 8 }}>
               <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#bea063' }}>Collections</Text>
-              <TouchableOpacity onPress={handleCreateCollection}>
-                <Text style={{ color: '#bea063', fontWeight: 'bold', fontSize: 15 }}>New collection</Text>
+              <TouchableOpacity onPress={() => setShowCreateCollectionInput(!showCreateCollectionInput)}>
+                <Text style={{ color: '#bea063', fontWeight: 'bold', fontSize: 15 }}>
+                  {showCreateCollectionInput ? 'Close' : 'New collection'}
+                </Text>
               </TouchableOpacity>
             </View>
-            {/* Collections List */}
-            {collectionsLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#bea063" />
-              </View>
-            ) : collections.length === 0 ? (
-              <View style={styles.emptyCollectionsContainer}>
-                {React.createElement(Ionicons, { name: "bookmark-outline", size: 60, color: "#ccc" })}
-                <Text style={[styles.emptyCollectionsTitle, { color: '#bea063' }]}>No Collections Yet</Text>
-                <Text style={[styles.emptyCollectionsSubtitle, { color: '#bea063' }]}>Create a collection to save your favorite posts</Text>
-                <TouchableOpacity 
-                  style={styles.createCollectionButton} 
-                  onPress={handleCreateCollection}
-                >
-                  <Text style={styles.createCollectionButtonText}>Create Collection</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <FlatList
-                data={collections}
-                keyExtractor={item => item.id.toString()}
-                renderItem={({ item }) => (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' }}>
-                    {item.cover_image ? (
-                      <Image
-                        source={{ uri: item.cover_image }}
-                        style={{ width: 48, height: 48, borderRadius: 12, marginRight: 14, backgroundColor: '#f5f5f5' }}
-                        resizeMode="cover"
-                      />
+            {/* Inline Create Collection Input */}
+            {showCreateCollectionInput && (
+              <View style={{ paddingHorizontal: 20, marginBottom: 10 }}>
+                <View style={{ marginBottom: 10 }}>
+                  {/* <Text style={{ fontSize: 16, fontWeight: '500', color: '#bea063', marginBottom: 10 }}>Name</Text> */}
+                  <TextInput
+                    style={{
+                      borderWidth: 1,
+                      borderColor: '#ddd',
+                      borderRadius: 8,
+                      padding: 15,
+                      fontSize: 16,
+                      color: '#bea063',
+                      backgroundColor: '#f9f9f9',
+                    }}
+                    value={newCollectionName}
+                    onChangeText={setNewCollectionName}
+                    placeholder="Collection name"
+                    placeholderTextColor="#999"
+                    autoFocus
+                    maxLength={50}
+                    returnKeyType="done"
+                    onSubmitEditing={handleCreateCollection}
+                    editable={!createCollectionLoading}
+                  />
+                  <Text style={{ fontSize: 12, color: '#bea063', textAlign: 'right', marginTop: 5 }}>
+                    {newCollectionName.length}/50
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      padding: 12,
+                      marginRight: 10,
+                      borderWidth: 1,
+                      borderColor: '#bea063',
+                      borderRadius: 5,
+                      alignItems: 'center',
+                      backgroundColor: '#fff',
+                    }}
+                    onPress={() => {
+                      setShowCreateCollectionInput(false);
+                      setNewCollectionName('');
+                    }}
+                    disabled={createCollectionLoading}
+                  >
+                    <Text style={{ fontSize: 16, color: '#bea063', fontWeight: '600' }}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      padding: 12,
+                      backgroundColor: '#bea063',
+                      borderRadius: 5,
+                      alignItems: 'center',
+                    }}
+                    onPress={handleCreateCollection}
+                    disabled={createCollectionLoading || !newCollectionName.trim()}
+                  >
+                    {createCollectionLoading ? (
+                      <ActivityIndicator size={20} color="#fff" />
                     ) : (
-                      <View style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 24,
-                        marginRight: 14,
-                        backgroundColor: '#fff',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        borderWidth: 1,
-                        borderColor: '#bea063',
-                      }}>
-                        {React.createElement(Ionicons, { name: 'person', size: 28, color: '#bea063' })}
-                      </View>
+                      <Text style={{ fontSize: 16, color: '#fff', fontWeight: '600' }}>
+                        Create
+                      </Text>
                     )}
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontWeight: 'bold', fontSize: 15, color: '#bea063' }}>{item.name}</Text>
-                      <Text style={{ color: '#bea063', fontSize: 13, marginTop: 2 }}>Private</Text>
-                    </View>
-                    <TouchableOpacity onPress={() => handleCollectionPress(item)} disabled={saveLoading}>
-                      {saveLoading && savingToCollectionId === item.id ? (
-                        <ActivityIndicator size={18} color="#bea063" />
-                      ) : (
-                        React.createElement(Ionicons, { name: 'add-circle-outline', size: 26, color: '#bea063' })
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                )}
-                style={{ maxHeight: 320 }}
-              />
+                  </TouchableOpacity>
+                </View>
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  backgroundColor: '#f8f8f8',
+                  padding: 15,
+                  borderRadius: 8,
+                  marginTop: 12,
+                }}>
+                  {React.createElement(Ionicons, { name: "information-circle-outline", size: 20, color: "#bea063" })}
+                  <Text style={{
+                    fontSize: 14,
+                    color: '#bea063',
+                    marginLeft: 10,
+                    flex: 1,
+                    lineHeight: 20,
+                  }}>
+                    Create a collection to organize and save your favorite posts
+                  </Text>
+                </View>
+              </View>
             )}
+            {/* Collections List */}
+            {!showCreateCollectionInput && (
+              <>
+                {collectionsLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#bea063" />
+                  </View>
+                ) : collections.length === 0 ? (
+                  <View style={styles.emptyCollectionsContainer}>
+                    {React.createElement(Ionicons, { name: "bookmark-outline", size: 60, color: "#ccc" })}
+                    <Text style={[styles.emptyCollectionsTitle, { color: '#bea063' }]}>No Collections Yet</Text>
+                    <Text style={[styles.emptyCollectionsSubtitle, { color: '#bea063' }]}>Create a collection to save your favorite posts</Text>
+                  </View>
+                ) : (
+                  <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+                    {collections.map((item) => (
+                      <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' }}>
+                        {item.cover_image ? (
+                          <Image
+                            source={{ uri: item.cover_image }}
+                            style={{ width: 48, height: 48, borderRadius: 12, marginRight: 14, backgroundColor: '#f5f5f5' }}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <View style={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: 24,
+                            marginRight: 14,
+                            backgroundColor: '#fff',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderWidth: 1,
+                            borderColor: '#bea063',
+                          }}>
+                            {React.createElement(Ionicons, { name: 'person', size: 28, color: '#bea063' })}
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontWeight: 'bold', fontSize: 15, color: '#bea063' }}>{item.name}</Text>
+                          <Text style={{ color: '#bea063', fontSize: 13, marginTop: 2 }}>Private</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => handleCollectionPress(item)} disabled={saveLoading}>
+                          {saveLoading && savingToCollectionId === item.id ? (
+                            <ActivityIndicator size={18} color="#bea063" />
+                          ) : (
+                            React.createElement(Ionicons, { name: 'add-circle-outline', size: 26, color: '#bea063' })
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </ScrollView>
+                )}
+              </>
+            )}
+                </View>
+              </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
+
+      {/* Create Collection Inline Modal */}
+
 
       {/* Options Modal */}
       <OptionsBottomSheet
-        visible={false} // This modal is now controlled by the parent
-        onClose={() => {}}
+        visible={optionsModalVisible}
+        onClose={() => setOptionsModalVisible(false)}
         navigation={navigation}
+        aboutStatusText={
+          followStatus === 'pending'
+            ? 'Requested'
+            : isFollowing
+              ? 'Unfollow'
+              : 'Follow'
+        }
+        onUnfollow={async () => {
+          setOptionsModalVisible(false);
+          if (followLoading || followStatus === 'pending') return;
+
+          const userId = profile.user || profile?.id || item?.profile?.id;
+          try {
+            const authToken = await AsyncStorage.getItem('accessToken');
+            const headers = {
+              'Accept': 'application/json',
+              'Authorization': `Bearer ${authToken}`
+            };
+            if (isFollowing) {
+              // Unfollow
+              const res = await axios.post(
+                'https://pashuahar.com/follower/unfollow/',
+                { user_id: userId || profile.id },
+                { headers }
+              );
+              if (res.data && (res.data.status || res.data.success)) {
+                await fetchFollowStatus(userId.toString());
+              }
+            } else {
+              // Follow
+              const res = await axios.post(
+                'https://pashuahar.com/follower/follow/',
+                { user_id: userId || profile.id },
+                { headers }
+              );
+              if (res.data && (res.data.status || res.data.success)) {
+                await fetchFollowStatus(userId.toString());
+              }
+            }
+          } catch (e) {
+            Alert.alert('Error', 'Failed to update follow status.');
+          }
+        }}
         onReport={() => {
+          setOptionsModalVisible(false);
           navigation.navigate('ContactUs');
         }}
         onSave={() => {
+          setOptionsModalVisible(false);
           handleSave();
         }}
         onRemix={() => {
+          setOptionsModalVisible(false);
           Alert.alert('Remix', 'Remix functionality coming soon!');
         }}
         onCutout={() => {
+          setOptionsModalVisible(false);
           Alert.alert('Cutout', 'Cutout sticker functionality coming soon!');
         }}
         onFavourite={() => {
+          setOptionsModalVisible(false);
           Alert.alert('Favourites', 'Add to Favourites coming soon!');
         }}
-        onUnfollow={() => {
-          Alert.alert('Unfollow', 'Unfollow functionality coming soon!');
-        }}
         onAbout={() => {
-          Alert.alert('About', 'About this account coming soon!');
+          setOptionsModalVisible(false);
+          const userId = profile.user || profile?.id || item?.profile?.id;
+          if (userId) {
+            navigation.navigate('UserProfile', { userId: userId.toString(), isFromSearch: true, isFromHome: true });
+          }
         }}
         onQRCode={() => {
           Alert.alert('QR Code', 'QR code functionality coming soon!');
@@ -768,7 +1304,7 @@ const Post: React.FC<PostProps> = (props) => {
           Alert.alert('Hide', 'Hide functionality coming soon!');
         }}
       />
-     {caption &&  <View style={styles.captionContainer}>
+      {caption && <View style={styles.captionContainer}>
         {/* <Text style={styles.captionUsername}>{username}</Text> */}
         <Text
           style={styles.caption}
@@ -788,11 +1324,16 @@ const Post: React.FC<PostProps> = (props) => {
         )}
       </View>}
       {allowComments && (
-        <TouchableOpacity onPress={handleComment} style={{paddingHorizontal: 10, marginBottom: 5}}>
-          <Text style={{color: '#bea063'}}>
-            {commentCount > 0 ? `View all ${commentCount} comments` : 'Add a comment'}
-          </Text>
-        </TouchableOpacity>
+        (() => {
+          const effectiveCommentCount = commentsList.length || commentCount || 0;
+          return (
+            <TouchableOpacity onPress={handleComment} style={{ paddingHorizontal: 10, marginBottom: 5 }}>
+              <Text style={{ color: '#bea063' }}>
+                {effectiveCommentCount > 0 ? `View all ${effectiveCommentCount} comments` : 'Add a comment'}
+              </Text>
+            </TouchableOpacity>
+          );
+        })()
       )}
       {!!createdAt && (
         <Text style={{
@@ -809,7 +1350,10 @@ const Post: React.FC<PostProps> = (props) => {
       <InstagramCommentModal
         visible={isInstagramCommentModalVisible}
         onClose={() => {
+          console.log('Closing InstagramCommentModal');
+          
           setInstagramCommentModalVisible(false);
+          refreshLikeAndCommentStatus();
           props.onActionComplete?.();
         }}
         postId={id}
@@ -818,7 +1362,207 @@ const Post: React.FC<PostProps> = (props) => {
         userAvatar={userAvatar}
         content_type={contentType}
         caption={caption}
+        onCommentAdded={(newComment) => {
+          // Update local state immediately for real-time updates
+          setCommentsList(prev => [...prev, newComment]);
+          // Call parent callback if provided
+          onCommentAdded?.(newComment);
+        }}
+        onCommentDeleted={(commentId) => {
+          // Update local state immediately for real-time updates
+          setCommentsList(prev => prev.filter(comment => comment.id !== parseInt(commentId)));
+          // Call parent callback if provided
+          onCommentDeleted?.(commentId);
+        }}
       />
+
+      {/* Likes List Modal */}
+      <Modal
+        visible={likesModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLikesModalVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ width: '88%', backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden' }}>
+            {/* Header */}
+            <View style={{ 
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' }
+              }>
+              <Text style={{ fontSize: 18,
+                fontWeight: 'bold',
+                color: '#333', }}>Liked by</Text>
+              <TouchableOpacity onPress={() => setLikesModalVisible(false)}>
+                {React.createElement(Ionicons, { name: 'close', size: 22, color: '#333' })}
+              </TouchableOpacity>
+            </View>
+
+            {/* List */}
+            {likesLoading ? (
+              <View style={{ padding: 24, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#bea063" />
+              </View>
+            ) : (
+              <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
+                {likesUsers.length === 0 ? (
+                  <View style={{ padding: 36, alignItems: 'center' }}>
+                    {React.createElement(Ionicons, { name: 'heart-outline', size: 60, color: '#ccc' })}
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: '#666', marginTop: 12 }}>No likes yet</Text>
+                    <Text style={{ fontSize: 14, color: '#999', marginTop: 4 }}>Be the first to like this</Text>
+                  </View>
+                ) : (
+                  likesUsers.map((u: any) => {
+                    const displayName = u?.full_name || u?.user_name || u?.username || 'Unknown';
+                    const handle = u?.username || u?.user_name ? `@${u?.username || u?.user_name}` : '';
+                    const avatar = u?.profile_picture || u?.avatar || null;
+                    const userIdForNav = u?.user_id || u?.id || null;
+                    const isLiker = true; // API already returns likers
+                    return (
+                      <TouchableOpacity
+                        key={`${userIdForNav}-${displayName}`}
+                        onPress={() => {
+                          setLikesModalVisible(false);
+                          if (userIdForNav) {
+                            navigation.navigate('UserProfile', { userId: String(userIdForNav), isFromSearch: true, isFromHome: true });
+                          }
+                        }}
+                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' }}
+                      >
+                        {avatar ? (
+                          <Image source={{ uri: avatar }} style={{ width: 54, height: 54, borderRadius: 27, marginRight: 14, backgroundColor: '#f5f5f5' }} />
+                        ) : (
+                          <View style={{ width: 54, height: 54, borderRadius: 27, marginRight: 14, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#bea063' }}>
+                            {React.createElement(Ionicons, { name: 'person', size: 26, color: '#bea063' })}
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontWeight: '800', fontSize: 16, color: '#bea063' }}>{displayName}</Text>
+                          {!!handle && <Text style={{ color: '#777', marginTop: 2 }}>{handle}</Text>}
+                        </View>
+                        {isLiker &&
+                          React.createElement(Ionicons, { name: 'heart', size: 22, color: '#ff6b6b' })
+                        }
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
+              </ScrollView>
+            )}
+
+            {/* Footer */}
+            <View style={{
+              padding: 16
+            }}>
+              <TouchableOpacity
+                onPress={() => setLikesModalVisible(false)}
+                style={{
+                  backgroundColor: '#bea063',
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                  // alignSelf: 'center', paddingHorizontal: 54, paddingVertical: 12, borderRadius: 10, backgroundColor: '#bea063' 
+                }}
+              >
+                <Text style={{
+                  color: '#fff',
+                  fontSize: 16,
+                  fontWeight: '600',
+                  // color: '#fff', fontWeight: '700' 
+                }}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Tags List Modal */}
+      <Modal
+        visible={tagsModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setTagsModalVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ width: '88%', backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden' }}>
+            {/* Header */}
+            <View style={{ 
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' }
+              }>
+              <Text style={{ fontSize: 18,
+                fontWeight: 'bold',
+                color: '#333', }}>Tagged users</Text>
+              <TouchableOpacity onPress={() => setTagsModalVisible(false)}>
+                {React.createElement(Ionicons, { name: 'close', size: 22, color: '#333' })}
+              </TouchableOpacity>
+            </View>
+
+            {/* List */}
+            {tagsLoading ? (
+              <View style={{ padding: 24, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#bea063" />
+              </View>
+            ) : (
+              <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
+                {mentionedUsers.length === 0 ? (
+                  <View style={{ padding: 36, alignItems: 'center' }}>
+                    {React.createElement(Ionicons, { name: 'pricetag-outline', size: 60, color: '#ccc' })}
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: '#666', marginTop: 12 }}>No tagged users</Text>
+                    <Text style={{ fontSize: 14, color: '#999', marginTop: 4 }}>No users are tagged in this post</Text>
+                  </View>
+                ) : (
+                  mentionedUsers.map((user: any) => {
+                    const displayName = user?.username || 'Unknown';
+                    const handle = user?.username ? `@${user?.username}` : '';
+                    const userIdForNav = user?.id || null;
+                    return (
+                      <TouchableOpacity
+                        key={`${userIdForNav}-${displayName}`}
+                        onPress={() => {
+                          setTagsModalVisible(false);
+                          if (userIdForNav) {
+                            navigation.navigate('UserProfile', { userId: String(userIdForNav), isFromSearch: true, isFromHome: true });
+                          }
+                        }}
+                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' }}
+                      >
+                        <View style={{ width: 54, height: 54, borderRadius: 27, marginRight: 14, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#bea063' }}>
+                          {React.createElement(Ionicons, { name: 'person', size: 26, color: '#bea063' })}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontWeight: '800', fontSize: 16, color: '#bea063' }}>{displayName}</Text>
+                          {!!handle && <Text style={{ color: '#777', marginTop: 2 }}>{handle}</Text>}
+                        </View>
+                        {React.createElement(Ionicons, { name: 'pricetag', size: 22, color: '#bea063' })}
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
+              </ScrollView>
+            )}
+
+            {/* Footer */}
+            <View style={{
+              padding: 16
+            }}>
+              <TouchableOpacity
+                onPress={() => setTagsModalVisible(false)}
+                style={{
+                  backgroundColor: '#bea063',
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{
+                  color: '#fff',
+                  fontSize: 16,
+                  fontWeight: '600',
+                }}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -1023,7 +1767,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 0,
-    paddingBottom: 0,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 0,
     maxHeight: '90%',
     width: '100%',
     alignSelf: 'flex-end',

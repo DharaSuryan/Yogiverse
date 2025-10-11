@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, FlatList, Image, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions, TouchableWithoutFeedback } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, FlatList, Image, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions, TouchableWithoutFeedback, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 const Ionicons = require('react-native-vector-icons/Ionicons').default;
@@ -15,6 +16,9 @@ interface InstagramCommentModalProps {
   userAvatar: string;
   content_type: string;
   caption?: string;
+  onCommentAdded?: (newComment: any) => void;
+  onCommentDeleted?: (commentId: string) => void;
+  useOverlay?: boolean; // when true, render as in-place overlay (no RN Modal)
 }
 
 interface Comment {
@@ -34,23 +38,40 @@ interface Comment {
 const emojiList = ['❤️', '🙌', '🔥', '👏', '😢', '😍', '😮', '😂'];
 const { width } = Dimensions.get('window');
 
-const InstagramCommentModal: React.FC<InstagramCommentModalProps> = ({ visible, onClose, postId, mediaUrl, username, userAvatar, content_type, caption }) => {
+const InstagramCommentModal: React.FC<InstagramCommentModalProps> = ({ visible, onClose, postId, mediaUrl, username, userAvatar, content_type, caption, onCommentAdded, onCommentDeleted, useOverlay }) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
   const [posting, setPosting] = useState(false);
-  const [currentUserAvatar, setCurrentUserAvatar] = useState<string>('https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User');
+  const [currentUserAvatar, setCurrentUserAvatar] = useState<string>('');
   const [userId, setUserId] = useState<number | null>(null);
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editText, setEditText] = useState('');
+  const [deleteLoadingId, setDeleteLoadingId] = useState<number | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const navigation = useNavigation();
-
+  const [currentUsername, setCurrentUsername] = useState<string>('');
   useEffect(() => {
     if (visible) {
       fetchComments();
       fetchCurrentUserProfile();
     }
   }, [visible, postId, content_type]);
+
+  useEffect(() => {
+    const fetchUserId = async () => {
+      try {
+        const value = await AsyncStorage.getItem('userData');
+        const userData = value ? JSON.parse(value) : {};
+        setCurrentUserId(userData.id);
+      } catch (e) {
+        setCurrentUserId(null);
+      }
+    };
+    fetchUserId();
+  }, []);
 
   const fetchComments = async () => {
     try {
@@ -91,9 +112,12 @@ const InstagramCommentModal: React.FC<InstagramCommentModalProps> = ({ visible, 
       const profileRes = await getProfile();
       const profilePic = profileRes?.data?.data?.profile?.profile_picture;
       setUserId(profileRes?.data?.data?.profile?.id);
-      setCurrentUserAvatar(profilePic || 'https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User');
+      console.log("profilePic", profileRes?.data?.data?.profile?.username);
+      setCurrentUsername(profileRes?.data?.data?.profile?.username);
+      
+      setCurrentUserAvatar(profilePic);
     } catch (e) {
-      setCurrentUserAvatar('https://via.placeholder.com/150/CCCCCC/FFFFFF?text=User');
+      setCurrentUserAvatar('');
     }
   };
 
@@ -114,7 +138,7 @@ const InstagramCommentModal: React.FC<InstagramCommentModalProps> = ({ visible, 
       });
       if (response.data.success) {
         const newCommentData = response.data.data;
-        setComments(prev => [...prev, {
+        const formattedComment = {
           id: newCommentData.id,
           text: newCommentData.text,
           user_id: newCommentData.user_id,
@@ -126,8 +150,13 @@ const InstagramCommentModal: React.FC<InstagramCommentModalProps> = ({ visible, 
           updated_at: newCommentData.updated_at,
           is_liked: false,
           likes_count: 0
-        }]);
+        };
+        setComments(prev => [...prev, formattedComment]);
         setNewComment('');
+        
+        // Call the callback to update parent component
+        onCommentAdded?.(formattedComment);
+        
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
         }, 200);
@@ -136,6 +165,45 @@ const InstagramCommentModal: React.FC<InstagramCommentModalProps> = ({ visible, 
       setError('Failed to post comment');
     } finally {
       setPosting(false);
+    }
+  };
+
+  const handleEditComment = async (commentId: number) => {
+    if (!editText.trim()) return;
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      };
+      await axios.patch(`https://pashuahar.com/comment/${commentId}/edit/`, { text: editText }, { headers });
+      setEditingCommentId(null);
+      setEditText('');
+      await fetchComments();
+    } catch (e) {
+      Alert.alert('Error', 'Failed to edit comment');
+    }
+  };
+
+  const handleDeleteComment = async (commentId: number) => {
+    setDeleteLoadingId(commentId);
+    try {
+      const authToken = await AsyncStorage.getItem('accessToken');
+      const headers = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      };
+      await axios.delete(`https://pashuahar.com/comment/${commentId}/delete/`, { headers });
+      
+      // Call the callback to update parent component
+      onCommentDeleted?.(commentId.toString());
+      
+      await fetchComments();
+    } catch (e) {
+      Alert.alert('Error', 'Failed to delete comment');
+    } finally {
+      setDeleteLoadingId(null);
     }
   };
 
@@ -157,142 +225,233 @@ const InstagramCommentModal: React.FC<InstagramCommentModalProps> = ({ visible, 
     }
   };
 
-  const renderComment = ({ item }: { item: Comment }) => (
-    <View style={styles.commentRow}>
-      <TouchableOpacity
-        style={styles.avatarWrap}
-        onPress={() => navigation.navigate('UserProfile', { userId: item.user_id.toString(), isFromSearch: true })}
-      >
-        {/* {item.full_name ? (
-          <View style={styles.avatarInitials}>
-            <Text style={styles.avatarInitialsText}>
-              {item.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
-            </Text>
+  const renderComment = ({ item }: { item: Comment }) => {
+    const isMine = currentUserId === item.user_id;
+    return (
+      <View style={styles.commentRow}>
+        <TouchableOpacity
+          style={styles.avatarWrap}
+          onPress={() => (navigation as any).navigate('UserProfile', { userId: item.user_id.toString(), isFromSearch: true })}
+        >
+          {/* {item.full_name ? (
+            <View style={styles.avatarInitials}>
+              <Text style={styles.avatarInitialsText}>
+                {item.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+              </Text>
+            </View>
+          ) : ( */}
+          <View style={{
+            width: 42,
+            height: 42,
+            borderRadius: 21,
+            backgroundColor: '#f5f5f5',
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderWidth: 1.5,
+            borderColor: '#bea063',
+            overflow: 'hidden',
+            marginRight: 4,
+          }}>
+            <Ionicons name="person-circle" size={38} color="#bea063" />
           </View>
-        ) : ( */}
-        <View style={{
-          width: 42,
-          height: 42,
-          borderRadius: 21,
-          backgroundColor: '#f5f5f5',
-          justifyContent: 'center',
-          alignItems: 'center',
-          borderWidth: 1.5,
-          borderColor: '#bea063',
-          overflow: 'hidden',
-          marginRight: 4,
-        }}>
-          <Ionicons name="person-circle" size={38} color="#bea063" />
+          {/* <Image source={{ uri: userAvatar }} style={styles.avatar} /> */}
+          {/* )} */}
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity
+              onPress={() => (navigation as any).navigate('UserProfile', { userId: item.user_id.toString(), isFromSearch: true })}
+            >
+              <Text style={styles.username}>{item.user_name}</Text>
+            </TouchableOpacity>
+            <Text style={styles.time}>{formatTime(item.created_at)}</Text>
+          </View>
+          <Text style={styles.commentText}>{item.text}</Text>
+          {isMine && (
+            <View style={{ flexDirection: 'row', marginTop: 4 }}>
+              {editingCommentId === item.id ? (
+                <>
+                  <TextInput
+                    value={editText}
+                    onChangeText={setEditText}
+                    style={{ borderWidth: 1, borderColor: '#bea063', borderRadius: 8, padding: 6, color: '#bea063', minWidth: 120 }}
+                    placeholder="Edit comment"
+                    placeholderTextColor="#bea063"
+                  />
+                  <TouchableOpacity onPress={() => handleEditComment(item.id)} style={{ marginLeft: 8 }}>
+                    <Text style={{ color: '#bea063', fontWeight: 'bold' }}>Save</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => { setEditingCommentId(null); setEditText(''); }} style={{ marginLeft: 8 }}>
+                    <Text style={{ color: '#888' }}>Cancel</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity onPress={() => { setEditingCommentId(item.id); setEditText(item.text); }} style={{ marginRight: 12 }}>
+                    <Text style={{ color: '#bea063', fontWeight: 'bold' }}>Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleDeleteComment(item.id)} disabled={deleteLoadingId === item.id}>
+                    {deleteLoadingId === item.id ? (
+                      <ActivityIndicator size={16} color="#bea063" />
+                    ) : (
+                      <Text style={{ color: '#ed4956', fontWeight: 'bold' }}>Delete</Text>
+                    )}
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          )}
         </View>
-        {/* <Image source={{ uri: userAvatar }} style={styles.avatar} /> */}
-        {/* )} */}
-      </TouchableOpacity>
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('UserProfile', { userId: item.user_id.toString(), isFromSearch: true })}
-          >
-            <Text style={styles.username}>{item.user_name}</Text>
-          </TouchableOpacity>
-          <Text style={styles.time}>{formatTime(item.created_at)}</Text>
-        </View>
-        <Text style={styles.commentText}>{item.text}</Text>
-        {/* <TouchableOpacity><Text style={styles.reply}>Reply</Text></TouchableOpacity> */}
+        {/* Like button can be added here if needed */}
       </View>
-      {/* Like button can be added here if needed */}
-    </View>
+    );
+  };
+
+  const content = (
+      <View style={styles.modalContainer}>
+        {/* Modal Header */}
+        <SafeAreaView edges={['top']} style={{ backgroundColor: '#fff' }}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity 
+              onPress={onClose} 
+              style={styles.closeButton} 
+              hitSlop={{ top: 14, left: 14, bottom: 14, right: 14 }}
+            >
+              <Ionicons name="close" size={24} color="#bea063" />
+            </TouchableOpacity>
+            <Text style={styles.title}>Comments</Text>
+            <View style={styles.headerSpacer} />
+          </View>
+        </SafeAreaView>
+        
+        {/* Drag handle */}
+        <View style={styles.handleContainer}>
+          <View style={styles.handle} />
+        </View>
+        
+        {/* Comments List */}
+        <View style={styles.commentsContainer}>
+          {loading ? (
+            <ActivityIndicator size="large" color="#bea063" style={{ marginTop: 20 }} />
+          ) : error ? (
+            <Text style={styles.errorText}>{error}</Text>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={comments}
+              keyExtractor={item => item.id.toString()}
+              style={{ flex: 1 }}
+              contentContainerStyle={{ flexGrow: 1, padding: 16, paddingBottom: 0 }}
+              renderItem={renderComment}
+              ListEmptyComponent={<Text style={styles.emptyComments}>No comments yet</Text>}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            />
+          )}
+        </View>
+        
+        {/* Emoji bar and input */}
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
+          <View style={styles.emojiBar}>
+            {emojiList.map((emoji, idx) => (
+              <TouchableOpacity key={idx} onPress={() => handleEmoji(emoji)}>
+                <Text style={styles.emoji}>{emoji}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={styles.inputRow}>
+            { currentUserAvatar ? <Image source={{ uri: currentUserAvatar }} style={styles.inputAvatar} />
+
+            :<View style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: "#eee",
+            marginRight: 12,
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}>
+            <Text style={{ color: '#bea063', fontSize: 18, fontWeight: 'bold' }}>
+              {(currentUsername?.charAt(0) || ' ').toUpperCase()}
+            </Text>
+          </View>}
+            <TextInput
+              style={styles.input}
+              placeholder={`Add a comment for ${username}`}
+              placeholderTextColor="#999"
+              value={newComment}
+              onChangeText={setNewComment}
+              editable={!posting}
+            />
+            <TouchableOpacity onPress={handlePostComment} style={styles.sendButton} disabled={posting || !newComment.trim()}>
+              {posting ? (
+                <ActivityIndicator size={18} color="#bea063" />
+              ) : (
+                <Ionicons name="send" size={22} color={newComment.trim() ? "#bea063" : "#ccc"} />
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
   );
+
+  if (useOverlay) {
+    if (!visible) return null;
+    return (
+      <View style={{
+        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+      }}>
+        {content}
+      </View>
+    );
+  }
 
   return (
     <Modal
       visible={visible}
       animationType="slide"
-      transparent
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback onPress={() => { }}>
-            <View style={styles.modalContent}>
-              {/* Drag handle */}
-              <View style={styles.handleContainer}>
-                <View style={styles.handle} />
-              </View>
-              {/* Title */}
-              <Text style={styles.title}>Comments</Text>
-              {/* Comments List */}
-              <View style={{ flex: 1, minHeight: 120 }}>
-                {loading ? (
-                  <ActivityIndicator size="large" color="#bea063" style={{ marginTop: 20 }} />
-                ) : error ? (
-                  <Text style={styles.errorText}>{error}</Text>
-                ) : (
-                  <FlatList
-                    ref={flatListRef}
-                    data={comments}
-                    keyExtractor={item => item.id.toString()}
-                    style={{ flex: 1 }}
-                    contentContainerStyle={{ flexGrow: 1, padding: 16, paddingBottom: 0 }}
-                    renderItem={renderComment}
-                    ListEmptyComponent={<Text style={styles.emptyComments}>No comments yet</Text>}
-                    keyboardShouldPersistTaps="handled"
-                  />
-                )}
-              </View>
-              {/* Emoji bar and input */}
-              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                <View style={styles.emojiBar}>
-                  {emojiList.map((emoji, idx) => (
-                    <TouchableOpacity key={idx} onPress={() => handleEmoji(emoji)}>
-                      <Text style={styles.emoji}>{emoji}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <View style={styles.inputRow}>
-                  <Image source={{ uri: currentUserAvatar }} style={styles.inputAvatar} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder={`Add a comment for ${username}`}
-                    placeholderTextColor="#bea063"
-                    value={newComment}
-                    onChangeText={setNewComment}
-                    editable={!posting}
-                  />
-                  <TouchableOpacity onPress={handlePostComment} style={styles.sendButton} disabled={posting || !newComment.trim()}>
-                    {posting ? (
-                      <ActivityIndicator size={18} color="#bea063" />
-                    ) : (
-                      <Ionicons name="send" size={22} color={newComment.trim() ? "#bea063" : "#ccc"} />
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </KeyboardAvoidingView>
-              {/* Close area */}
-              <TouchableOpacity style={styles.closeArea} onPress={onClose} />
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+      {content}
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.18)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    minHeight: '55%',
-    maxHeight: '85%',
-    width: '100%',
-    alignSelf: 'flex-end',
-    overflow: 'hidden',
-    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingTop: Platform.OS === 'ios' ? 20 : 12, // Add extra padding for iOS
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    backgroundColor: '#fff',
+    minHeight: Platform.OS === 'ios' ? 60 : 48, // Ensure minimum height for iOS
+  },
+  closeButton: {
+    padding: 8,
+    marginLeft: Platform.OS === 'ios' ? 6 : 0, // avoid notch safe-area overlap
+    zIndex: 10, // Ensure button is on top
+    minWidth: 40, // Ensure minimum touch target
+    minHeight: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerSpacer: {
+    width: 40, // Same width as close button for centering
   },
   handleContainer: {
     alignItems: 'center',
@@ -309,8 +468,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 18,
     color: '#bea063',
+    flex: 1,
     textAlign: 'center',
-    marginBottom: 8,
+    marginTop: Platform.OS === 'ios' ? 4 : 0, // Add margin for iOS
+    lineHeight: 22, // Ensure proper line height
+  },
+  commentsContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
   },
   postPreview: {
     paddingHorizontal: 16,
@@ -391,8 +556,8 @@ const styles = StyleSheet.create({
   },
   emojiBar: {
     flexDirection: 'row',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
     backgroundColor: '#fff',
@@ -405,8 +570,9 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 12, // Add safe area padding for iOS
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
