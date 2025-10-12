@@ -1778,10 +1778,10 @@ const UserProfileScreen = ({ navigation }: any) => {
         <View
           style={{
             width: windowWidth,
-            height: windowHeight * 0.5,
+            height: windowHeight * 0.66,
             alignSelf: 'center',
-            backgroundColor: 'black',
-            marginTop: 14,
+            backgroundColor: 'white',
+            marginTop: 5,
             // justifyContent: 'center',
             alignItems: 'center',
           }}>
@@ -1866,7 +1866,7 @@ const UserProfileScreen = ({ navigation }: any) => {
             />
           ) : // Single media item
             isVideo ? (
-              <View style={{ width: windowWidth, height: windowHeight * 0.6, backgroundColor: '#fff' }}>
+              <View style={{ width: windowWidth, height: windowHeight * 0.66, backgroundColor: '#fff' }}>
                 {videoLoading && (
                   <ActivityIndicator
                     size="large"
@@ -1919,8 +1919,8 @@ const UserProfileScreen = ({ navigation }: any) => {
                 source={{ uri: currentMedia }}
                 style={{
                   width: windowWidth,
-                  height: windowHeight * 0.5,
-                  resizeMode: 'stretch',
+                  height: windowHeight * 0.66,
+                  resizeMode: 'cover',
                   backgroundColor: '#fff',
                 }}
               />
@@ -1931,11 +1931,12 @@ const UserProfileScreen = ({ navigation }: any) => {
             <View
               style={{
                 position: 'absolute',
-                bottom: 20,
+                bottom: 68,
                 left: 0,
                 right: 0,
                 flexDirection: 'row',
                 justifyContent: 'center',
+                // backgroundColor: 'red',
               }}>
               {mediaItems.map((_: string, dotIndex: number) => (
                 <View
@@ -1946,8 +1947,8 @@ const UserProfileScreen = ({ navigation }: any) => {
                     borderRadius: 4,
                     backgroundColor:
                       dotIndex === currentMediaIndexForPost
-                        ? '#fff'
-                        : 'rgba(255,255,255,0.5)',
+                        ? '#bea063'
+                        : 'rgba(93, 88, 88, 0.5)',
                     marginHorizontal: 4,
                   }}
                 />

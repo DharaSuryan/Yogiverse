@@ -2442,7 +2442,7 @@ const ProfileScreen = ({ navigation }: any) => {
             }
           );
         }
-        const resolvedHeight = containerHeight || Math.min(windowHeight * 0.6, screenWidth);
+        const resolvedHeight = containerHeight + 60 || Math.min(windowHeight * 0.66, screenWidth);
         
         return (
           <View
@@ -2451,7 +2451,7 @@ const ProfileScreen = ({ navigation }: any) => {
               height: resolvedHeight,
               justifyContent: 'center',
               alignItems: 'center',
-              backgroundColor: '#000',
+              backgroundColor: '#ffffff',
             }}>
             {isVideo ? (
               <>
@@ -2545,7 +2545,7 @@ const ProfileScreen = ({ navigation }: any) => {
                 style={{
                   width: screenWidth,
                   height: resolvedHeight,
-                  resizeMode: 'stretch',
+                  resizeMode: 'cover',
                   backgroundColor: '#ffffff',
                 }}
               />
@@ -2572,7 +2572,7 @@ const ProfileScreen = ({ navigation }: any) => {
         );
       }
 
-      const resolvedHeight = containerHeight || windowHeight * 0.6;
+      const resolvedHeight = containerHeight + 60 || windowHeight * 0.66;
 
       return (
         <View
@@ -2801,7 +2801,7 @@ const ProfileScreen = ({ navigation }: any) => {
             alignItems: 'center',
             paddingHorizontal: 16,
             paddingVertical: 12,
-            marginTop: 8,
+            // marginTop: 2,
           }}>
           <TouchableOpacity
             onPress={() => handleLike(item)}
@@ -2912,7 +2912,7 @@ const ProfileScreen = ({ navigation }: any) => {
             const comments = postCommentsData[item.id];
             console.log(`[ProfileScreen] Rendering comments for post ${item.id}:`, comments);
             return comments && comments.length > 0 && item.allow_comments == false && (
-              <View style={{ marginBottom: 6 }}>
+              <View style={{ marginBottom: 1 }}>
                 <Text style={{ color: '#bea063', fontSize: 14, lineHeight: 18 }}>
                   <Text style={{ fontWeight: 'bold' }}>
                     {comments[0]?.full_name || comments[0]?.user_name}
